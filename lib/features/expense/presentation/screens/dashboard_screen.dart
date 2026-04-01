@@ -1,0 +1,682 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/ai/expense_result.dart';
+import '../../../../core/preferences/app_preferences.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/utils/bangla_formatters.dart';
+import '../../domain/entities/dashboard_data.dart';
+import '../../domain/entities/expense_entity.dart';
+import '../providers/expense_providers.dart';
+import '../utils/expense_category_meta.dart';
+
+class DashboardScreen extends ConsumerWidget {
+  const DashboardScreen({
+    super.key,
+    required this.onOpenExpenses,
+    required this.onOpenChat,
+  });
+
+  final ValueChanged<String?> onOpenExpenses;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashboard = ref.watch(dashboardControllerProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('হোম')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showQuickAddSheet(context, ref),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: dashboard.when(
+        data: (data) {
+          final todayTotal = data.todayExpenses.fold<double>(
+            0,
+            (sum, expense) => sum + expense.amount,
+          );
+
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(dashboardControllerProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              children: [
+                _HeaderCard(data: data),
+                const SizedBox(height: AppSpacing.md),
+                _QuickStatsRow(
+                  todayTotal: todayTotal,
+                  weekTotal: data.thisWeekTotal,
+                  transactionCount: data.transactionCount,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _SectionHeader(
+                  title: 'Category অনুযায়ী',
+                  actionLabel: 'সব দেখুন',
+                  onTap: () => onOpenExpenses(null),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _CategoryScroller(
+                  totals: data.categoryTotals,
+                  onTapCategory: onOpenExpenses,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _SectionHeader(
+                  title: 'সাম্প্রতিক খরচ',
+                  actionLabel: 'সব দেখুন →',
+                  onTap: () => onOpenExpenses(null),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (data.recentExpenses.isEmpty)
+                  _DashboardEmptyState(onOpenChat: onOpenChat)
+                else
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        children: data.recentExpenses
+                            .take(5)
+                            .map(
+                              (expense) => Column(
+                                children: [
+                                  _RecentExpenseTile(expense: expense),
+                                  if (expense !=
+                                      data.recentExpenses.take(5).last)
+                                    const Divider(height: 1),
+                                ],
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+        loading: () => const _DashboardLoading(),
+        error: (error, stackTrace) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              'ড্যাশবোর্ড লোড করা যায়নি\n$error',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyLarge,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showQuickAddSheet(BuildContext context, WidgetRef ref) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => _QuickAddSheet(
+        onSaved: (expense) async {
+          final error = await ref
+              .read(expenseMutationControllerProvider)
+              .saveDetectedExpense(expense);
+          if (sheetContext.mounted) {
+            Navigator.of(sheetContext).pop();
+          }
+          if (!context.mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error ?? 'খরচ যোগ করা হয়েছে')));
+        },
+      ),
+    );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.data});
+
+  final DashboardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final difference = data.thisMonthTotal - data.lastMonthTotal;
+    final hasDifference = difference.abs() > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primaryDark, AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x261A73E8),
+            blurRadius: 28,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            BanglaFormatters.monthYear(DateTime.now()),
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            BanglaFormatters.currency(data.thisMonthTotal),
+            style: AppTextStyles.displayLarge.copyWith(
+              color: Colors.white,
+              fontSize: 34,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'এই মাসে মোট খরচ',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              hasDifference
+                  ? 'গত মাসের চেয়ে ${difference.isNegative ? '↓' : '↑'} ${BanglaFormatters.currency(difference.abs())}'
+                  : 'গত মাসের মতোই খরচ',
+              style: TextStyle(
+                color: difference.isNegative
+                    ? const Color(0xFFC8FACC)
+                    : const Color(0xFFFFD2D2),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickStatsRow extends StatelessWidget {
+  const _QuickStatsRow({
+    required this.todayTotal,
+    required this.weekTotal,
+    required this.transactionCount,
+  });
+
+  final double todayTotal;
+  final double weekTotal;
+  final int transactionCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            icon: Icons.today_rounded,
+            label: 'আজকে',
+            value: BanglaFormatters.currency(todayTotal),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.view_week_rounded,
+            label: 'এই সপ্তাহে',
+            value: BanglaFormatters.currency(weekTotal),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.receipt_long_rounded,
+            label: 'Transactions',
+            value: '${BanglaFormatters.count(transactionCount)}টি',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(height: 10),
+            Text(value, style: AppTextStyles.titleMedium),
+            const SizedBox(height: 4),
+            Text(label, style: AppTextStyles.caption),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryScroller extends StatelessWidget {
+  const _CategoryScroller({required this.totals, required this.onTapCategory});
+
+  final Map<String, double> totals;
+  final ValueChanged<String?> onTapCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: expenseCategories
+            .map((category) {
+              final meta = resolveExpenseCategory(category);
+              final amount = totals[category] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => onTapCategory(category),
+                  child: Ink(
+                    width: 150,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: meta.color.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: meta.color.withValues(alpha: 0.12),
+                          child: Icon(meta.icon, color: meta.color),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(category, style: AppTextStyles.titleMedium),
+                        const SizedBox(height: 4),
+                        Text(
+                          BanglaFormatters.currency(amount),
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
+class _RecentExpenseTile extends StatelessWidget {
+  const _RecentExpenseTile({required this.expense});
+
+  final ExpenseEntity expense;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = resolveExpenseCategory(expense.category);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: meta.color.withValues(alpha: 0.12),
+            child: Icon(meta.icon, color: meta.color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(expense.description, style: AppTextStyles.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  '${BanglaFormatters.relativeDay(expense.date)} · ${expense.category}',
+                  style: AppTextStyles.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            BanglaFormatters.currency(expense.amount),
+            style: AppTextStyles.titleMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardEmptyState extends StatelessWidget {
+  const _DashboardEmptyState({required this.onOpenChat});
+
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        child: Column(
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 40,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('এখনো কোনো খরচ নেই', style: AppTextStyles.titleLarge),
+            const SizedBox(height: 8),
+            const Text(
+              'চ্যাটে গিয়ে খরচ যোগ করুন',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: onOpenChat,
+              child: const Text('চ্যাটে যান'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.actionLabel, this.onTap});
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(title, style: AppTextStyles.titleLarge),
+        const Spacer(),
+        if (actionLabel != null && onTap != null)
+          TextButton(onPressed: onTap, child: Text(actionLabel!)),
+      ],
+    );
+  }
+}
+
+class _DashboardLoading extends StatelessWidget {
+  const _DashboardLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: const [
+        ShimmerBox(height: 180, radius: 28),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: ShimmerBox(height: 96)),
+            SizedBox(width: 12),
+            Expanded(child: ShimmerBox(height: 96)),
+            SizedBox(width: 12),
+            Expanded(child: ShimmerBox(height: 96)),
+          ],
+        ),
+        SizedBox(height: 24),
+        ShimmerBox(height: 28, width: 160),
+        SizedBox(height: 12),
+        SizedBox(
+          height: 126,
+          child: Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 126)),
+              SizedBox(width: 12),
+              Expanded(child: ShimmerBox(height: 126)),
+            ],
+          ),
+        ),
+        SizedBox(height: 24),
+        ShimmerBox(height: 28, width: 150),
+        SizedBox(height: 12),
+        ShimmerBox(height: 76),
+        SizedBox(height: 12),
+        ShimmerBox(height: 76),
+        SizedBox(height: 12),
+        ShimmerBox(height: 76),
+      ],
+    );
+  }
+}
+
+class _QuickAddSheet extends ConsumerStatefulWidget {
+  const _QuickAddSheet({required this.onSaved});
+
+  final Future<void> Function(ExpenseData expense) onSaved;
+
+  @override
+  ConsumerState<_QuickAddSheet> createState() => _QuickAddSheetState();
+}
+
+class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
+  final _descriptionController = TextEditingController();
+  final _amountController = TextEditingController();
+  bool _saving = false;
+  String _selectedCategory = 'Other';
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaults();
+  }
+
+  Future<void> _loadDefaults() async {
+    final category = await AppPreferences.defaultCategory();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedCategory = category;
+    });
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 52,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.grey200,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text('Quick add', style: AppTextStyles.displayMedium),
+            const SizedBox(height: 6),
+            const Text(
+              'দ্রুত নতুন খরচ যোগ করুন',
+              style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(hintText: 'কী কিনলেন?'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(hintText: 'পরিমাণ'),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 42,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemBuilder: (context, index) {
+                  final category = expenseCategories[index];
+                  final selected = category == _selectedCategory;
+                  return ChoiceChip(
+                    label: Text(category),
+                    selected: selected,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                  );
+                },
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemCount: expenseCategories.length,
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(Icons.calendar_month_rounded),
+              label: Text(BanglaFormatters.fullDate(_selectedDate)),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked == null) {
+      return;
+    }
+    setState(() {
+      _selectedDate = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _selectedDate.hour,
+        _selectedDate.minute,
+      );
+    });
+  }
+
+  Future<void> _save() async {
+    final amount = double.tryParse(_amountController.text.trim());
+    final description = _descriptionController.text.trim();
+    if (amount == null || amount <= 0 || description.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('সব তথ্য ঠিকভাবে দিন')));
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    await widget.onSaved(
+      ExpenseData(
+        amount: amount,
+        category: _selectedCategory,
+        description: description,
+        date: _selectedDate.toIso8601String().split('T').first,
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _saving = false;
+    });
+  }
+}

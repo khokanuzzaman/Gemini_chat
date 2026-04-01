@@ -1,0 +1,324 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:isar/isar.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'core/constants/app_strings.dart';
+import 'core/database/expense_local_datasource.dart';
+import 'core/database/expense_seed_data.dart';
+import 'core/database/models/expense_record_model.dart';
+import 'core/preferences/app_preferences.dart';
+import 'core/providers/database_providers.dart';
+import 'core/theme/app_theme.dart';
+import 'features/chat/data/models/message_model.dart';
+import 'features/chat/presentation/providers/chat_provider.dart';
+import 'features/chat/presentation/screens/chat_screen.dart';
+import 'features/expense/presentation/providers/expense_providers.dart';
+import 'features/expense/presentation/screens/analytics_screen.dart';
+import 'features/expense/presentation/screens/dashboard_screen.dart';
+import 'features/expense/presentation/screens/expense_list_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
+import 'features/splash/splash_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('bn');
+  await dotenv.load(fileName: '.env');
+
+  final isar = await _openIsar();
+  final expenseLocalDataSource = ExpenseLocalDataSource(isar);
+  await ExpenseSeedData.seedIfNeeded(expenseLocalDataSource);
+
+  runApp(
+    ProviderScope(
+      overrides: [isarProvider.overrideWithValue(isar)],
+      child: const ExpenseTrackerApp(),
+    ),
+  );
+}
+
+Future<Isar> _openIsar() async {
+  const instanceName = 'gemini_chat';
+  final existingInstance = Isar.getInstance(instanceName);
+  if (existingInstance != null) {
+    return existingInstance;
+  }
+
+  final directory = await getApplicationDocumentsDirectory();
+  return Isar.open(
+    [MessageModelSchema, ExpenseRecordModelSchema],
+    directory: directory.path,
+    name: instanceName,
+  );
+}
+
+class ExpenseTrackerApp extends StatelessWidget {
+  const ExpenseTrackerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: AppStrings.appName,
+      locale: const Locale('bn', 'BD'),
+      supportedLocales: const [Locale('bn', 'BD'), Locale('en', 'US')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      theme: AppTheme.lightTheme(),
+      home: const _AppBootstrap(),
+    );
+  }
+}
+
+class _AppBootstrap extends StatefulWidget {
+  const _AppBootstrap();
+
+  @override
+  State<_AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<_AppBootstrap> {
+  bool _showSplash = true;
+  bool _onboardingComplete = false;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final onboardingComplete = await AppPreferences.isOnboardingComplete();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _onboardingComplete = onboardingComplete;
+      _ready = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      child: _showSplash
+          ? SplashScreen(
+              key: const ValueKey('splash'),
+              onFinished: () {
+                if (!mounted) {
+                  return;
+                }
+                setState(() {
+                  _showSplash = false;
+                });
+              },
+            )
+          : _onboardingComplete
+          ? const _MainShell(key: ValueKey('shell'))
+          : OnboardingScreen(
+              key: const ValueKey('onboarding'),
+              onComplete: () {
+                if (!mounted) {
+                  return;
+                }
+                setState(() {
+                  _onboardingComplete = true;
+                });
+              },
+            ),
+    );
+  }
+}
+
+class _MainShell extends ConsumerStatefulWidget {
+  const _MainShell({super.key});
+
+  @override
+  ConsumerState<_MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<_MainShell> {
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydratePreferences();
+  }
+
+  Future<void> _hydratePreferences() async {
+    final ragEnabled = await AppPreferences.isRagEnabled();
+    if (!mounted) {
+      return;
+    }
+    ref.read(ragEnabledProvider.notifier).state = ragEnabled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screens = [
+      DashboardScreen(
+        onOpenExpenses: _openExpenses,
+        onOpenChat: () => setState(() => _currentIndex = 1),
+      ),
+      const ChatScreen(),
+      const ExpenseListScreen(),
+      const AnalyticsScreen(),
+    ];
+
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFFDFEFF), Color(0xFFF7FAFF)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: IndexedStack(index: _currentIndex, children: screens),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: NavigationBar(
+            height: 72,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            indicatorColor: Colors.transparent,
+            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: _NavIcon(
+                  icon: Icons.home_rounded,
+                  label: 'হোম',
+                  active: false,
+                ),
+                selectedIcon: _NavIcon(
+                  icon: Icons.home_rounded,
+                  label: 'হোম',
+                  active: true,
+                ),
+                label: 'হোম',
+              ),
+              NavigationDestination(
+                icon: _NavIcon(
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'চ্যাট',
+                  active: false,
+                ),
+                selectedIcon: _NavIcon(
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'চ্যাট',
+                  active: true,
+                ),
+                label: 'চ্যাট',
+              ),
+              NavigationDestination(
+                icon: _NavIcon(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'খরচ',
+                  active: false,
+                ),
+                selectedIcon: _NavIcon(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'খরচ',
+                  active: true,
+                ),
+                label: 'খরচ',
+              ),
+              NavigationDestination(
+                icon: _NavIcon(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'বিশ্লেষণ',
+                  active: false,
+                ),
+                selectedIcon: _NavIcon(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'বিশ্লেষণ',
+                  active: true,
+                ),
+                label: 'বিশ্লেষণ',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openExpenses(String? category) async {
+    final controller = ref.read(expenseListControllerProvider.notifier);
+    await controller.clearFilters();
+    if (category != null) {
+      await controller.setCategory(category);
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentIndex = 2;
+    });
+  }
+}
+
+class _NavIcon extends StatelessWidget {
+  const _NavIcon({
+    required this.icon,
+    required this.label,
+    required this.active,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedOpacity(
+          opacity: active ? 1 : 0,
+          duration: const Duration(milliseconds: 180),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Icon(icon, color: active ? AppColors.primary : AppColors.grey600),
+      ],
+    );
+  }
+}
