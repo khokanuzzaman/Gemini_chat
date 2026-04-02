@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/chart_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
@@ -17,7 +19,10 @@ class AnalyticsScreen extends ConsumerWidget {
     final analytics = ref.watch(analyticsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('বিশ্লেষণ')),
+      appBar: AppBar(
+        title: const Text('বিশ্লেষণ'),
+        actions: const [GlobalSettingsButton()],
+      ),
       body: analytics.when(
         data: (state) {
           final data = state.data;
@@ -227,8 +232,10 @@ class _SpendingTrendChart extends ConsumerWidget {
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
-                    getDrawingHorizontalLine: (_) =>
-                        const FlLine(color: AppColors.grey200, strokeWidth: 1),
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: ChartTheme.gridLine(context),
+                      strokeWidth: 1,
+                    ),
                   ),
                   borderData: FlBorderData(show: false),
                   lineTouchData: LineTouchData(
@@ -312,7 +319,7 @@ class _SpendingTrendChart extends ConsumerWidget {
                             radius: isSelected ? 6 : 4,
                             color: AppColors.primary,
                             strokeWidth: 2,
-                            strokeColor: Colors.white,
+                            strokeColor: Theme.of(context).cardColor,
                           );
                         },
                       ),
@@ -374,6 +381,9 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
                     PieChart(
                       PieChartData(
                         centerSpaceRadius: 54,
+                        centerSpaceColor: Theme.of(
+                          context,
+                        ).scaffoldBackgroundColor,
                         sectionsSpace: 4,
                         pieTouchData: PieTouchData(
                           touchCallback: (event, response) {
@@ -571,7 +581,7 @@ class _ComparisonSection extends StatelessWidget {
                           child: Container(
                             height: 10,
                             decoration: BoxDecoration(
-                              color: AppColors.grey200,
+                              color: ChartTheme.barBackground(context),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             clipBehavior: Clip.antiAlias,
@@ -587,7 +597,7 @@ class _ComparisonSection extends StatelessWidget {
                           child: Container(
                             height: 10,
                             decoration: BoxDecoration(
-                              color: AppColors.grey200,
+                              color: ChartTheme.barBackground(context),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             clipBehavior: Clip.antiAlias,
@@ -685,13 +695,13 @@ class _AnalyticsEmptyState extends StatelessWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.grey50,
+                    color: context.mutedSurfaceColor,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.insert_chart_outlined_rounded,
                     size: 40,
-                    color: AppColors.grey400,
+                    color: context.secondaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 16),

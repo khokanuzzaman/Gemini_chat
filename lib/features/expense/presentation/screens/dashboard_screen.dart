@@ -5,6 +5,7 @@ import '../../../../core/ai/expense_result.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
@@ -26,15 +27,18 @@ class DashboardScreen extends ConsumerWidget {
     final dashboard = ref.watch(dashboardControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('হোম')),
+      appBar: AppBar(
+        title: const Text('হোম'),
+        actions: const [GlobalSettingsButton()],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showQuickAddSheet(context, ref),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         child: const Icon(Icons.add_rounded),
       ),
       body: dashboard.when(
         data: (data) {
+          final recentExpenses = [...data.recentExpenses]
+            ..sort((first, second) => second.date.compareTo(first.date));
           final todayTotal = data.todayExpenses.fold<double>(
             0,
             (sum, expense) => sum + expense.amount,
@@ -71,22 +75,27 @@ class DashboardScreen extends ConsumerWidget {
                   onTap: () => onOpenExpenses(null),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                if (data.recentExpenses.isEmpty)
+                if (recentExpenses.isEmpty)
                   _DashboardEmptyState(onOpenChat: onOpenChat)
                 else
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Column(
-                        children: data.recentExpenses
+                        children: recentExpenses
                             .take(5)
                             .map(
                               (expense) => Column(
                                 children: [
                                   _RecentExpenseTile(expense: expense),
                                   if (expense !=
-                                      data.recentExpenses.take(5).last)
-                                    const Divider(height: 1),
+                                      recentExpenses.take(5).last)
+                                    Divider(
+                                      height: 1,
+                                      color: context.borderColor.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                    ),
                                 ],
                               ),
                             )
@@ -117,7 +126,7 @@ class DashboardScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.cardBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -160,9 +169,9 @@ class _HeaderCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x261A73E8),
+            color: AppColors.primary.withValues(alpha: 0.2),
             blurRadius: 28,
             offset: Offset(0, 14),
           ),
@@ -173,26 +182,30 @@ class _HeaderCard extends StatelessWidget {
         children: [
           Text(
             BanglaFormatters.monthYear(DateTime.now()),
-            style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.lightBackground.withValues(alpha: 0.72),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             BanglaFormatters.currency(data.thisMonthTotal),
             style: AppTextStyles.displayLarge.copyWith(
-              color: Colors.white,
+              color: AppColors.lightBackground,
               fontSize: 34,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'এই মাসে মোট খরচ',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(
+              color: AppColors.lightBackground.withValues(alpha: 0.72),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
+              color: AppColors.lightBackground.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -311,7 +324,7 @@ class _CategoryScroller extends StatelessWidget {
                     width: 150,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.cardBackgroundColor,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: meta.color.withValues(alpha: 0.25),
@@ -401,13 +414,13 @@ class _DashboardEmptyState extends StatelessWidget {
               width: 82,
               height: 82,
               decoration: BoxDecoration(
-                color: AppColors.primaryLight,
+                color: context.ragChipBackgroundColor,
                 borderRadius: BorderRadius.circular(28),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 40,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 16),
@@ -554,7 +567,7 @@ class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
                 width: 52,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppColors.grey200,
+                  color: context.borderColor,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),

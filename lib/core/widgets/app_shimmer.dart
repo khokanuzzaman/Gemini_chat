@@ -10,9 +10,16 @@ class AppShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = context.isDarkMode
+        ? AppColors.darkSurface
+        : AppColors.grey100;
+    final highlightColor = context.isDarkMode
+        ? AppColors.darkCard
+        : AppColors.lightBackground;
+
     return Shimmer.fromColors(
-      baseColor: AppColors.grey100,
-      highlightColor: Colors.white,
+      baseColor: baseColor,
+      highlightColor: highlightColor,
       child: child,
     );
   }
@@ -37,7 +44,7 @@ class ShimmerBox extends StatelessWidget {
         height: height,
         width: width,
         decoration: BoxDecoration(
-          color: AppColors.grey100,
+          color: context.isDarkMode ? AppColors.darkSurface : AppColors.grey100,
           borderRadius: BorderRadius.circular(radius),
         ),
       ),

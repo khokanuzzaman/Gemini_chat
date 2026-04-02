@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
 
@@ -60,10 +61,10 @@ class _MultipleExpenseConfirmationWidgetState
         ),
         child: Card(
           elevation: 0,
-          color: Colors.white,
+          color: context.cardBackgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(22),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: BorderSide(color: context.borderColor),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -119,7 +120,7 @@ class _MultipleExpenseConfirmationWidgetState
                   Text(
                     '${BanglaFormatters.count(_displayExpenses.length)}টি খরচ পাওয়া গেছে',
                     style: const TextStyle(
-                      color: Color(0xFF1D4ED8),
+                      color: AppColors.primary,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -159,7 +160,7 @@ class _MultipleExpenseConfirmationWidgetState
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                Divider(height: 1, color: context.borderColor),
                 const SizedBox(height: 14),
                 Row(
                   children: [
@@ -168,8 +169,8 @@ class _MultipleExpenseConfirmationWidgetState
                         allSameDate
                             ? 'মোট: ${BanglaFormatters.currency(selectedTotal)}'
                             : 'মোট: ${BanglaFormatters.currency(selectedTotal)} — ${BanglaFormatters.count(selectedDays)}টি দিনের খরচ',
-                        style: const TextStyle(
-                          color: Color(0xFF0F172A),
+                        style: TextStyle(
+                          color: context.primaryTextColor,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
@@ -178,8 +179,8 @@ class _MultipleExpenseConfirmationWidgetState
                     OutlinedButton(
                       onPressed: widget.onCancel,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFDC2626),
-                        side: const BorderSide(color: Color(0xFFDC2626)),
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
                       ),
                       child: const Text(AppStrings.cancelButton),
                     ),
@@ -189,8 +190,10 @@ class _MultipleExpenseConfirmationWidgetState
                           ? null
                           : () => widget.onSave(_selectedExpenses),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A),
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary,
                       ),
                       child: const Text(AppStrings.saveButton),
                     ),
@@ -321,23 +324,23 @@ class _GroupHeader extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: context.mutedSurfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: context.borderColor),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_month_rounded,
               size: 18,
-              color: Color(0xFF334155),
+              color: context.secondaryTextColor,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
+                style: TextStyle(
+                  color: context.primaryTextColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -351,10 +354,10 @@ class _GroupHeader extends StatelessWidget {
               const _DateBadge(label: 'ভবিষ্যৎ'),
               const SizedBox(width: 6),
             ],
-            const Icon(
+            Icon(
               Icons.edit_calendar_rounded,
               size: 16,
-              color: Color(0xFF64748B),
+              color: context.secondaryTextColor,
             ),
           ],
         ),
@@ -439,15 +442,15 @@ class _DateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: context.borderColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF475569),
+          style: TextStyle(
+            color: context.secondaryTextColor,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/ai/rag_response_parser.dart';
+import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
 import 'rag_card_shell.dart';
@@ -21,7 +22,8 @@ class RagTodayWidget extends StatelessWidget {
     final total = data.totalAmount ?? 0;
 
     return RagAnimatedCard(
-      borderColor: const Color(0xFFBFDBFE),
+      borderColor: context.ragCardBorder(AppColors.primary),
+      backgroundColor: context.ragCardBackground(AppColors.primary),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -38,17 +40,17 @@ class RagTodayWidget extends StatelessWidget {
                 children: [
                   Text(
                     BanglaFormatters.currency(total),
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
+                    style: TextStyle(
+                      color: context.primaryTextColor,
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'আজকে মোট',
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: context.secondaryTextColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -62,24 +64,24 @@ class RagTodayWidget extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.cardBackgroundColor,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: context.borderColor),
                 ),
-                child: const Text(
+                child: Text(
                   'আজকে এখনো কোনো খরচ নেই',
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: context.secondaryTextColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               )
             else ...[
-              const Text(
+              Text(
                 'আজকের লেনদেন',
                 style: TextStyle(
-                  color: Color(0xFF0F172A),
+                  color: context.primaryTextColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -111,9 +113,9 @@ class _TodayTransactionRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBackgroundColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(
         children: [
@@ -132,8 +134,8 @@ class _TodayTransactionRow extends StatelessWidget {
           Expanded(
             child: Text(
               item.description,
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
+              style: TextStyle(
+                color: context.primaryTextColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -142,8 +144,8 @@ class _TodayTransactionRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             BanglaFormatters.currency(item.amount),
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
+            style: TextStyle(
+              color: context.primaryTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -151,8 +153,8 @@ class _TodayTransactionRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             date == null ? item.date : BanglaFormatters.time(date),
-            style: const TextStyle(
-              color: Color(0xFF64748B),
+            style: TextStyle(
+              color: context.secondaryTextColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),

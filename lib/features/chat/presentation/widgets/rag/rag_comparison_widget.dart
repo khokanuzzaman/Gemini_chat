@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/ai/rag_response_parser.dart';
+import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import 'rag_card_shell.dart';
 
@@ -26,8 +27,8 @@ class RagComparisonWidget extends StatelessWidget {
     final insightLines = data.insights ?? const <String>[];
 
     return RagAnimatedCard(
-      borderColor: const Color(0xFFFED7AA),
-      backgroundColor: const Color(0xFFFFFBEB),
+      borderColor: context.ragCardBorder(AppColors.warning),
+      backgroundColor: context.ragCardBackground(AppColors.warning),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -63,9 +64,11 @@ class RagComparisonWidget extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.cardBackgroundColor,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFDE68A)),
+                border: Border.all(
+                  color: context.ragCardBorder(AppColors.warning),
+                ),
               ),
               child: Column(
                 children: [
@@ -136,17 +139,17 @@ class _AmountColumn extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBackgroundColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(color: context.ragCardBorder(AppColors.warning)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
+            style: TextStyle(
+              color: context.secondaryTextColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -154,8 +157,8 @@ class _AmountColumn extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             BanglaFormatters.currency(amount),
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
+            style: TextStyle(
+              color: context.primaryTextColor,
               fontSize: 22,
               fontWeight: FontWeight.w900,
             ),
@@ -194,8 +197,8 @@ class _TableHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF64748B),
+      style: TextStyle(
+        color: context.secondaryTextColor,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
@@ -233,8 +236,8 @@ class _ComparisonRow extends StatelessWidget {
         Expanded(
           child: Text(
             category,
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
+            style: TextStyle(
+              color: context.primaryTextColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -273,7 +276,7 @@ class _InsightLine extends StatelessWidget {
         ? const Color(0xFF16A34A)
         : isWarning
         ? const Color(0xFFF59E0B)
-        : const Color(0xFF334155);
+        : Theme.of(context).textTheme.bodySmall?.color ?? AppColors.grey600;
     final prefix = isPositive
         ? '✅'
         : isWarning

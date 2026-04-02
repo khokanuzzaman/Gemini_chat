@@ -59,8 +59,10 @@ class GetAnalyticsUseCase {
   Map<DateTime, List<ExpenseEntity>> _groupExpensesByDay(
     List<ExpenseEntity> expenses,
   ) {
+    final sortedExpenses = [...expenses]
+      ..sort((first, second) => second.date.compareTo(first.date));
     final grouped = <DateTime, List<ExpenseEntity>>{};
-    for (final expense in expenses) {
+    for (final expense in sortedExpenses) {
       final day = DateTime(
         expense.date.year,
         expense.date.month,
@@ -68,6 +70,11 @@ class GetAnalyticsUseCase {
       );
       grouped.putIfAbsent(day, () => []).add(expense);
     }
+
+    for (final entry in grouped.entries) {
+      entry.value.sort((first, second) => second.date.compareTo(first.date));
+    }
+
     return grouped;
   }
 

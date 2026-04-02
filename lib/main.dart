@@ -13,6 +13,7 @@ import 'core/database/models/expense_record_model.dart';
 import 'core/preferences/app_preferences.dart';
 import 'core/providers/database_providers.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/chat/data/models/message_model.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
@@ -27,6 +28,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('bn');
   await dotenv.load(fileName: '.env');
+  final savedThemeMode = await _loadSavedThemeMode();
 
   final isar = await _openIsar();
   final expenseLocalDataSource = ExpenseLocalDataSource(isar);
@@ -34,10 +36,22 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [isarProvider.overrideWithValue(isar)],
+      overrides: [
+        isarProvider.overrideWithValue(isar),
+        themeBootstrapProvider.overrideWithValue(savedThemeMode),
+      ],
       child: const ExpenseTrackerApp(),
     ),
   );
+}
+
+Future<ThemeMode> _loadSavedThemeMode() async {
+  final savedTheme = await AppPreferences.themeMode();
+  return switch (savedTheme) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 }
 
 Future<Isar> _openIsar() async {
@@ -55,11 +69,13 @@ Future<Isar> _openIsar() async {
   );
 }
 
-class ExpenseTrackerApp extends StatelessWidget {
+class ExpenseTrackerApp extends ConsumerWidget {
   const ExpenseTrackerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: AppStrings.appName,
@@ -67,6 +83,10 @@ class ExpenseTrackerApp extends StatelessWidget {
       supportedLocales: const [Locale('bn', 'BD'), Locale('en', 'US')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: themeMode,
+      themeAnimationDuration: const Duration(milliseconds: 250),
+      themeAnimationCurve: Curves.easeOutCubic,
       home: const _AppBootstrap(),
     );
   }
@@ -176,13 +196,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
 
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFDFEFF), Color(0xFFF7FAFF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: BoxDecoration(gradient: context.shellBackgroundGradient),
         child: IndexedStack(index: _currentIndex, children: screens),
       ),
       bottomNavigationBar: SafeArea(
@@ -190,11 +204,13 @@ class _MainShellState extends ConsumerState<_MainShell> {
         child: Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.cardBackgroundColor,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x14000000),
+                color: context.isDarkMode
+                    ? AppColors.darkBackground.withValues(alpha: 0.4)
+                    : AppColors.lightText.withValues(alpha: 0.08),
                 blurRadius: 24,
                 offset: Offset(0, 10),
               ),
@@ -301,6 +317,9 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final inactiveColor = context.secondaryTextColor;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -310,15 +329,27 @@ class _NavIcon extends StatelessWidget {
           child: Container(
             width: 6,
             height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
+            decoration: BoxDecoration(
+              color: activeColor,
               shape: BoxShape.circle,
             ),
           ),
         ),
         const SizedBox(height: 6),
-        Icon(icon, color: active ? AppColors.primary : AppColors.grey600),
+        Icon(icon, color: active ? activeColor : inactiveColor),
       ],
     );
   }
 }
+
+// DARK MODE TEST CHECKLIST
+// [ ] Chat screen — bubbles readable
+// [ ] Dashboard — header card, stat cards
+// [ ] Expense list — filter pills, list items
+// [ ] Analytics — charts visible
+// [ ] RAG widgets — cards readable
+// [ ] Confirmation widgets — checkboxes visible
+// [ ] Settings — toggle works, saves preference
+// [ ] Splash — correct background
+// [ ] Onboarding — text readable
+// [ ] App restart — theme preference saved

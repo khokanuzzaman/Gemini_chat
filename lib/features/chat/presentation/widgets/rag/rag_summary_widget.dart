@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/ai/rag_response_parser.dart';
+import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
 import 'rag_card_shell.dart';
@@ -45,17 +46,17 @@ class RagSummaryWidget extends StatelessWidget {
                 children: [
                   Text(
                     BanglaFormatters.currency(total),
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
+                    style: TextStyle(
+                      color: context.primaryTextColor,
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'মোট খরচ',
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: context.secondaryTextColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -72,10 +73,10 @@ class RagSummaryWidget extends StatelessWidget {
             ),
             if (categories.isNotEmpty) ...[
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'ক্যাটাগরি অনুযায়ী',
                 style: TextStyle(
-                  color: Color(0xFF0F172A),
+                  color: context.primaryTextColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -171,21 +172,21 @@ class _QuickStatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBackgroundColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.borderColor),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF334155)),
+            Icon(icon, size: 16, color: context.secondaryTextColor),
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF334155),
+              style: TextStyle(
+                color: context.secondaryTextColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -208,13 +209,13 @@ class _InsightCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: context.ragChipBackgroundColor,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
         '💡 "$text"',
-        style: const TextStyle(
-          color: Color(0xFF1E3A8A),
+        style: TextStyle(
+          color: context.ragChipTextColor,
           fontSize: 13,
           height: 1.45,
           fontWeight: FontWeight.w600,

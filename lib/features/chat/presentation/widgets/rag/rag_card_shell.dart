@@ -4,13 +4,13 @@ class RagAnimatedCard extends StatefulWidget {
   const RagAnimatedCard({
     super.key,
     required this.child,
-    this.borderColor = const Color(0xFFBFDBFE),
-    this.backgroundColor = const Color(0xFFF8FAFC),
+    this.borderColor,
+    this.backgroundColor,
   });
 
   final Widget child;
-  final Color borderColor;
-  final Color backgroundColor;
+  final Color? borderColor;
+  final Color? backgroundColor;
 
   @override
   State<RagAnimatedCard> createState() => _RagAnimatedCardState();
@@ -39,18 +39,24 @@ class _RagAnimatedCardState extends State<RagAnimatedCard>
 
   @override
   Widget build(BuildContext context) {
+    final borderColor =
+        widget.borderColor ??
+        Theme.of(context).colorScheme.primary.withValues(alpha: 0.24);
+    final backgroundColor =
+        widget.backgroundColor ?? Theme.of(context).cardColor;
+
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: widget.backgroundColor,
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: widget.borderColor),
-            boxShadow: const [
+            border: Border.all(color: borderColor),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x140F172A),
+                color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
                 blurRadius: 16,
                 offset: Offset(0, 8),
               ),
@@ -77,16 +83,21 @@ class RagCardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final iconBackground = primary.withValues(
+      alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.12,
+    );
+
     return Row(
       children: [
         Container(
           height: 36,
           width: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFDBEAFE),
+            color: iconBackground,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF1D4ED8)),
+          child: Icon(icon, color: primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -95,8 +106,8 @@ class RagCardHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -104,8 +115,8 @@ class RagCardHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -125,34 +136,34 @@ class RagFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
+          color: primary.withValues(
+            alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.1,
+          ),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storage_rounded, size: 14, color: Color(0xFF2563EB)),
-            SizedBox(width: 6),
+            Icon(Icons.storage_rounded, size: 14, color: primary),
+            const SizedBox(width: 6),
             Text(
               'আপনার data থেকে',
               style: TextStyle(
-                color: Color(0xFF1D4ED8),
+                color: primary,
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            SizedBox(width: 6),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: 14,
-              color: Color(0xFF2563EB),
-            ),
+            const SizedBox(width: 6),
+            Icon(Icons.arrow_forward_rounded, size: 14, color: primary),
           ],
         ),
       ),
@@ -178,6 +189,9 @@ class AnimatedCategoryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final secondary = Theme.of(context).textTheme.bodySmall?.color;
+
     return Column(
       children: [
         Row(
@@ -185,8 +199,8 @@ class AnimatedCategoryBar extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
+                style: TextStyle(
+                  color: onSurface,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -195,8 +209,8 @@ class AnimatedCategoryBar extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               amountLabel,
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
+              style: TextStyle(
+                color: onSurface,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -204,8 +218,8 @@ class AnimatedCategoryBar extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               percentLabel,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: secondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -223,7 +237,11 @@ class AnimatedCategoryBar extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 8,
-                backgroundColor: const Color(0xFFE2E8F0),
+                backgroundColor: color.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.2
+                      : 0.1,
+                ),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             );

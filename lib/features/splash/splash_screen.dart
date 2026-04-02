@@ -75,8 +75,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -87,26 +88,23 @@ class _SplashScreenState extends State<SplashScreen>
                 opacity: _opacity,
                 child: ScaleTransition(
                   scale: _scale,
-                  child: const Column(
+                  child: Column(
                     children: [
-                      SmartSpendLogo(
+                      const SmartSpendLogo(
                         size: 88,
                         showShadow: true,
                         borderRadius: BorderRadius.all(AppRadius.xl),
                       ),
-                      SizedBox(height: AppSpacing.lg),
-                      Text(
-                        AppStrings.appName,
-                        style: AppTextStyles.displayMedium,
-                      ),
-                      SizedBox(height: AppSpacing.sm),
-                      Text(AppStrings.tagline, style: AppTextStyles.bodyMedium),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(AppStrings.appName, style: textTheme.displayMedium),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(AppStrings.tagline, style: textTheme.bodyMedium),
                     ],
                   ),
                 ),
               ),
               const Spacer(),
-              const Text(AppStrings.poweredBy, style: AppTextStyles.caption),
+              Text(AppStrings.poweredBy, style: textTheme.labelSmall),
             ],
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
 
@@ -37,10 +38,10 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
         ),
         child: Card(
           elevation: 0,
-          color: const Color(0xFFF8FAFC),
+          color: context.cardBackgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: BorderSide(color: context.borderColor),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -56,23 +57,23 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.mutedSurfaceColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: context.borderColor),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.calendar_month_rounded,
                           size: 18,
-                          color: Color(0xFF334155),
+                          color: context.secondaryTextColor,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _expense.displayDate,
-                            style: const TextStyle(
-                              color: Color(0xFF0F172A),
+                            style: TextStyle(
+                              color: context.primaryTextColor,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
@@ -82,10 +83,10 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                           const _DateBadge(label: 'অতীত'),
                           const SizedBox(width: 8),
                         ],
-                        const Icon(
+                        Icon(
                           Icons.edit_calendar_rounded,
                           size: 16,
-                          color: Color(0xFF64748B),
+                          color: context.secondaryTextColor,
                         ),
                       ],
                     ),
@@ -105,9 +106,9 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                   const SizedBox(height: 10),
                   _InfoBanner(
                     icon: Icons.info_outline_rounded,
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    borderColor: const Color(0xFFE2E8F0),
-                    textColor: const Color(0xFF475569),
+                    backgroundColor: context.mutedSurfaceColor,
+                    borderColor: context.borderColor,
+                    textColor: context.secondaryTextColor,
                     text: _expense.dateFallbackNote!,
                   ),
                 ],
@@ -147,8 +148,8 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                   _expense.description.trim().isEmpty
                       ? 'খরচ'
                       : _expense.description.trim(),
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
+                  style: TextStyle(
+                    color: context.primaryTextColor,
                     fontSize: 16,
                     height: 1.4,
                     fontWeight: FontWeight.w700,
@@ -157,8 +158,8 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                 const SizedBox(height: 10),
                 Text(
                   BanglaFormatters.currency(_expense.amount),
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
+                  style: TextStyle(
+                    color: context.primaryTextColor,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                   ),
@@ -170,8 +171,8 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                       child: OutlinedButton(
                         onPressed: widget.onCancel,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFDC2626),
-                          side: const BorderSide(color: Color(0xFFDC2626)),
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: AppColors.error),
                         ),
                         child: const Text(AppStrings.cancelButton),
                       ),
@@ -181,8 +182,10 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                       child: FilledButton(
                         onPressed: () => widget.onSave(_expense),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF16A34A),
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary,
                         ),
                         child: const Text(AppStrings.saveButton),
                       ),
@@ -230,15 +233,15 @@ class _DateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: context.borderColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF475569),
+          style: TextStyle(
+            color: context.secondaryTextColor,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

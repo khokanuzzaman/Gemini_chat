@@ -12,6 +12,7 @@ import '../../core/database/models/expense_record_model.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/providers/database_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_provider.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../chat/data/models/message_model.dart';
 import '../expense/presentation/providers/expense_providers.dart';
@@ -108,6 +109,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsSection(
             title: 'Display',
             children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Theme'),
+                trailing: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment<ThemeMode>(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode, size: 16),
+                      label: Text('Light'),
+                    ),
+                    ButtonSegment<ThemeMode>(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.brightness_auto, size: 16),
+                      label: Text('Auto'),
+                    ),
+                    ButtonSegment<ThemeMode>(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode, size: 16),
+                      label: Text('Dark'),
+                    ),
+                  ],
+                  selected: {ref.watch(themeProvider)},
+                  onSelectionChanged: (modes) {
+                    ref.read(themeProvider.notifier).setTheme(modes.first);
+                  },
+                ),
+              ),
               _DropdownTile(
                 title: 'Currency symbol',
                 value: _currencySymbol,
@@ -283,7 +312,12 @@ class _SettingsSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: AppTextStyles.titleMedium),
+              Text(
+                title,
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+              ),
               const SizedBox(height: 12),
               ...children,
             ],

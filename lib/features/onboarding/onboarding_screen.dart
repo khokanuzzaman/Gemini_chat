@@ -48,7 +48,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLastPage = _pageIndex == _pages.length - 1;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -98,7 +97,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: active ? 24 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: active ? AppColors.primary : AppColors.grey200,
+                      color: active
+                          ? Theme.of(context).colorScheme.primary
+                          : context.borderColor,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   );
@@ -142,6 +143,11 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardColor = context.cardBackgroundColor;
+    final shadowColor = context.isDarkMode
+        ? AppColors.darkBackground.withValues(alpha: 0.3)
+        : AppColors.lightText.withValues(alpha: 0.08);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -157,11 +163,11 @@ class _OnboardingPage extends StatelessWidget {
               width: 118,
               height: 118,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(36),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x14000000),
+                    color: shadowColor,
                     blurRadius: 22,
                     offset: Offset(0, 10),
                   ),
@@ -175,13 +181,18 @@ class _OnboardingPage extends StatelessWidget {
         Text(
           data.title,
           textAlign: TextAlign.center,
-          style: AppTextStyles.displayMedium.copyWith(fontSize: 26),
+          style: AppTextStyles.displayMedium.copyWith(
+            fontSize: 26,
+            color: context.primaryTextColor,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
           data.body,
           textAlign: TextAlign.center,
-          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.grey600),
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: context.secondaryTextColor,
+          ),
         ),
       ],
     );

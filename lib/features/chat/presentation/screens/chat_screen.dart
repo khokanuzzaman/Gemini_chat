@@ -10,14 +10,13 @@ import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/assets/app_icon.dart';
-import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/global_settings_button.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
-import '../../../settings/settings_screen.dart';
 import '../providers/chat_provider.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
@@ -129,13 +128,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ),
             tooltip: ragEnabled ? 'Personal data চালু' : 'Personal data বন্ধ',
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(buildAppRoute(const SettingsScreen()));
-            },
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-          ),
+          const GlobalSettingsButton(),
         ],
       ),
       body: Stack(
@@ -187,9 +180,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                 ),
                 DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: AppColors.grey200)),
+                  decoration: BoxDecoration(
+                    color: context.backgroundColor,
+                    border: Border(top: BorderSide(color: context.borderColor)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
@@ -265,7 +258,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 style: TextStyle(
                                   color: isOverLimit
                                       ? AppColors.error
-                                      : AppColors.grey600,
+                                      : context.secondaryTextColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -285,7 +278,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                     AppStrings.poweredBy,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.grey[400],
+                                      color: context.hintTextColor,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -337,7 +330,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _showAttachOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.cardBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -465,7 +458,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.cardBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -742,8 +735,8 @@ class _MessageListState extends State<_MessageList> {
             parts.add(
               ReceiptConfirmationWidget(
                 receiptData: expenseResult.receiptData!,
-                onSave: () async {
-                  await widget.onSaveReceipt(expenseResult.receiptData!);
+                onSave: (editedReceiptData) async {
+                  await widget.onSaveReceipt(editedReceiptData);
                   _dismissCard(messageKey);
                 },
                 onCancel: () => _dismissCard(messageKey),
@@ -827,23 +820,23 @@ class _ScanningOverlay extends StatelessWidget {
     return Positioned.fill(
       child: AbsorbPointer(
         child: ColoredBox(
-          color: const Color(0xAA0F172A),
+          color: context.primaryTextColor.withValues(alpha: 0.7),
           child: Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.cardBackgroundColor,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 14),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 14),
                   Text(
                     'Receipt পড়ছি...',
                     style: TextStyle(
-                      color: Color(0xFF0F172A),
+                      color: context.primaryTextColor,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -870,23 +863,27 @@ class _RagStatusBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.primaryLight,
+          color: context.ragChipBackgroundColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFC6DAFC)),
+          border: Border.all(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.24),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.psychology_rounded,
               size: 18,
-              color: AppColors.primary,
+              color: context.ragChipTextColor,
             ),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Personal data ব্যবহার হচ্ছে',
                 style: TextStyle(
-                  color: AppColors.primaryDark,
+                  color: context.ragChipTextColor,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -895,12 +892,12 @@ class _RagStatusBanner extends StatelessWidget {
             InkWell(
               onTap: onDismiss,
               borderRadius: BorderRadius.circular(999),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.all(4),
                 child: Icon(
                   Icons.close_rounded,
                   size: 16,
-                  color: AppColors.primaryDark,
+                  color: context.ragChipTextColor,
                 ),
               ),
             ),
@@ -918,20 +915,24 @@ class _RagIndicatorChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: context.ragChipBackgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storage_rounded, size: 14, color: Color(0xFF2563EB)),
-            SizedBox(width: 6),
+            Icon(
+              Icons.storage_rounded,
+              size: 14,
+              color: context.ragChipTextColor,
+            ),
+            const SizedBox(width: 6),
             Text(
               'আপনার data থেকে',
               style: TextStyle(
-                color: Color(0xFF1D4ED8),
+                color: context.ragChipTextColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -988,8 +989,8 @@ class _ComposerActionButton extends StatelessWidget {
               child: FilledButton(
                 onPressed: canSend ? onSend : null,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: const CircleBorder(),
@@ -1097,12 +1098,15 @@ class _MicIdleButtonState extends State<_MicIdleButton>
         child: FilledButton(
           onPressed: widget.enabled ? widget.onTap : null,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             disabledBackgroundColor: AppColors.grey400,
             shape: const CircleBorder(),
             padding: EdgeInsets.zero,
           ),
-          child: const Icon(Icons.mic_rounded, color: Colors.white),
+          child: Icon(
+            Icons.mic_rounded,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
       ),
     );
@@ -1121,12 +1125,18 @@ class _RecordingComposer extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6F5),
+        color: context.isDarkMode
+            ? AppColors.error.withValues(alpha: 0.14)
+            : const Color(0xFFFFF6F5),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF6CCC8)),
-        boxShadow: const [
+        border: Border.all(
+          color: context.isDarkMode
+              ? AppColors.error.withValues(alpha: 0.35)
+              : const Color(0xFFF6CCC8),
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x12EA4335),
+            color: AppColors.error.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
@@ -1138,9 +1148,13 @@ class _RecordingComposer extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.cardBackgroundColor,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFF2D5D2)),
+              border: Border.all(
+                color: context.isDarkMode
+                    ? AppColors.error.withValues(alpha: 0.25)
+                    : const Color(0xFFF2D5D2),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1179,7 +1193,7 @@ class _RecordingComposer extends StatelessWidget {
                 Text(
                   'শেষ হলে পাশের বাটনে চাপুন',
                   style: TextStyle(
-                    color: AppColors.grey600,
+                    color: context.secondaryTextColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1195,7 +1209,7 @@ class _RecordingComposer extends StatelessWidget {
               onPressed: onStop,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -1234,12 +1248,12 @@ class _AttachButton extends StatelessWidget {
       child: IconButton.filledTonal(
         onPressed: enabled ? onTap : null,
         style: IconButton.styleFrom(
-          backgroundColor: AppColors.grey50,
+          backgroundColor: context.mutedSurfaceColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        icon: const Icon(Icons.add_rounded, color: AppColors.grey800),
+        icon: Icon(Icons.add_rounded, color: context.primaryTextColor),
       ),
     );
   }
@@ -1268,16 +1282,16 @@ class _AttachmentOptionTile extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.grey50,
+            color: context.mutedSurfaceColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.grey200),
+            border: Border.all(color: context.borderColor),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: AppColors.primaryLight,
-                child: Icon(icon, color: AppColors.primary),
+                backgroundColor: context.ragChipBackgroundColor,
+                child: Icon(icon, color: Theme.of(context).colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1310,11 +1324,11 @@ class _SuggestionChip extends StatelessWidget {
     return ActionChip(
       label: Text(label),
       onPressed: onTap,
-      backgroundColor: AppColors.grey50,
+      backgroundColor: context.mutedSurfaceColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      side: const BorderSide(color: AppColors.grey200),
+      side: BorderSide(color: context.borderColor),
       labelStyle: AppTextStyles.bodySmall.copyWith(
-        color: AppColors.grey800,
+        color: context.primaryTextColor,
         fontWeight: FontWeight.w600,
       ),
     );

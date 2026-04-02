@@ -5,14 +5,14 @@ import '../../../../core/theme/app_theme.dart';
 class PulsingRecordingWidget extends StatefulWidget {
   const PulsingRecordingWidget({
     super.key,
-    this.color = AppColors.error,
-    this.pulseColor = const Color(0xFFFAD2CF),
+    this.color,
+    this.pulseColor,
     this.size = 24,
     this.dotSize = 12,
   });
 
-  final Color color;
-  final Color pulseColor;
+  final Color? color;
+  final Color? pulseColor;
   final double size;
   final double dotSize;
 
@@ -45,6 +45,11 @@ class _PulsingRecordingWidgetState extends State<PulsingRecordingWidget>
 
   @override
   Widget build(BuildContext context) {
+    final dotColor = widget.color ?? AppColors.error;
+    final pulseColor =
+        widget.pulseColor ??
+        AppColors.error.withValues(alpha: context.isDarkMode ? 0.3 : 0.18);
+
     return SizedBox(
       width: widget.size,
       height: widget.size,
@@ -62,7 +67,7 @@ class _PulsingRecordingWidgetState extends State<PulsingRecordingWidget>
                     width: widget.size - 2,
                     height: widget.size - 2,
                     decoration: BoxDecoration(
-                      color: widget.pulseColor,
+                      color: pulseColor,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -76,11 +81,11 @@ class _PulsingRecordingWidgetState extends State<PulsingRecordingWidget>
           width: widget.dotSize,
           height: widget.dotSize,
           decoration: BoxDecoration(
-            color: widget.color,
+            color: dotColor,
             shape: BoxShape.circle,
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x1AEA4335),
+                color: dotColor.withValues(alpha: 0.32),
                 blurRadius: 8,
                 offset: Offset(0, 0),
               ),

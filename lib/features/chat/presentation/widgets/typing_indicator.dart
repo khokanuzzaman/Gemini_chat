@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 class TypingIndicatorWidget extends StatefulWidget {
   const TypingIndicatorWidget({super.key});
 
@@ -22,6 +24,9 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = context.aiBubbleColor;
+    final dotColor = context.secondaryTextColor;
+
     return Align(
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
@@ -30,7 +35,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFFE5E7EB),
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Padding(
@@ -49,12 +54,12 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
                       padding: EdgeInsets.only(right: index == 2 ? 0 : 6),
                       child: Opacity(
                         opacity: opacity.clamp(0.25, 1.0),
-                        child: const DecoratedBox(
+                        child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: Color(0xFF6B7280),
+                            color: dotColor,
                             shape: BoxShape.circle,
                           ),
-                          child: SizedBox(height: 8, width: 8),
+                          child: const SizedBox(height: 8, width: 8),
                         ),
                       ),
                     );

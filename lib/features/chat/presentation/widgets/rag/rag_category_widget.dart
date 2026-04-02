@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/ai/rag_response_parser.dart';
+import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
 import 'rag_card_shell.dart';
@@ -32,6 +33,9 @@ class RagCategoryWidget extends StatelessWidget {
 
     return RagAnimatedCard(
       borderColor: CategoryIcon.getColor(category).withValues(alpha: 0.22),
+      backgroundColor: context.ragCardBackground(
+        CategoryIcon.getColor(category),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -47,7 +51,7 @@ class RagCategoryWidget extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.cardBackgroundColor,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: CategoryIcon.getColor(
@@ -74,8 +78,8 @@ class RagCategoryWidget extends StatelessWidget {
                       Expanded(
                         child: Text(
                           category,
-                          style: const TextStyle(
-                            color: Color(0xFF0F172A),
+                          style: TextStyle(
+                            color: context.primaryTextColor,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                           ),
@@ -86,8 +90,8 @@ class RagCategoryWidget extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     BanglaFormatters.currency(categoryAmount),
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
+                    style: TextStyle(
+                      color: context.primaryTextColor,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
                     ),
@@ -95,8 +99,8 @@ class RagCategoryWidget extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '$percent% of total',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: context.secondaryTextColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -113,20 +117,20 @@ class RagCategoryWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'সাম্প্রতিক খরচ',
               style: TextStyle(
-                color: Color(0xFF0F172A),
+                color: context.primaryTextColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 10),
             if (transactions.isEmpty)
-              const Text(
+              Text(
                 'এই ক্যাটাগরিতে এখনো কোনো খরচ নেই',
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: context.secondaryTextColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -139,8 +143,8 @@ class RagCategoryWidget extends StatelessWidget {
               if (transactions.length > 4)
                 Text(
                   '... আরো ${BanglaFormatters.count(transactions.length - 4)}টি',
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -151,14 +155,14 @@ class RagCategoryWidget extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: context.mutedSurfaceColor,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: context.borderColor),
               ),
               child: Text(
                 '💡 "$insight"',
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
+                style: TextStyle(
+                  color: context.primaryTextColor,
                   fontSize: 13,
                   height: 1.45,
                   fontWeight: FontWeight.w600,
@@ -188,8 +192,8 @@ class _TransactionRow extends StatelessWidget {
         Expanded(
           child: Text(
             item.description,
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
+            style: TextStyle(
+              color: context.primaryTextColor,
               fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
@@ -198,8 +202,8 @@ class _TransactionRow extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           BanglaFormatters.currency(item.amount),
-          style: const TextStyle(
-            color: Color(0xFF0F172A),
+          style: TextStyle(
+            color: context.primaryTextColor,
             fontSize: 13,
             fontWeight: FontWeight.w800,
           ),
@@ -209,8 +213,8 @@ class _TransactionRow extends StatelessWidget {
           parsedDate == null
               ? item.date
               : BanglaFormatters.dayMonth(parsedDate),
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: TextStyle(
+            color: context.secondaryTextColor,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),

@@ -5,6 +5,7 @@ class AppPreferences {
 
   static const onboardingCompleteKey = 'onboarding_complete';
   static const ragEnabledKey = 'rag_enabled';
+  static const themeModeKey = 'theme_mode';
   static const defaultCategoryKey = 'default_category';
   static const currencySymbolKey = 'currency_symbol';
   static const dateFormatKey = 'date_format';
@@ -26,6 +27,14 @@ class AppPreferences {
 
   static Future<void> setRagEnabled(bool value) async {
     await (await _prefs).setBool(ragEnabledKey, value);
+  }
+
+  static Future<String> themeMode() async {
+    return (await _prefs).getString(themeModeKey) ?? 'system';
+  }
+
+  static Future<void> setThemeMode(String value) async {
+    await (await _prefs).setString(themeModeKey, value);
   }
 
   static Future<String> defaultCategory() async {

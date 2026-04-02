@@ -56,7 +56,7 @@ class MessageBubble extends StatelessWidget {
                   child: Text(
                     _formatTime(createdAt),
                     style: TextStyle(
-                      color: Colors.grey.shade500,
+                      color: context.secondaryTextColor.withValues(alpha: 0.8),
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
@@ -70,15 +70,15 @@ class MessageBubble extends StatelessWidget {
     }
 
     final bubbleColor = isError
-        ? AppColors.error.withValues(alpha: 0.08)
+        ? context.errorBubbleColor
         : isUser
-        ? AppColors.primary
-        : AppColors.grey100;
+        ? context.userBubbleColor
+        : context.aiBubbleColor;
     final textColor = isError
-        ? const Color(0xFF8B1E14)
+        ? context.errorBubbleTextColor
         : isUser
-        ? Colors.white
-        : AppColors.grey900;
+        ? context.userBubbleTextColor
+        : context.aiBubbleTextColor;
 
     final bubble = Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -98,14 +98,19 @@ class MessageBubble extends StatelessWidget {
                 bottomRight: Radius.circular(isUser ? 4 : 18),
               ),
               border: isError
-                  ? const Border(
-                      left: BorderSide(color: AppColors.error, width: 3),
+                  ? Border(
+                      left: BorderSide(
+                        color: context.errorBubbleBorderColor,
+                        width: 3,
+                      ),
                     )
                   : null,
               boxShadow: isUser
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Color(0x141A73E8),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.18),
                         blurRadius: 12,
                         offset: Offset(0, 6),
                       ),
@@ -119,12 +124,12 @@ class MessageBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isError) ...[
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(right: 8, top: 2),
                       child: Icon(
                         Icons.warning_amber_rounded,
                         size: 18,
-                        color: Color(0xFFDC2626),
+                        color: context.errorBubbleBorderColor,
                       ),
                     ),
                   ],
@@ -162,14 +167,16 @@ class MessageBubble extends StatelessWidget {
                                 AppStrings.receiptSource,
                                 style: AppTextStyles.caption.copyWith(
                                   color: isUser
-                                      ? Colors.white70
-                                      : AppColors.grey600,
+                                      ? context.userBubbleTextColor.withValues(
+                                          alpha: 0.72,
+                                        )
+                                      : context.secondaryTextColor,
                                 ),
                               ),
                             ],
                           )
                         else if (isVoice)
-                          _buildVoiceContent(textColor)
+                          _buildVoiceContent(context, textColor)
                         else if (isUser)
                           Text(
                             text,
@@ -256,16 +263,20 @@ class MessageBubble extends StatelessWidget {
     return BanglaFormatters.time(dateTime).toUpperCase();
   }
 
-  Widget _buildVoiceContent(Color textColor) {
+  Widget _buildVoiceContent(BuildContext context, Color textColor) {
     final transcript = _voiceTranscriptText(text);
     final labelColor = isUser
-        ? Colors.white.withValues(alpha: 0.9)
-        : AppColors.grey800;
-    final captionColor = isUser ? Colors.white70 : AppColors.grey600;
+        ? context.userBubbleTextColor.withValues(alpha: 0.9)
+        : context.primaryTextColor;
+    final captionColor = isUser
+        ? context.userBubbleTextColor.withValues(alpha: 0.72)
+        : context.secondaryTextColor;
     final iconBackground = isUser
-        ? Colors.white.withValues(alpha: 0.18)
-        : Colors.white;
-    final iconColor = isUser ? Colors.white : AppColors.primary;
+        ? context.userBubbleTextColor.withValues(alpha: 0.18)
+        : context.cardBackgroundColor;
+    final iconColor = isUser
+        ? context.userBubbleTextColor
+        : Theme.of(context).colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,20 +345,24 @@ class _RagIndicatorChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: context.ragChipBackgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storage_rounded, size: 14, color: Color(0xFF2563EB)),
-            SizedBox(width: 6),
+            Icon(
+              Icons.storage_rounded,
+              size: 14,
+              color: context.ragChipTextColor,
+            ),
+            const SizedBox(width: 6),
             Text(
               'আপনার data থেকে',
               style: TextStyle(
-                color: Color(0xFF1D4ED8),
+                color: context.ragChipTextColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),

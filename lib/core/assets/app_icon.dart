@@ -18,6 +18,9 @@ class SmartSpendLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(size * 0.28);
+    final shadowColor = context.isDarkMode
+        ? AppColors.darkPrimary.withValues(alpha: 0.28)
+        : AppColors.primary.withValues(alpha: 0.14);
 
     return Container(
       width: size,
@@ -30,9 +33,9 @@ class SmartSpendLogo extends StatelessWidget {
         ),
         borderRadius: radius,
         boxShadow: showShadow
-            ? const [
+            ? [
                 BoxShadow(
-                  color: Color(0x221A73E8),
+                  color: shadowColor,
                   blurRadius: 20,
                   offset: Offset(0, 8),
                 ),
@@ -43,7 +46,7 @@ class SmartSpendLogo extends StatelessWidget {
       child: Text(
         '৳',
         style: TextStyle(
-          color: Colors.white,
+          color: AppColors.userBubbleTextLight,
           fontSize: size * 0.52,
           fontWeight: FontWeight.w800,
           height: 1,
@@ -75,10 +78,18 @@ class SmartSpendWordmark extends StatelessWidget {
                   (compact
                           ? AppTextStyles.titleMedium
                           : AppTextStyles.titleLarge)
-                      .copyWith(fontWeight: FontWeight.w800),
+                      .copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: context.primaryTextColor,
+                      ),
             ),
             if (!compact)
-              const Text(AppStrings.tagline, style: AppTextStyles.bodySmall),
+              Text(
+                AppStrings.tagline,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+              ),
           ],
         ),
       ],

@@ -11,6 +11,8 @@ class GetDashboardDataUseCase {
     final lastMonthExpenses = await _repository.getLastMonthExpenses();
     final todayExpenses = await _repository.getTodayExpenses();
     final allExpenses = await _repository.getAllExpenses();
+    final sortedRecentExpenses = [...allExpenses]
+      ..sort((first, second) => second.date.compareTo(first.date));
     final now = DateTime.now();
     final startOfWeek = DateTime(
       now.year,
@@ -50,7 +52,7 @@ class GetDashboardDataUseCase {
       transactionCount: thisMonthExpenses.length,
       categoryTotals: categoryTotals,
       todayExpenses: todayExpenses,
-      recentExpenses: allExpenses.take(10).toList(growable: false),
+      recentExpenses: sortedRecentExpenses.take(10).toList(growable: false),
     );
   }
 }

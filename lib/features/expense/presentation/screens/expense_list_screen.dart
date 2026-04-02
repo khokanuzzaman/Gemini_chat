@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../../domain/entities/expense_list_filter.dart';
@@ -31,7 +32,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     final state = ref.watch(expenseListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('খরচ')),
+      appBar: AppBar(
+        title: const Text('খরচ'),
+        actions: const [GlobalSettingsButton()],
+      ),
       body: state.when(
         data: (data) {
           final visibleExpenses = data.expenses
@@ -99,8 +103,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Map<DateTime, List<ExpenseEntity>> _groupByDate(
     List<ExpenseEntity> expenses,
   ) {
+    final sortedExpenses = [...expenses]
+      ..sort((first, second) => second.date.compareTo(first.date));
     final grouped = <DateTime, List<ExpenseEntity>>{};
-    for (final expense in expenses) {
+    for (final expense in sortedExpenses) {
       final date = DateTime(
         expense.date.year,
         expense.date.month,
@@ -108,6 +114,11 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       );
       grouped.putIfAbsent(date, () => []).add(expense);
     }
+
+    for (final entry in grouped.entries) {
+      entry.value.sort((first, second) => second.date.compareTo(first.date));
+    }
+
     return grouped;
   }
 }
@@ -280,9 +291,9 @@ class _ExpenseDateSection extends ConsumerWidget {
                   color: AppColors.error,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.delete_outline_rounded,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
               confirmDismiss: (_) async {
@@ -348,7 +359,7 @@ class _ExpenseCard extends ConsumerWidget {
         final updated = await showModalBottomSheet<bool>(
           context: context,
           isScrollControlled: true,
-          backgroundColor: Colors.white,
+          backgroundColor: context.cardBackgroundColor,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
@@ -453,7 +464,7 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppColors.grey200,
+                  color: context.borderColor,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -631,13 +642,15 @@ class _FilterChip extends StatelessWidget {
       selected: isSelected,
       onSelected: (_) => onTap(),
       selectedColor: AppColors.primary,
-      backgroundColor: Colors.white,
+      backgroundColor: context.mutedSurfaceColor,
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : AppColors.grey800,
+        color: isSelected
+            ? Theme.of(context).colorScheme.onPrimary
+            : context.primaryTextColor,
         fontWeight: FontWeight.w700,
       ),
       side: BorderSide(
-        color: isSelected ? AppColors.primary : AppColors.grey200,
+        color: isSelected ? AppColors.primary : context.borderColor,
       ),
     );
   }
@@ -657,13 +670,13 @@ class _EmptyState extends StatelessWidget {
               width: 76,
               height: 76,
               decoration: BoxDecoration(
-                color: AppColors.grey50,
+                color: context.mutedSurfaceColor,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.search_off_rounded,
                 size: 38,
-                color: AppColors.grey400,
+                color: context.secondaryTextColor,
               ),
             ),
             const SizedBox(height: 16),

@@ -370,7 +370,7 @@ class ExpenseMutationController {
         date: expenseData.parsedDate,
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
-      _ref.read(expenseRefreshTokenProvider.notifier).state++;
+      _notifyExpenseChanged();
       return null;
     } on Failure catch (failure) {
       return failure.message;
@@ -400,7 +400,7 @@ class ExpenseMutationController {
       }
 
       await _ref.read(saveExpenseUseCaseProvider).saveMany(validExpenses);
-      _ref.read(expenseRefreshTokenProvider.notifier).state++;
+      _notifyExpenseChanged();
       return null;
     } on Failure catch (failure) {
       return failure.message;
@@ -422,12 +422,19 @@ class ExpenseMutationController {
         date: ExpenseData.parseDateValue(dateValue),
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
-      _ref.read(expenseRefreshTokenProvider.notifier).state++;
+      _notifyExpenseChanged();
       return null;
     } on Failure catch (failure) {
       return failure.message;
     } catch (error) {
       return '$error';
     }
+  }
+
+  void _notifyExpenseChanged() {
+    _ref.read(expenseRefreshTokenProvider.notifier).state++;
+    _ref.invalidate(dashboardControllerProvider);
+    _ref.invalidate(expenseListControllerProvider);
+    _ref.invalidate(analyticsControllerProvider);
   }
 }
