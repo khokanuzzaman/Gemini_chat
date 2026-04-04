@@ -51,6 +51,10 @@ class AppStrings {
   static const receiptScanned = 'Receipt scan করলাম';
   static const receiptSource = 'ML Kit + OpenAI';
   static const receiptDetected = 'Receipt detected';
+  static const exportError = 'Export করতে সমস্যা হয়েছে';
+  static const exportNoExpenses = 'এই সময়ে কোনো expense নেই';
+  static const exportShareSubject = 'SmartSpend Expense Report';
+  static const exportSuccess = 'CSV export তৈরি হয়েছে';
 
   static const expenseSaved = 'Expense save হয়েছে!';
   static const expenseDeleted = 'Expense মুছে গেছে';

@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/app_strings.dart';
@@ -23,6 +20,7 @@ import '../category/presentation/providers/category_provider.dart';
 import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../chat/data/models/message_model.dart';
+import '../export/presentation/screens/export_screen.dart';
 import '../expense/presentation/providers/expense_providers.dart';
 import 'budget_settings_screen.dart';
 
@@ -395,10 +393,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'Data',
             children: [
               _ActionTile(
-                title: 'Export data (CSV)',
-                subtitle: 'CSV file documents folder-এ save হবে',
-                icon: Icons.file_download_outlined,
-                onTap: _exportCsv,
+                title: 'Data export',
+                subtitle: 'CSV format এ export করুন',
+                icon: Icons.download_outlined,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const ExportScreen()));
+                },
               ),
               _ActionTile(
                 title: 'Clear all data',
@@ -449,27 +451,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _exportCsv() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/smartspend-export.csv');
-    final expenses = await ref
-        .read(expenseLocalDataSourceProvider)
-        .getAllExpenses();
-    final buffer = StringBuffer('date,category,description,amount\n');
-    for (final expense in expenses) {
-      buffer.writeln(
-        '${expense.date.toIso8601String()},${expense.category},"${expense.description.replaceAll('"', '""')}",${expense.amount}',
-      );
-    }
-    await file.writeAsString(buffer.toString());
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('CSV exported: ${file.path}')));
   }
 
   Future<void> _clearAllData() async {

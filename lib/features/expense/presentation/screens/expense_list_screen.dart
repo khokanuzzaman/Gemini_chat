@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/export/export_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
@@ -31,11 +32,21 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(expenseListControllerProvider);
+    final currentState = state.valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('খরচ'),
-        actions: const [GlobalSettingsButton()],
+        actions: [
+          IconButton(
+            onPressed: currentState == null
+                ? null
+                : () => _quickExport(context, currentState),
+            icon: const Icon(Icons.ios_share_rounded),
+            tooltip: 'Export',
+          ),
+          const GlobalSettingsButton(),
+        ],
       ),
       body: state.when(
         data: (data) {
@@ -121,6 +132,44 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
 
     return grouped;
+  }
+
+  Future<void> _quickExport(
+    BuildContext context,
+    ExpenseListState currentState,
+  ) async {
+    final visibleExpenses = currentState.expenses
+        .where((expense) {
+          if (_searchQuery.isEmpty) {
+            return true;
+          }
+          final needle = _searchQuery.toLowerCase();
+          return expense.description.toLowerCase().contains(needle) ||
+              expense.category.toLowerCase().contains(needle);
+        })
+        .toList(growable: false);
+
+    final filter = currentState.filter;
+    final now = DateTime.now();
+    final startDate = filter.startDate ?? DateTime(now.year, now.month, 1);
+    final endDate = filter.endDate ?? now;
+
+    final error = await ref
+        .read(exportProvider.notifier)
+        .exportExpenses(
+          expenses: visibleExpenses,
+          startDate: startDate,
+          endDate: endDate,
+          category: filter.category,
+        );
+
+    if (!context.mounted || error == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error)));
   }
 }
 

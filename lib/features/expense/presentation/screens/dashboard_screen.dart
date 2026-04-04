@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/preferences/app_preferences.dart';
+import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../export/presentation/screens/export_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
@@ -36,7 +38,16 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('হোম'),
-        actions: const [GlobalSettingsButton()],
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(buildAppRoute(const ExportScreen()));
+            },
+            icon: const Icon(Icons.ios_share_rounded),
+            tooltip: 'Export',
+          ),
+          const GlobalSettingsButton(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showQuickAddSheet(context, ref),
