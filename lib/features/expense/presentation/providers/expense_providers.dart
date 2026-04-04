@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/notifications/notification_provider.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/ai/expense_result.dart';
 import '../../data/repositories/expense_repository_impl.dart';
@@ -371,6 +372,9 @@ class ExpenseMutationController {
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
       _notifyExpenseChanged();
+      await _ref
+          .read(notificationProvider.notifier)
+          .checkBudgetAlert(expense.category);
       return null;
     } on Failure catch (failure) {
       return failure.message;
@@ -401,6 +405,15 @@ class ExpenseMutationController {
 
       await _ref.read(saveExpenseUseCaseProvider).saveMany(validExpenses);
       _notifyExpenseChanged();
+      final categories = validExpenses
+          .map((expense) => expense.category)
+          .toSet()
+          .toList(growable: false);
+      for (final category in categories) {
+        await _ref
+            .read(notificationProvider.notifier)
+            .checkBudgetAlert(category);
+      }
       return null;
     } on Failure catch (failure) {
       return failure.message;
@@ -423,6 +436,31 @@ class ExpenseMutationController {
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
       _notifyExpenseChanged();
+      await _ref
+          .read(notificationProvider.notifier)
+          .checkBudgetAlert(expense.category);
+      return null;
+    } on Failure catch (failure) {
+      return failure.message;
+    } catch (error) {
+      return '$error';
+    }
+  }
+
+  Future<String?> saveManualExpense(ExpenseEntity expense) async {
+    try {
+      final normalizedDescription = expense.description.trim().isEmpty
+          ? AppStrings.expenseLabel
+          : expense.description.trim();
+      final normalizedExpense = expense.copyWith(
+        description: normalizedDescription,
+        isManual: true,
+      );
+      await _ref.read(saveExpenseUseCaseProvider).call(normalizedExpense);
+      _notifyExpenseChanged();
+      await _ref
+          .read(notificationProvider.notifier)
+          .checkBudgetAlert(normalizedExpense.category);
       return null;
     } on Failure catch (failure) {
       return failure.message;

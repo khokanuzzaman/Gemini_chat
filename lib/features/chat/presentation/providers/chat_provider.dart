@@ -13,6 +13,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/mlkit/ocr_service.dart';
+import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/scanner/receipt_scanner_service.dart';
 import '../../../../core/scanner/scan_result.dart';
@@ -21,6 +22,7 @@ import '../../data/datasources/openai_chat_datasource.dart';
 import '../../data/datasources/openai_receipt_datasource.dart';
 import '../../data/datasources/openai_voice_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../domain/usecases/scan_receipt_usecase.dart';
@@ -59,17 +61,25 @@ final receiptScannerServiceProvider = Provider<ReceiptScannerService>((ref) {
 });
 
 final openAiChatDataSourceProvider = Provider<OpenAiChatDataSource>((ref) {
-  return OpenAiChatDataSourceImpl();
+  return OpenAiChatDataSourceImpl(
+    connectivityService: ref.watch(connectivityServiceProvider),
+    categoryLoader: () => ref.read(getCategoriesUseCaseProvider).call(),
+  );
 });
 
 final openAiVoiceDataSourceProvider = Provider<OpenAiVoiceDataSource>((ref) {
-  return OpenAiVoiceDataSourceImpl();
+  return OpenAiVoiceDataSourceImpl(
+    connectivityService: ref.watch(connectivityServiceProvider),
+  );
 });
 
 final openAiReceiptDataSourceProvider = Provider<OpenAiReceiptDataSource>((
   ref,
 ) {
-  return OpenAiReceiptDataSourceImpl();
+  return OpenAiReceiptDataSourceImpl(
+    connectivityService: ref.watch(connectivityServiceProvider),
+    categoryLoader: () => ref.read(getCategoriesUseCaseProvider).call(),
+  );
 });
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {

@@ -11,46 +11,48 @@ void main() {
     await initializeDateFormatting('bn');
   });
 
-  testWidgets(
-    'receipt save normalizes old parsed month to today by default',
-    (tester) async {
-      Map<String, dynamic>? savedReceipt;
-      final today = DateTime.now();
-      final todayIso =
-          '${today.year.toString().padLeft(4, '0')}-'
-          '${today.month.toString().padLeft(2, '0')}-'
-          '${today.day.toString().padLeft(2, '0')}';
+  testWidgets('receipt save normalizes old parsed month to today by default', (
+    tester,
+  ) async {
+    Map<String, dynamic>? savedReceipt;
+    final today = DateTime.now();
+    final todayIso =
+        '${today.year.toString().padLeft(4, '0')}-'
+        '${today.month.toString().padLeft(2, '0')}-'
+        '${today.day.toString().padLeft(2, '0')}';
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ReceiptConfirmationWidget(
-              receiptData: const {
-                'merchant': 'Test Store',
-                'date': '2025-03-01',
-                'category': 'Food',
-                'summary': 'Receipt summary',
-                'total': 300,
-                'items': [
-                  {'name': 'খাবার', 'amount': 300},
-                ],
-              },
-              onSave: (receiptData) async {
-                savedReceipt = receiptData;
-              },
-              onCancel: () {},
-            ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReceiptConfirmationWidget(
+            receiptData: const {
+              'merchant': 'Test Store',
+              'date': '2025-03-01',
+              'category': 'Food',
+              'summary': 'Receipt summary',
+              'total': 300,
+              'items': [
+                {'name': 'খাবার', 'amount': 300},
+              ],
+            },
+            onSave: (receiptData) async {
+              savedReceipt = receiptData;
+            },
+            onCancel: () {},
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.textContaining('Receipt date current monthের বাইরে ছিল'), findsOneWidget);
+    expect(
+      find.textContaining('Receipt date current monthের বাইরে ছিল'),
+      findsOneWidget,
+    );
 
-      await tester.tap(find.text('Save করুন'));
-      await tester.pump();
+    await tester.tap(find.text('Save করুন'));
+    await tester.pump();
 
-      expect(savedReceipt, isNotNull);
-      expect(savedReceipt!['date'], todayIso);
-    },
-  );
+    expect(savedReceipt, isNotNull);
+    expect(savedReceipt!['date'], todayIso);
+  });
 }

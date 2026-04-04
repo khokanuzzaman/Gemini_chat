@@ -8,6 +8,7 @@ import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/connectivity_service.dart';
 
 abstract class OpenAiVoiceDataSource {
   RateLimitSnapshot? get latestRateLimitSnapshot;
@@ -16,10 +17,14 @@ abstract class OpenAiVoiceDataSource {
 }
 
 class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
-  OpenAiVoiceDataSourceImpl({http.Client? client})
-    : _client = client ?? http.Client();
+  OpenAiVoiceDataSourceImpl({
+    http.Client? client,
+    ConnectivityService? connectivityService,
+  }) : _client = client ?? http.Client(),
+       _connectivityService = connectivityService ?? ConnectivityService();
 
   final http.Client _client;
+  final ConnectivityService _connectivityService;
   RateLimitSnapshot? _latestRateLimitSnapshot;
 
   @override
@@ -27,6 +32,11 @@ class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
 
   @override
   Future<String> transcribeAudio(String audioFilePath) async {
+    final isConnected = await _connectivityService.isConnected();
+    if (!isConnected) {
+      throw const NoInternetException();
+    }
+
     final apiKey = ApiConstants.openAiApiKey.trim();
     if (apiKey.isEmpty) {
       throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);

@@ -47,9 +47,16 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Receipt scan করতে camera দরকার</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>আপনার financial data সুরক্ষিত রাখতে Face ID দরকার</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voice দিয়ে expense add করতে microphone দরকার</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Gallery থেকে receipt select করতে</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
+import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
@@ -25,6 +27,11 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(dashboardControllerProvider);
+    final budgets = ref.watch(budgetProvider).categoryBudgets;
+    final categoryNames = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -65,7 +72,9 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _CategoryScroller(
+                  categories: categoryNames,
                   totals: data.categoryTotals,
+                  budgets: budgets,
                   onTapCategory: onOpenExpenses,
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -88,8 +97,7 @@ class DashboardScreen extends ConsumerWidget {
                               (expense) => Column(
                                 children: [
                                   _RecentExpenseTile(expense: expense),
-                                  if (expense !=
-                                      recentExpenses.take(5).last)
+                                  if (expense != recentExpenses.take(5).last)
                                     Divider(
                                       height: 1,
                                       color: context.borderColor.withValues(
@@ -201,6 +209,15 @@ class _HeaderCard extends StatelessWidget {
               color: AppColors.lightBackground.withValues(alpha: 0.72),
             ),
           ),
+          if (data.manualEntryCount > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              'এর মধ্যে ${BanglaFormatters.count(data.manualEntryCount)} টি manual entry',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.lightBackground.withValues(alpha: 0.72),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -301,9 +318,16 @@ class _StatCard extends StatelessWidget {
 }
 
 class _CategoryScroller extends StatelessWidget {
-  const _CategoryScroller({required this.totals, required this.onTapCategory});
+  const _CategoryScroller({
+    required this.categories,
+    required this.totals,
+    required this.budgets,
+    required this.onTapCategory,
+  });
 
+  final List<String> categories;
   final Map<String, double> totals;
+  final Map<String, double> budgets;
   final ValueChanged<String?> onTapCategory;
 
   @override
@@ -311,17 +335,22 @@ class _CategoryScroller extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: expenseCategories
+        children: categories
             .map((category) {
               final meta = resolveExpenseCategory(category);
-              final amount = totals[category] ?? 0;
+              final amount = totals[category] ?? 0.0;
+              final budget = budgets[category] ?? 0.0;
+              final progress = budget <= 0
+                  ? 0.0
+                  : (amount / budget).clamp(0.0, 1.0).toDouble();
+              final progressColor = _progressColor(progress);
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () => onTapCategory(category),
                   child: Ink(
-                    width: 150,
+                    width: 188,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: context.cardBackgroundColor,
@@ -345,6 +374,27 @@ class _CategoryScroller extends StatelessWidget {
                           BanglaFormatters.currency(amount),
                           style: AppTextStyles.bodyMedium,
                         ),
+                        if (budget > 0) ...[
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor: context.borderColor.withValues(
+                                alpha: 0.4,
+                              ),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                progressColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${BanglaFormatters.currency(amount)} / ${BanglaFormatters.currency(budget)}',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -354,6 +404,16 @@ class _CategoryScroller extends StatelessWidget {
             .toList(growable: false),
       ),
     );
+  }
+
+  Color _progressColor(double progress) {
+    if (progress > 0.9) {
+      return AppColors.error;
+    }
+    if (progress >= 0.7) {
+      return AppColors.warning;
+    }
+    return AppColors.success;
   }
 }
 
@@ -549,6 +609,17 @@ class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final categoryNames = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
+    if (!categoryNames.contains(_selectedCategory) &&
+        categoryNames.isNotEmpty) {
+      _selectedCategory = categoryNames.contains('Other')
+          ? 'Other'
+          : categoryNames.first;
+    }
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -598,7 +669,7 @@ class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemBuilder: (context, index) {
-                  final category = expenseCategories[index];
+                  final category = categoryNames[index];
                   final selected = category == _selectedCategory;
                   return ChoiceChip(
                     label: Text(category),
@@ -611,7 +682,7 @@ class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
                   );
                 },
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemCount: expenseCategories.length,
+                itemCount: categoryNames.length,
               ),
             ),
             const SizedBox(height: 12),

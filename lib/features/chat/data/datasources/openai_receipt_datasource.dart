@@ -4,11 +4,14 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/ai/prompt_builder.dart';
 import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/connectivity_service.dart';
+import '../../../category/domain/entities/category_entity.dart';
 
 abstract class OpenAiReceiptDataSource {
   TokenUsage? get latestTokenUsage;
@@ -18,10 +21,17 @@ abstract class OpenAiReceiptDataSource {
 }
 
 class OpenAiReceiptDataSourceImpl implements OpenAiReceiptDataSource {
-  OpenAiReceiptDataSourceImpl({http.Client? client})
-    : _client = client ?? http.Client();
+  OpenAiReceiptDataSourceImpl({
+    http.Client? client,
+    ConnectivityService? connectivityService,
+    Future<List<CategoryEntity>> Function()? categoryLoader,
+  }) : _client = client ?? http.Client(),
+       _connectivityService = connectivityService ?? ConnectivityService(),
+       _categoryLoader = categoryLoader;
 
   final http.Client _client;
+  final ConnectivityService _connectivityService;
+  final Future<List<CategoryEntity>> Function()? _categoryLoader;
 
   TokenUsage? _latestTokenUsage;
   RateLimitSnapshot? _latestRateLimitSnapshot;
@@ -34,13 +44,18 @@ class OpenAiReceiptDataSourceImpl implements OpenAiReceiptDataSource {
 
   @override
   Stream<String> parseReceipt(String extractedText) async* {
+    final isConnected = await _connectivityService.isConnected();
+    if (!isConnected) {
+      throw const NoInternetException();
+    }
+
     final apiKey = ApiConstants.openAiApiKey.trim();
     if (apiKey.isEmpty) {
       throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
     }
 
     final messages = <Map<String, String>>[
-      {'role': 'system', 'content': ApiConstants.receiptSystemPrompt},
+      {'role': 'system', 'content': await _buildSystemPrompt()},
       {'role': 'user', 'content': extractedText},
     ];
 
@@ -193,6 +208,16 @@ class OpenAiReceiptDataSourceImpl implements OpenAiReceiptDataSource {
     } catch (_) {}
 
     return AppStrings.generalError;
+  }
+
+  Future<String> _buildSystemPrompt() async {
+    try {
+      final categories = await _categoryLoader?.call();
+      if (categories != null && categories.isNotEmpty) {
+        return PromptBuilder.buildReceiptSystemPrompt(categories);
+      }
+    } catch (_) {}
+    return PromptBuilder.buildReceiptSystemPrompt(const []);
   }
 
   TokenUsage _estimateTokenUsage(

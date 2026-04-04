@@ -5,16 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_strings.dart';
 import 'core/database/expense_local_datasource.dart';
 import 'core/database/expense_seed_data.dart';
 import 'core/database/models/expense_record_model.dart';
+import 'core/navigation/app_shell_navigation.dart';
+import 'core/notifications/notification_provider.dart';
+import 'core/notifications/notification_service.dart';
 import 'core/preferences/app_preferences.dart';
 import 'core/providers/database_providers.dart';
+import 'core/providers/shared_preferences_provider.dart';
+import 'core/security/app_lifecycle_observer.dart';
+import 'core/security/biometric_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/chat/data/models/message_model.dart';
+import 'features/category/data/datasources/category_local_datasource.dart';
+import 'features/category/data/models/category_model.dart';
+import 'features/category/domain/category_registry.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/expense/presentation/providers/expense_providers.dart';
@@ -22,22 +32,52 @@ import 'features/expense/presentation/screens/analytics_screen.dart';
 import 'features/expense/presentation/screens/dashboard_screen.dart';
 import 'features/expense/presentation/screens/expense_list_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/security/lock_screen.dart';
 import 'features/splash/splash_screen.dart';
+
+const _notificationPermissionAskedKey = 'notification_permission_asked';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('bn');
   await dotenv.load(fileName: '.env');
+  final sharedPreferences = await SharedPreferences.getInstance();
   final savedThemeMode = await _loadSavedThemeMode();
+
+  await NotificationService.initialize();
+
+  final notifAsked =
+      sharedPreferences.getBool(_notificationPermissionAskedKey) ?? false;
+  if (!notifAsked) {
+    await NotificationService.requestPermission();
+    await sharedPreferences.setBool(_notificationPermissionAskedKey, true);
+  }
 
   final isar = await _openIsar();
   final expenseLocalDataSource = ExpenseLocalDataSource(isar);
+  final categoryLocalDataSource = CategoryLocalDataSource(isar);
+  await categoryLocalDataSource.seedDefaultCategories();
+  final bootCategories = await categoryLocalDataSource.getAllCategories();
+  CategoryRegistry.setCategories(
+    bootCategories
+        .map((category) => category.toEntity())
+        .toList(growable: false),
+  );
   await ExpenseSeedData.seedIfNeeded(expenseLocalDataSource);
+
+  final bootstrapContainer = ProviderContainer(
+    overrides: [sharedPreferencesProvider.overrideWithValue(sharedPreferences)],
+  );
+  await bootstrapContainer
+      .read(notificationProvider.notifier)
+      .reapplyCurrentSettings();
+  bootstrapContainer.dispose();
 
   runApp(
     ProviderScope(
       overrides: [
         isarProvider.overrideWithValue(isar),
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         themeBootstrapProvider.overrideWithValue(savedThemeMode),
       ],
       child: const ExpenseTrackerApp(),
@@ -63,22 +103,45 @@ Future<Isar> _openIsar() async {
 
   final directory = await getApplicationDocumentsDirectory();
   return Isar.open(
-    [MessageModelSchema, ExpenseRecordModelSchema],
+    [MessageModelSchema, ExpenseRecordModelSchema, CategoryModelSchema],
     directory: directory.path,
     name: instanceName,
   );
 }
 
-class ExpenseTrackerApp extends ConsumerWidget {
+class ExpenseTrackerApp extends ConsumerStatefulWidget {
   const ExpenseTrackerApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpenseTrackerApp> createState() => _ExpenseTrackerAppState();
+}
+
+class _ExpenseTrackerAppState extends ConsumerState<ExpenseTrackerApp> {
+  late final AppLifecycleObserver _appLifecycleObserver;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLifecycleObserver = AppLifecycleObserver(ref: ref);
+    WidgetsBinding.instance.addObserver(_appLifecycleObserver);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(_appLifecycleObserver);
+    _appLifecycleObserver.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
+    final biometric = ref.watch(biometricProvider);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: AppStrings.appName,
+      navigatorKey: AppShellNavigation.navigatorKey,
       locale: const Locale('bn', 'BD'),
       supportedLocales: const [Locale('bn', 'BD'), Locale('en', 'US')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -87,6 +150,15 @@ class ExpenseTrackerApp extends ConsumerWidget {
       themeMode: themeMode,
       themeAnimationDuration: const Duration(milliseconds: 250),
       themeAnimationCurve: Curves.easeOutCubic,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (biometric.needsUnlock)
+              Positioned.fill(child: LockScreen(onUnlocked: () {})),
+          ],
+        );
+      },
       home: const _AppBootstrap(),
     );
   }
@@ -171,7 +243,15 @@ class _MainShellState extends ConsumerState<_MainShell> {
   @override
   void initState() {
     super.initState();
+    AppShellNavigation.selectedTab.addListener(_handleExternalTabChange);
+    _currentIndex = AppShellNavigation.selectedTab.value;
     _hydratePreferences();
+  }
+
+  @override
+  void dispose() {
+    AppShellNavigation.selectedTab.removeListener(_handleExternalTabChange);
+    super.dispose();
   }
 
   Future<void> _hydratePreferences() async {
@@ -224,9 +304,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
             labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
+              _setCurrentIndex(index);
             },
             destinations: const [
               NavigationDestination(
@@ -298,9 +376,31 @@ class _MainShellState extends ConsumerState<_MainShell> {
     if (!mounted) {
       return;
     }
+    _setCurrentIndex(2);
+  }
+
+  void _handleExternalTabChange() {
+    final nextIndex = AppShellNavigation.selectedTab.value;
+    if (!mounted || nextIndex == _currentIndex) {
+      return;
+    }
+
     setState(() {
-      _currentIndex = 2;
+      _currentIndex = nextIndex;
     });
+  }
+
+  void _setCurrentIndex(int index) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentIndex = index;
+    });
+    if (AppShellNavigation.selectedTab.value != index) {
+      AppShellNavigation.selectedTab.value = index;
+    }
   }
 }
 

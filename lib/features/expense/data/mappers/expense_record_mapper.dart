@@ -11,6 +11,7 @@ extension ExpenseRecordModelMapper on ExpenseRecordModel {
       category: category,
       description: description,
       date: date,
+      isManual: isManual,
     );
   }
 }
@@ -22,6 +23,7 @@ extension ExpenseEntityMapper on ExpenseEntity {
       ..amount = amount.round()
       ..category = category
       ..description = description
+      ..isManual = isManual
       ..date = date;
   }
 }

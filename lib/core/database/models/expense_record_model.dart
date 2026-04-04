@@ -9,6 +9,7 @@ class ExpenseRecordModel {
   late int amount;
   late String category;
   late String description;
+  bool isManual = false;
 
   @Index()
   late DateTime date;

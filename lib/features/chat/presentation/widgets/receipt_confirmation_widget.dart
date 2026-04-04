@@ -29,10 +29,7 @@ class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
   late bool _hadInvalidDate;
 
   Map<String, dynamic> get _effectiveReceiptData {
-    return {
-      ...widget.receiptData,
-      'date': _formatIsoDate(_selectedDate),
-    };
+    return {...widget.receiptData, 'date': _formatIsoDate(_selectedDate)};
   }
 
   @override
@@ -55,7 +52,8 @@ class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
         .map((item) => Map<String, dynamic>.from(item))
         .toList(growable: false);
     final categoryMeta = resolveExpenseCategory(category);
-    final isPastDate = !_isSameDay(_selectedDate, DateTime.now()) &&
+    final isPastDate =
+        !_isSameDay(_selectedDate, DateTime.now()) &&
         _stripTime(_selectedDate).isBefore(_stripTime(DateTime.now()));
 
     return Align(
@@ -155,7 +153,8 @@ class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
                     backgroundColor: context.mutedSurfaceColor,
                     borderColor: context.borderColor,
                     textColor: context.secondaryTextColor,
-                    text: 'Receipt date বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে।',
+                    text:
+                        'Receipt date বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে।',
                   ),
                 ],
                 if (summary.trim().isNotEmpty) ...[

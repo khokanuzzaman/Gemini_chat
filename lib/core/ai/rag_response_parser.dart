@@ -1,3 +1,5 @@
+import '../../features/category/domain/category_registry.dart';
+
 enum RagResponseType {
   monthlySummary,
   categoryBreakdown,
@@ -134,8 +136,15 @@ class RagResponseParser {
   }
 
   static String? _detectHighlightedCategory(String question) {
+    final normalizedQuestion = question.toLowerCase();
+    for (final category in CategoryRegistry.categories) {
+      if (normalizedQuestion.contains(category.name.toLowerCase())) {
+        return category.name;
+      }
+    }
+
     for (final entry in _categoryKeywords.entries) {
-      if (entry.value.any(question.contains)) {
+      if (entry.value.any(normalizedQuestion.contains)) {
         return entry.key;
       }
     }

@@ -49,71 +49,76 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: AnimatedOpacity(
-                  opacity: isLastPage ? 0 : 1,
-                  duration: const Duration(milliseconds: 200),
-                  child: IgnorePointer(
-                    ignoring: isLastPage,
-                    child: TextButton(
-                      onPressed: _complete,
-                      child: const Text('Skip'),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.lg,
+              ),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AnimatedOpacity(
+                      opacity: isLastPage ? 0 : 1,
+                      duration: const Duration(milliseconds: 200),
+                      child: IgnorePointer(
+                        ignoring: isLastPage,
+                        child: TextButton(
+                          onPressed: _complete,
+                          child: const Text('Skip'),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: _pages.length,
-                  onPageChanged: (value) {
-                    setState(() {
-                      _pageIndex = value;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final page = _pages[index];
-                    return _OnboardingPage(data: page);
-                  },
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_pages.length, (index) {
-                  final active = index == _pageIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? Theme.of(context).colorScheme.primary
-                          : context.borderColor,
-                      borderRadius: BorderRadius.circular(999),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: _pages.length,
+                      onPageChanged: (value) {
+                        setState(() {
+                          _pageIndex = value;
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        final page = _pages[index];
+                        return _OnboardingPage(data: page);
+                      },
                     ),
-                  );
-                }),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_pages.length, (index) {
+                      final active = index == _pageIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Theme.of(context).colorScheme.primary
+                              : context.borderColor,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: 220,
+                    child: FilledButton(
+                      onPressed: isLastPage ? _complete : _nextPage,
+                      child: Text(isLastPage ? 'শুরু করি' : 'পরবর্তী'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: isLastPage ? _complete : _nextPage,
-                  child: Text(isLastPage ? 'শুরু করি' : 'পরবর্তী'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

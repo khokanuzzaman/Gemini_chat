@@ -5,6 +5,7 @@ class ExpenseEntity {
     required this.category,
     required this.description,
     required this.date,
+    this.isManual = false,
   });
 
   final int? id;
@@ -12,6 +13,7 @@ class ExpenseEntity {
   final String category;
   final String description;
   final DateTime date;
+  final bool isManual;
 
   ExpenseEntity copyWith({
     int? id,
@@ -19,6 +21,7 @@ class ExpenseEntity {
     String? category,
     String? description,
     DateTime? date,
+    bool? isManual,
   }) {
     return ExpenseEntity(
       id: id ?? this.id,
@@ -26,6 +29,7 @@ class ExpenseEntity {
       category: category ?? this.category,
       description: description ?? this.description,
       date: date ?? this.date,
+      isManual: isManual ?? this.isManual,
     );
   }
 }

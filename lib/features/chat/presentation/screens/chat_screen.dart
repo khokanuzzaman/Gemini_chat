@@ -10,13 +10,16 @@ import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/assets/app_icon.dart';
+import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/global_settings_button.dart';
+import '../../../../core/widgets/offline_banner.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../expense/presentation/screens/manual_add_screen.dart';
 import '../providers/chat_provider.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
@@ -136,6 +139,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           SafeArea(
             child: Column(
               children: [
+                OfflineBanner(onManualAdd: () => showManualAddSheet(context)),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   child: lastMessageUsedRag && !_ragBannerDismissed
@@ -215,7 +219,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               children: [
                                 _AttachButton(
                                   enabled: !isResponding && !isScanning,
-                                  onTap: _showAttachOptions,
+                                  onTap: () {
+                                    _showAttachOptions();
+                                  },
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -233,7 +239,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                         _scrollToBottom();
                                       }
                                     },
-                                    onSubmitted: (_) => _submitMessage(),
+                                    onSubmitted: (_) {
+                                      _submitMessage();
+                                    },
                                     decoration: const InputDecoration(
                                       hintText: AppStrings.chatHint,
                                     ),
@@ -244,10 +252,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   hasText: trimmedText.isNotEmpty,
                                   isResponding: isResponding || isScanning,
                                   canSend: canSend,
-                                  onSend: _submitMessage,
-                                  onStartRecording: () => ref
-                                      .read(chatProvider.notifier)
-                                      .startRecording(),
+                                  onSend: () {
+                                    _submitMessage();
+                                  },
+                                  onStartRecording: () {
+                                    _startRecording();
+                                  },
                                 ),
                               ],
                             ),
@@ -301,10 +311,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  void _submitMessage() {
+  Future<void> _submitMessage() async {
     final text = _messageController.text.trim();
     final currentCount = _characterCountNotifier.value;
     if (text.isEmpty || currentCount > _maxMessageLength) {
+      return;
+    }
+
+    if (!ref.read(connectivityProvider)) {
+      await _showOfflineActionSheet();
       return;
     }
 
@@ -328,6 +343,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   Future<void> _showAttachOptions() async {
+    if (!ref.read(connectivityProvider)) {
+      await _showOfflineActionSheet();
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.cardBackgroundColor,
@@ -352,9 +372,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   icon: Icons.photo_camera_rounded,
                   title: 'Camera',
                   subtitle: 'নতুন receipt তুলুন',
-                  onTap: () {
+                  onTap: () async {
                     Navigator.of(sheetContext).pop();
-                    ref.read(chatProvider.notifier).scanFromCamera();
+                    await _startReceiptScan(fromCamera: true);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -362,10 +382,98 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   icon: Icons.photo_library_rounded,
                   title: 'Gallery',
                   subtitle: 'আগের receipt image বাছাই করুন',
-                  onTap: () {
+                  onTap: () async {
                     Navigator.of(sheetContext).pop();
-                    ref.read(chatProvider.notifier).scanFromGallery();
+                    await _startReceiptScan(fromCamera: false);
                   },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _startRecording() async {
+    if (!ref.read(connectivityProvider)) {
+      await _showOfflineActionSheet();
+      return;
+    }
+
+    await ref.read(chatProvider.notifier).startRecording();
+  }
+
+  Future<void> _startReceiptScan({required bool fromCamera}) async {
+    if (!ref.read(connectivityProvider)) {
+      await _showOfflineActionSheet();
+      return;
+    }
+
+    if (fromCamera) {
+      await ref.read(chatProvider.notifier).scanFromCamera();
+      return;
+    }
+
+    await ref.read(chatProvider.notifier).scanFromGallery();
+  }
+
+  Future<void> _showOfflineActionSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.cardBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: context.borderColor,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Internet নেই', style: AppTextStyles.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'AI ছাড়া manual add করতে পারেন',
+                  style: AppTextStyles.bodyMedium,
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          showManualAddSheet(context);
+                        }
+                      });
+                    },
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: const Text('Manual expense add করুন'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('বাদ দিন'),
+                  ),
                 ),
               ],
             ),

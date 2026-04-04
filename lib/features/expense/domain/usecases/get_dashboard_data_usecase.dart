@@ -50,6 +50,9 @@ class GetDashboardDataUseCase {
         (sum, expense) => sum + expense.amount,
       ),
       transactionCount: thisMonthExpenses.length,
+      manualEntryCount: thisMonthExpenses
+          .where((expense) => expense.isManual)
+          .length,
       categoryTotals: categoryTotals,
       todayExpenses: todayExpenses,
       recentExpenses: sortedRecentExpenses.take(10).toList(growable: false),

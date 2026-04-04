@@ -5,17 +5,26 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/database/expense_seed_data.dart';
 import '../../core/database/models/expense_record_model.dart';
+import '../../core/navigation/app_page_route.dart';
+import '../../core/notifications/notification_provider.dart';
+import '../../core/notifications/notification_settings.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/providers/database_providers.dart';
+import '../../core/security/biometric_provider.dart';
+import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_provider.dart';
+import '../category/presentation/providers/category_provider.dart';
+import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../chat/data/models/message_model.dart';
 import '../expense/presentation/providers/expense_providers.dart';
+import 'budget_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -27,15 +36,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _currencyOptions = ['৳', 'Tk', 'BDT'];
   static const _dateFormatOptions = ['d MMM yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd'];
-  static const _categoryOptions = [
-    'Food',
-    'Transport',
-    'Healthcare',
-    'Shopping',
-    'Bill',
-    'Entertainment',
-    'Other',
-  ];
+  static const _lockTimeoutOptions = [0, 30, 60, 300];
 
   bool _loading = true;
   late bool _ragEnabled;
@@ -69,6 +70,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final biometricState = ref.watch(biometricProvider);
+    final biometricService = ref.watch(biometricServiceProvider);
+    final notificationSettings = ref.watch(notificationProvider);
+    final categories = ref.watch(categoryProvider);
+    final categoryNames = categories
+        .map((category) => category.name)
+        .toList(growable: false);
+    final defaultCategory = categoryNames.contains(_defaultCategory)
+        ? _defaultCategory
+        : 'Other';
+
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -95,13 +107,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _DropdownTile(
                 title: 'Default category',
-                value: _defaultCategory,
-                items: _categoryOptions,
+                value: defaultCategory,
+                items: categoryNames,
                 onChanged: (value) async {
                   setState(() {
                     _defaultCategory = value;
                   });
                   await AppPreferences.setDefaultCategory(value);
+                },
+              ),
+            ],
+          ),
+          _SettingsSection(
+            title: 'Manage',
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.category_outlined),
+                title: const Text('Categories'),
+                subtitle: const Text('Custom category বানান ও manage করুন'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const CategoryManagementScreen()));
                 },
               ),
             ],
@@ -157,6 +186,207 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _dateFormat = value;
                   });
                   await AppPreferences.setDateFormat(value);
+                },
+              ),
+            ],
+          ),
+          _SettingsSection(
+            title: 'নিরাপত্তা',
+            children: [
+              FutureBuilder<bool>(
+                future: biometricService.isAvailable(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.fingerprint),
+                      title: Text('Biometric lock'),
+                      subtitle: Text('Checking availability...'),
+                      trailing: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
+
+                  final isAvailable = snapshot.data ?? false;
+                  if (!isAvailable) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      enabled: false,
+                      leading: Icon(
+                        Icons.fingerprint,
+                        color: Theme.of(context).disabledColor,
+                      ),
+                      title: const Text('Biometric lock'),
+                      subtitle: const Text('এই device এ available নেই'),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          Icons.fingerprint,
+                          color: biometricState.isEnabled
+                              ? AppColors.primary
+                              : Theme.of(context).disabledColor,
+                        ),
+                        title: const Text('Biometric lock'),
+                        subtitle: Text(
+                          biometricState.isEnabled
+                              ? 'চালু — app খুলতে verify লাগবে'
+                              : 'বন্ধ — সবাই app খুলতে পারবে',
+                        ),
+                        trailing: Switch.adaptive(
+                          value: biometricState.isEnabled,
+                          onChanged: (value) => _handleBiometricToggle(value),
+                        ),
+                      ),
+                      if (biometricState.isEnabled)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.timer_outlined),
+                          title: const Text('Lock timeout'),
+                          subtitle: const Text(
+                            'Background এ গেলে কতক্ষণ পরে lock হবে',
+                          ),
+                          trailing: DropdownButton<int>(
+                            value: biometricState.lockTimeoutSeconds,
+                            items: _lockTimeoutOptions
+                                .map(
+                                  (seconds) => DropdownMenuItem<int>(
+                                    value: seconds,
+                                    child: Text(_lockTimeoutLabel(seconds)),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) {
+                              if (value != null) {
+                                ref
+                                    .read(biometricProvider.notifier)
+                                    .setLockTimeout(value);
+                              }
+                            },
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+          _SettingsSection(
+            title: 'Notifications',
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('Daily reminder'),
+                subtitle: Text(
+                  notificationSettings.dailyReminderEnabled
+                      ? 'খরচ add করার reminder\nপ্রতিদিন ${_formatTimeOfDay(context, notificationSettings.dailyReminderTime)} টায়'
+                      : 'খরচ add করার reminder',
+                ),
+                trailing: Switch.adaptive(
+                  value: notificationSettings.dailyReminderEnabled,
+                  onChanged: (value) async {
+                    if (!value) {
+                      await _updateNotificationSettings(
+                        notificationSettings.copyWith(
+                          dailyReminderEnabled: false,
+                        ),
+                      );
+                      return;
+                    }
+
+                    final pickedTime = await _pickReminderTime(
+                      notificationSettings.dailyReminderTime,
+                    );
+                    await _updateNotificationSettings(
+                      notificationSettings.copyWith(
+                        dailyReminderEnabled: true,
+                        dailyReminderTime:
+                            pickedTime ??
+                            notificationSettings.dailyReminderTime,
+                      ),
+                    );
+                  },
+                ),
+                onTap: notificationSettings.dailyReminderEnabled
+                    ? () => _changeReminderTime(notificationSettings)
+                    : null,
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.savings_outlined),
+                title: const Text('Budget সতর্কতা'),
+                subtitle: Text(
+                  'Budget এর ${notificationSettings.budgetAlertThreshold.toStringAsFixed(0)}% হলে notify করবে',
+                ),
+                trailing: Switch.adaptive(
+                  value: notificationSettings.budgetAlertEnabled,
+                  onChanged: (value) async {
+                    await _updateNotificationSettings(
+                      notificationSettings.copyWith(budgetAlertEnabled: value),
+                    );
+                  },
+                ),
+              ),
+              if (notificationSettings.budgetAlertEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Slider(
+                        value: notificationSettings.budgetAlertThreshold,
+                        min: 50,
+                        max: 100,
+                        divisions: 10,
+                        label:
+                            '${notificationSettings.budgetAlertThreshold.toStringAsFixed(0)}%',
+                        onChanged: (value) async {
+                          await _updateNotificationSettings(
+                            notificationSettings.copyWith(
+                              budgetAlertThreshold: value,
+                            ),
+                          );
+                        },
+                      ),
+                      Text(
+                        'Threshold: ${notificationSettings.budgetAlertThreshold.toStringAsFixed(0)}%',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.bar_chart_outlined),
+                title: const Text('সাপ্তাহিক রিপোর্ট'),
+                subtitle: const Text('প্রতি রোববার সকাল ৯টায়'),
+                trailing: Switch.adaptive(
+                  value: notificationSettings.weeklyReportEnabled,
+                  onChanged: (value) async {
+                    await _updateNotificationSettings(
+                      notificationSettings.copyWith(weeklyReportEnabled: value),
+                    );
+                  },
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('Category budget set করুন'),
+                subtitle: const Text('Budget alert এর জন্য'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const BudgetSettingsScreen()));
                 },
               ),
             ],
@@ -293,6 +523,113 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text(AppStrings.demoDataSeeded)));
+  }
+
+  Future<void> _handleBiometricToggle(bool value) async {
+    final notifier = ref.read(biometricProvider.notifier);
+    final result = value ? await notifier.enable() : await notifier.disable();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == BiometricAuthResult.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value ? 'Biometric lock চালু হয়েছে' : 'Biometric lock বন্ধ হয়েছে',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (result == BiometricAuthResult.notEnrolled) {
+      await _showBiometricEnrollmentDialog();
+      return;
+    }
+
+    final message = switch (result) {
+      BiometricAuthResult.notAvailable => 'Biometric available নেই',
+      BiometricAuthResult.lockedOut => 'অনেকবার fail — পরে চেষ্টা করুন',
+      BiometricAuthResult.failed => 'Verify করা যায়নি',
+      BiometricAuthResult.success => null,
+      BiometricAuthResult.notEnrolled => null,
+    };
+
+    if (message != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Future<void> _showBiometricEnrollmentDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Biometric set করা নেই'),
+          content: const Text(
+            'আপনার device এ কোনো fingerprint/face set করা নেই। Settings → Security থেকে set করুন।',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('বাদ দিন'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await openAppSettings();
+              },
+              child: const Text('Settings এ যান'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _changeReminderTime(
+    NotificationSettings notificationSettings,
+  ) async {
+    final pickedTime = await _pickReminderTime(
+      notificationSettings.dailyReminderTime,
+    );
+    if (pickedTime == null) {
+      return;
+    }
+
+    await _updateNotificationSettings(
+      notificationSettings.copyWith(dailyReminderTime: pickedTime),
+    );
+  }
+
+  Future<TimeOfDay?> _pickReminderTime(TimeOfDay initialTime) {
+    return showTimePicker(context: context, initialTime: initialTime);
+  }
+
+  Future<void> _updateNotificationSettings(
+    NotificationSettings settings,
+  ) async {
+    await ref.read(notificationProvider.notifier).updateSettings(settings);
+  }
+
+  String _formatTimeOfDay(BuildContext context, TimeOfDay time) {
+    return MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(time, alwaysUse24HourFormat: false);
+  }
+
+  String _lockTimeoutLabel(int seconds) {
+    return switch (seconds) {
+      0 => 'সাথে সাথে',
+      30 => '৩০ সেকেন্ড',
+      60 => '১ মিনিট',
+      300 => '৫ মিনিট',
+      _ => '$seconds সেকেন্ড',
+    };
   }
 }
 

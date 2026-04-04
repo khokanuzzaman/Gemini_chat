@@ -1,4 +1,5 @@
 import '../../features/expense/domain/entities/expense_entity.dart';
+import '../../features/category/domain/category_registry.dart';
 import '../database/expense_local_datasource.dart';
 import '../database/models/expense_record_model.dart';
 import '../utils/bangla_formatters.dart';
@@ -268,7 +269,7 @@ class RagContextBuilder {
   }
 
   bool _needsData(String question) {
-    const keywords = [
+    const staticKeywords = [
       'কত',
       'খরচ',
       'টাকা',
@@ -327,7 +328,16 @@ class RagContextBuilder {
       'december',
     ];
     final lower = question.toLowerCase();
-    return keywords.any(lower.contains);
+    if (staticKeywords.any(lower.contains)) {
+      return true;
+    }
+
+    for (final category in CategoryRegistry.categories) {
+      if (lower.contains(category.name.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool _looksLikeExpenseEntry(String input) {

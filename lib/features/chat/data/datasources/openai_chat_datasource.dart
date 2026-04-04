@@ -4,12 +4,15 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/ai/prompt_builder.dart';
+import '../../../../core/network/connectivity_service.dart';
 import '../../../../core/ai/rag_prompt_builder.dart';
 import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../category/domain/entities/category_entity.dart';
 import '../../domain/entities/message_entity.dart';
 
 abstract class OpenAiChatDataSource {
@@ -24,10 +27,17 @@ abstract class OpenAiChatDataSource {
 }
 
 class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
-  OpenAiChatDataSourceImpl({http.Client? client})
-    : _client = client ?? http.Client();
+  OpenAiChatDataSourceImpl({
+    http.Client? client,
+    ConnectivityService? connectivityService,
+    Future<List<CategoryEntity>> Function()? categoryLoader,
+  }) : _client = client ?? http.Client(),
+       _connectivityService = connectivityService ?? ConnectivityService(),
+       _categoryLoader = categoryLoader;
 
   final http.Client _client;
+  final ConnectivityService _connectivityService;
+  final Future<List<CategoryEntity>> Function()? _categoryLoader;
 
   TokenUsage? _latestTokenUsage;
   RateLimitSnapshot? _latestRateLimitSnapshot;
@@ -44,6 +54,11 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
     String newMessage, {
     String? ragContext,
   }) async* {
+    final isConnected = await _connectivityService.isConnected();
+    if (!isConnected) {
+      throw const NoInternetException();
+    }
+
     final apiKey = ApiConstants.openAiApiKey.trim();
     if (apiKey.isEmpty) {
       throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
@@ -52,6 +67,7 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
     final messages = _buildMessages(
       history,
       newMessage,
+      systemPrompt: await _buildSystemPrompt(),
       ragContext: ragContext,
     );
     if (ragContext != null) {
@@ -67,6 +83,7 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
   List<Map<String, String>> _buildMessages(
     List<MessageEntity> history,
     String newMessage, {
+    required String systemPrompt,
     String? ragContext,
   }) {
     final latestText = ragContext != null
@@ -77,7 +94,7 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
       {
         'role': 'system',
         'content':
-            '${ApiConstants.chatSystemPrompt}\n\nআজকের তারিখ: ${_formatIsoDate(DateTime.now())}. Relative date convert করতে এই তারিখ use করুন.',
+            '$systemPrompt\n\nআজকের তারিখ: ${_formatIsoDate(DateTime.now())}. Relative date convert করতে এই তারিখ use করুন.',
       },
     ];
 
@@ -94,6 +111,16 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
 
     messages.add({'role': 'user', 'content': latestText});
     return messages;
+  }
+
+  Future<String> _buildSystemPrompt() async {
+    try {
+      final categories = await _categoryLoader?.call();
+      if (categories != null && categories.isNotEmpty) {
+        return PromptBuilder.buildChatSystemPrompt(categories);
+      }
+    } catch (_) {}
+    return PromptBuilder.buildChatSystemPrompt(const []);
   }
 
   String _formatIsoDate(DateTime date) {

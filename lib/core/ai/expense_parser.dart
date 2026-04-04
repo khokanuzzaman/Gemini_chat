@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../features/category/domain/category_registry.dart';
 import 'expense_result.dart';
 
 class ExpenseParser {
@@ -10,15 +11,6 @@ class ExpenseParser {
     caseSensitive: false,
   );
   static final _arrayRegex = RegExp(r'\[[\s\S]*?\]');
-  static const _supportedCategories = {
-    'Food',
-    'Transport',
-    'Healthcare',
-    'Shopping',
-    'Bill',
-    'Entertainment',
-    'Other',
-  };
 
   /// Parses an AI response and extracts expense data plus conversational text.
   ExpenseResult parseExpenseFromResponse(String response) {
@@ -109,6 +101,7 @@ class ExpenseParser {
       final expenses = decoded
           .whereType<Map>()
           .map((item) => ExpenseData.fromJson(Map<String, dynamic>.from(item)))
+          .map(_normalizeExpenseCategory)
           .where((expense) => expense.isValid)
           .where((expense) => _supportedCategories.contains(expense.category))
           .toList(growable: false);
@@ -136,7 +129,9 @@ class ExpenseParser {
         return null;
       }
 
-      final expense = ExpenseData.fromJson(Map<String, dynamic>.from(decoded));
+      final expense = _normalizeExpenseCategory(
+        ExpenseData.fromJson(Map<String, dynamic>.from(decoded)),
+      );
       if (!expense.isValid ||
           !_supportedCategories.contains(expense.category)) {
         return null;
@@ -176,9 +171,13 @@ class ExpenseParser {
         dateValue is! String ||
         dateValue.trim().isEmpty ||
         categoryValue is! String ||
-        !_supportedCategories.contains(categoryValue) ||
         itemsValue is! List ||
         itemsValue.isEmpty) {
+      return null;
+    }
+
+    final normalizedCategory = _normalizedCategory(categoryValue);
+    if (normalizedCategory == null) {
       return null;
     }
 
@@ -214,7 +213,7 @@ class ExpenseParser {
       'total': normalizedTotal,
       'date': dateValue.trim(),
       'items': normalizedItems,
-      'category': categoryValue,
+      'category': normalizedCategory,
       'summary': summaryValue is String ? summaryValue.trim() : fallbackText,
     };
   }
@@ -226,7 +225,8 @@ class ExpenseParser {
   }
 
   List<ExpenseData> _receiptItemsToExpenses(Map<String, dynamic> receiptData) {
-    final category = receiptData['category'] as String? ?? 'Other';
+    final category =
+        _normalizedCategory(receiptData['category'] as String?) ?? 'Other';
     final date = receiptData['date'] as String? ?? 'today';
     final items = (receiptData['items'] as List<dynamic>? ?? const [])
         .whereType<Map>()
@@ -313,5 +313,31 @@ class ExpenseParser {
     }
 
     return objects;
+  }
+
+  ExpenseData _normalizeExpenseCategory(ExpenseData expense) {
+    final normalizedCategory = _normalizedCategory(expense.category);
+    if (normalizedCategory == null) {
+      return expense;
+    }
+
+    return expense.copyWith(category: normalizedCategory);
+  }
+
+  Set<String> get _supportedCategories =>
+      CategoryRegistry.categoryNames.toSet();
+
+  String? _normalizedCategory(String? rawCategory) {
+    if (rawCategory == null) {
+      return null;
+    }
+
+    final normalized = rawCategory.trim().toLowerCase();
+    for (final category in CategoryRegistry.categories) {
+      if (category.name.trim().toLowerCase() == normalized) {
+        return category.name;
+      }
+    }
+    return null;
   }
 }

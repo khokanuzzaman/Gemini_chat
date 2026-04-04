@@ -61,8 +61,9 @@ class _FakeExpenseRepository implements ExpenseRepository {
   Future<ExpenseEntity> saveExpense(ExpenseEntity expense) async => expense;
 
   @override
-  Future<List<ExpenseEntity>> saveExpenses(List<ExpenseEntity> expenses) async =>
-      expenses;
+  Future<List<ExpenseEntity>> saveExpenses(
+    List<ExpenseEntity> expenses,
+  ) async => expenses;
 
   @override
   Future<void> deleteExpense(int id) async {}
@@ -133,9 +134,9 @@ void main() {
       monthExpenses: [first, second],
     );
 
-    final data = await GetAnalyticsUseCase(repository).call(
-      DateTime(now.year, now.month, 1),
-    );
+    final data = await GetAnalyticsUseCase(
+      repository,
+    ).call(DateTime(now.year, now.month, 1));
     final dayKey = DateTime(now.year, now.month, now.day);
 
     expect(data.expensesByDay[dayKey]!.map((expense) => expense.description), [

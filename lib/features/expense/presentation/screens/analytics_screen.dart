@@ -7,6 +7,7 @@ import '../../../../core/theme/chart_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
@@ -17,6 +18,10 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final analytics = ref.watch(analyticsControllerProvider);
+    final categoryNames = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -71,6 +76,7 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 _ComparisonSection(
+                  categories: categoryNames,
                   thisMonth: data.thisMonthByCategory,
                   lastMonth: data.lastMonthByCategory,
                 ),
@@ -526,8 +532,13 @@ class _SelectedDayCard extends StatelessWidget {
 }
 
 class _ComparisonSection extends StatelessWidget {
-  const _ComparisonSection({required this.thisMonth, required this.lastMonth});
+  const _ComparisonSection({
+    required this.categories,
+    required this.thisMonth,
+    required this.lastMonth,
+  });
 
+  final List<String> categories;
   final Map<String, double> thisMonth;
   final Map<String, double> lastMonth;
 
@@ -541,7 +552,7 @@ class _ComparisonSection extends StatelessWidget {
           children: [
             const Text('Month comparison', style: AppTextStyles.titleLarge),
             const SizedBox(height: 16),
-            ...expenseCategories.map((category) {
+            ...categories.map((category) {
               final current = thisMonth[category] ?? 0;
               final previous = lastMonth[category] ?? 0;
               final difference = current - previous;

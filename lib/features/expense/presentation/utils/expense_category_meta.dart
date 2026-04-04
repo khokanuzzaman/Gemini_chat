@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/category_icon.dart';
+import '../../../category/domain/category_registry.dart';
 
 class ExpenseCategoryMeta {
   const ExpenseCategoryMeta({
@@ -15,54 +15,14 @@ class ExpenseCategoryMeta {
   final Color color;
 }
 
-const expenseCategories = <String>[
-  'Food',
-  'Transport',
-  'Healthcare',
-  'Shopping',
-  'Bill',
-  'Entertainment',
-  'Other',
-];
-
-final expenseCategoryMeta = <String, ExpenseCategoryMeta>{
-  'Food': ExpenseCategoryMeta(
-    name: 'Food',
-    icon: CategoryIcon.getIcon('Food'),
-    color: AppColors.food,
-  ),
-  'Transport': ExpenseCategoryMeta(
-    name: 'Transport',
-    icon: CategoryIcon.getIcon('Transport'),
-    color: AppColors.transport,
-  ),
-  'Healthcare': ExpenseCategoryMeta(
-    name: 'Healthcare',
-    icon: CategoryIcon.getIcon('Healthcare'),
-    color: AppColors.healthcare,
-  ),
-  'Shopping': ExpenseCategoryMeta(
-    name: 'Shopping',
-    icon: CategoryIcon.getIcon('Shopping'),
-    color: AppColors.shopping,
-  ),
-  'Bill': ExpenseCategoryMeta(
-    name: 'Bill',
-    icon: CategoryIcon.getIcon('Bill'),
-    color: AppColors.bill,
-  ),
-  'Entertainment': ExpenseCategoryMeta(
-    name: 'Entertainment',
-    icon: CategoryIcon.getIcon('Entertainment'),
-    color: AppColors.entertainment,
-  ),
-  'Other': ExpenseCategoryMeta(
-    name: 'Other',
-    icon: CategoryIcon.getIcon('Other'),
-    color: AppColors.other,
-  ),
-};
+List<String> get expenseCategories => CategoryRegistry.categoryNames;
 
 ExpenseCategoryMeta resolveExpenseCategory(String category) {
-  return expenseCategoryMeta[category] ?? expenseCategoryMeta['Other']!;
+  final resolved =
+      CategoryRegistry.findByName(category) ?? CategoryRegistry.otherCategory;
+  return ExpenseCategoryMeta(
+    name: resolved.name,
+    icon: CategoryIcon.getIconData(resolved.icon),
+    color: resolved.color,
+  );
 }

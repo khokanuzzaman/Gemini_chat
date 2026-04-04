@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../../domain/entities/expense_list_filter.dart';
 import '../providers/expense_providers.dart';
@@ -228,12 +229,16 @@ class _FilterBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(expenseListControllerProvider.notifier);
+    final categories = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
 
     return SizedBox(
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: expenseCategories.length + 1,
+        itemCount: categories.length + 1,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           if (index == 0) {
@@ -243,7 +248,7 @@ class _FilterBar extends ConsumerWidget {
               onTap: () => controller.setCategory(null),
             );
           }
-          final category = expenseCategories[index - 1];
+          final category = categories[index - 1];
           return _FilterChip(
             label: category,
             isSelected: filter.category == category,
@@ -393,8 +398,26 @@ class _ExpenseCard extends ConsumerWidget {
                   children: [
                     Text(expense.description, style: AppTextStyles.titleMedium),
                     const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _ExpenseMetaPill(
+                          label: expense.category,
+                          icon: meta.icon,
+                          color: meta.color,
+                        ),
+                        if (expense.isManual)
+                          const _ExpenseMetaPill(
+                            label: 'Manual',
+                            icon: Icons.edit_note_rounded,
+                            color: AppColors.grey600,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     Text(
-                      '${expense.category} · ${BanglaFormatters.time(expense.date)}',
+                      BanglaFormatters.time(expense.date),
                       style: AppTextStyles.bodySmall,
                     ),
                   ],
@@ -408,6 +431,44 @@ class _ExpenseCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ExpenseMetaPill extends StatelessWidget {
+  const _ExpenseMetaPill({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -451,6 +512,16 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
+      _selectedCategory = categories.contains('Other')
+          ? 'Other'
+          : categories.first;
+    }
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -487,7 +558,7 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
-              items: expenseCategories
+              items: categories
                   .map(
                     (category) => DropdownMenuItem(
                       value: category,
