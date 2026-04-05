@@ -4,13 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/preferences/app_preferences.dart';
+import '../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/utils/category_icon.dart';
+import '../../../anomaly/presentation/providers/anomaly_provider.dart';
+import '../../../budget/presentation/providers/budget_plan_provider.dart';
+import '../../../budget/presentation/screens/budget_planner_screen.dart';
 import '../../../export/presentation/screens/export_screen.dart';
+import '../../../goals/presentation/providers/goal_provider.dart';
+import '../../../goals/presentation/screens/goals_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../recurring/presentation/providers/recurring_provider.dart';
+import '../../../recurring/presentation/screens/recurring_screen.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
@@ -30,9 +39,29 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(dashboardControllerProvider);
     final budgets = ref.watch(budgetProvider).categoryBudgets;
+    final budgetPlan = ref.watch(budgetPlanProvider).valueOrNull;
+    final recurringExpenses =
+        ref.watch(recurringProvider).valueOrNull ?? const [];
+    final activeGoals = (ref.watch(goalsProvider).valueOrNull ?? const [])
+        .where((goal) => goal.status.name == 'active')
+        .toList(growable: false);
+    final anomalyState = ref.watch(anomalyProvider);
+    final activeAlerts = anomalyState.activeAlerts;
+    final highSeverityCount = anomalyState.highSeverityCount;
     final categoryNames = ref
         .watch(categoryProvider)
         .map((category) => category.name)
+        .toList(growable: false);
+    final now = DateTime.now();
+    final upcomingRecurring = recurringExpenses
+        .where((pattern) {
+          final next = pattern.nextExpected;
+          if (next == null) {
+            return false;
+          }
+          final days = next.difference(now).inDays;
+          return days >= 0 && days <= 7;
+        })
         .toList(growable: false);
 
     return Scaffold(
@@ -45,6 +74,43 @@ class DashboardScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.ios_share_rounded),
             tooltip: 'Export',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(buildAppRoute(const GoalsScreen()));
+            },
+            icon: const Icon(Icons.account_balance_wallet_rounded),
+            tooltip: 'Goals',
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'split') {
+                AppShellNavigation.openSplit();
+                return;
+              }
+              final route = switch (value) {
+                'budget' => buildAppRoute(const BudgetPlannerScreen()),
+                'recurring' => buildAppRoute(const RecurringScreen()),
+                'anomaly' => null,
+                _ => null,
+              };
+              if (value == 'anomaly') {
+                AppShellNavigation.openAnalytics(tabIndex: 1);
+                return;
+              }
+              if (route != null) {
+                Navigator.of(context).push(route);
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'budget', child: Text('Budget Planner')),
+              PopupMenuItem(
+                value: 'recurring',
+                child: Text('Regular Expenses'),
+              ),
+              PopupMenuItem(value: 'split', child: Text('Split Bill')),
+              PopupMenuItem(value: 'anomaly', child: Text('Spending Alerts')),
+            ],
           ),
           const GlobalSettingsButton(),
         ],
@@ -88,6 +154,63 @@ class DashboardScreen extends ConsumerWidget {
                   budgets: budgets,
                   onTapCategory: onOpenExpenses,
                 ),
+                if (budgetPlan != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionHeader(
+                    title: 'বাজেট অগ্রগতি',
+                    actionLabel: 'Planner',
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const BudgetPlannerScreen()));
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _BudgetProgressCard(
+                    spent: data.thisMonthTotal,
+                    plan: budgetPlan,
+                  ),
+                ],
+                if (upcomingRecurring.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionHeader(
+                    title: 'আসছে খরচ',
+                    actionLabel: 'সব দেখুন →',
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const RecurringScreen()));
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _UpcomingRecurringCard(patterns: upcomingRecurring),
+                ],
+                if (activeGoals.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionHeader(
+                    title: 'লক্ষ্য অগ্রগতি',
+                    actionLabel: 'সব দেখুন →',
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const GoalsScreen()));
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _GoalsSummaryCard(
+                    goals: activeGoals.take(2).toList(growable: false),
+                  ),
+                ],
+                if (activeAlerts.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _AnomalyAlertCard(
+                    count: activeAlerts.length,
+                    highCount: highSeverityCount,
+                    onTap: () {
+                      AppShellNavigation.openAnalytics(tabIndex: 1);
+                    },
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 _SectionHeader(
                   title: 'সাম্প্রতিক খরচ',
@@ -425,6 +548,210 @@ class _CategoryScroller extends StatelessWidget {
       return AppColors.warning;
     }
     return AppColors.success;
+  }
+}
+
+class _BudgetProgressCard extends StatelessWidget {
+  const _BudgetProgressCard({required this.spent, required this.plan});
+
+  final double spent;
+  final dynamic plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalBudget = plan.totalBudgeted <= 0 ? 1.0 : plan.totalBudgeted;
+    final progress = (spent / totalBudget).clamp(0.0, 1.0);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.savings_outlined, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text('বাজেট অগ্রগতি', style: AppTextStyles.titleMedium),
+                const Spacer(),
+                Text('${(progress * 100).toStringAsFixed(0)}%'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              color: progress > 0.95
+                  ? AppColors.error
+                  : progress > 0.75
+                  ? AppColors.warning
+                  : AppColors.success,
+              backgroundColor: context.borderColor.withValues(alpha: 0.35),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${BanglaFormatters.currency(spent)} / ${BanglaFormatters.currency(plan.totalBudgeted)}',
+              style: AppTextStyles.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingRecurringCard extends StatelessWidget {
+  const _UpcomingRecurringCard({required this.patterns});
+
+  final List<dynamic> patterns;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: patterns
+              .take(3)
+              .map((pattern) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: CategoryIcon.getColor(
+                      pattern.category,
+                    ).withValues(alpha: 0.12),
+                    child: Icon(
+                      CategoryIcon.getIcon(pattern.category),
+                      color: CategoryIcon.getColor(pattern.category),
+                    ),
+                  ),
+                  title: Text(pattern.description),
+                  subtitle: Text(
+                    pattern.nextExpected == null
+                        ? 'তারিখ নেই'
+                        : BanglaFormatters.fullDate(pattern.nextExpected!),
+                  ),
+                  trailing: Text(
+                    '~${BanglaFormatters.currency(pattern.averageAmount)}',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                );
+              })
+              .toList(growable: false),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoalsSummaryCard extends StatelessWidget {
+  const _GoalsSummaryCard({required this.goals});
+
+  final List<dynamic> goals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: goals
+              .map((goal) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(goal.emoji),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              goal.title,
+                              style: AppTextStyles.titleMedium,
+                            ),
+                          ),
+                          Text(
+                            '${goal.progressPercentage.toStringAsFixed(0)}%',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: goal.progressPercentage / 100,
+                        backgroundColor: context.borderColor.withValues(
+                          alpha: 0.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              })
+              .toList(growable: false),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnomalyAlertCard extends StatelessWidget {
+  const _AnomalyAlertCard({
+    required this.count,
+    required this.highCount,
+    required this.onTap,
+  });
+
+  final int count;
+  final int highCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (highCount > 0 ? AppColors.error : AppColors.warning)
+                      .withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: highCount > 0 ? AppColors.error : AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${BanglaFormatters.count(count)}টি অস্বাভাবিক খরচ',
+                      style: AppTextStyles.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      highCount > 0
+                          ? '$highCount টি উচ্চ ঝুঁকির'
+                          : '${BanglaFormatters.count(count)} টি সামান্য অস্বাভাবিক',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

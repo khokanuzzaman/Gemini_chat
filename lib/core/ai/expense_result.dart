@@ -4,12 +4,16 @@ class ExpenseData {
     required this.category,
     required this.description,
     required this.date,
+    this.isSplit = false,
+    this.splitPersons,
   });
 
   final double amount;
   final String category;
   final String description;
   final String date;
+  final bool isSplit;
+  final int? splitPersons;
 
   factory ExpenseData.fromJson(Map<String, dynamic> json) {
     final amountValue = json['amount'];
@@ -22,6 +26,12 @@ class ExpenseData {
       category: json['category'] as String? ?? 'Other',
       description: json['description'] as String? ?? '',
       date: json['date'] as String? ?? 'today',
+      isSplit: json['isSplit'] as bool? ?? false,
+      splitPersons: switch (json['splitPersons']) {
+        num value => value.toInt(),
+        String value => int.tryParse(value),
+        _ => null,
+      },
     );
   }
 
@@ -30,12 +40,16 @@ class ExpenseData {
     String? category,
     String? description,
     String? date,
+    bool? isSplit,
+    int? splitPersons,
   }) {
     return ExpenseData(
       amount: amount ?? this.amount,
       category: category ?? this.category,
       description: description ?? this.description,
       date: date ?? this.date,
+      isSplit: isSplit ?? this.isSplit,
+      splitPersons: splitPersons ?? this.splitPersons,
     );
   }
 
@@ -343,6 +357,8 @@ class ExpenseResult {
     this.conversationalText,
     this.isReceipt = false,
     this.receiptData,
+    this.isSplit = false,
+    this.splitPersons,
   });
 
   final bool isExpense;
@@ -351,4 +367,6 @@ class ExpenseResult {
   final String? conversationalText;
   final bool isReceipt;
   final Map<String, dynamic>? receiptData;
+  final bool isSplit;
+  final int? splitPersons;
 }

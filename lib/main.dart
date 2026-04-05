@@ -11,6 +11,10 @@ import 'core/constants/app_strings.dart';
 import 'core/database/expense_local_datasource.dart';
 import 'core/database/expense_seed_data.dart';
 import 'core/database/models/expense_record_model.dart';
+import 'core/database/models/budget_plan_model.dart';
+import 'core/database/models/goal_model.dart';
+import 'core/database/models/recurring_expense_model.dart';
+import 'core/database/models/split_bill_model.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
@@ -26,6 +30,7 @@ import 'features/category/data/datasources/category_local_datasource.dart';
 import 'features/category/data/models/category_model.dart';
 import 'features/category/domain/category_registry.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
+import 'features/anomaly/presentation/providers/anomaly_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/expense/presentation/providers/expense_providers.dart';
 import 'features/expense/presentation/screens/analytics_screen.dart';
@@ -33,6 +38,7 @@ import 'features/expense/presentation/screens/dashboard_screen.dart';
 import 'features/expense/presentation/screens/expense_list_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/security/lock_screen.dart';
+import 'features/split/presentation/screens/split_bill_screen.dart';
 import 'features/splash/splash_screen.dart';
 
 const _notificationPermissionAskedKey = 'notification_permission_asked';
@@ -103,7 +109,15 @@ Future<Isar> _openIsar() async {
 
   final directory = await getApplicationDocumentsDirectory();
   return Isar.open(
-    [MessageModelSchema, ExpenseRecordModelSchema, CategoryModelSchema],
+    [
+      MessageModelSchema,
+      ExpenseRecordModelSchema,
+      CategoryModelSchema,
+      BudgetPlanModelSchema,
+      GoalModelSchema,
+      RecurringExpenseModelSchema,
+      SplitBillModelSchema,
+    ],
     directory: directory.path,
     name: instanceName,
   );
@@ -124,6 +138,9 @@ class _ExpenseTrackerAppState extends ConsumerState<ExpenseTrackerApp> {
     super.initState();
     _appLifecycleObserver = AppLifecycleObserver(ref: ref);
     WidgetsBinding.instance.addObserver(_appLifecycleObserver);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(anomalyProvider.notifier).detectIfNeeded();
+    });
   }
 
   @override
@@ -264,6 +281,9 @@ class _MainShellState extends ConsumerState<_MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final highSeverityAnomalyCount = ref
+        .watch(anomalyProvider)
+        .highSeverityCount;
     final screens = [
       DashboardScreen(
         onOpenExpenses: _openExpenses,
@@ -272,6 +292,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
       const ChatScreen(),
       const ExpenseListScreen(),
       const AnalyticsScreen(),
+      const SplitBillScreen(),
     ];
 
     return Scaffold(
@@ -306,7 +327,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
             onDestinationSelected: (index) {
               _setCurrentIndex(index);
             },
-            destinations: const [
+            destinations: [
               NavigationDestination(
                 icon: _NavIcon(
                   icon: Icons.home_rounded,
@@ -351,13 +372,28 @@ class _MainShellState extends ConsumerState<_MainShell> {
                   icon: Icons.bar_chart_rounded,
                   label: 'বিশ্লেষণ',
                   active: false,
+                  badgeCount: highSeverityAnomalyCount,
                 ),
                 selectedIcon: _NavIcon(
                   icon: Icons.bar_chart_rounded,
                   label: 'বিশ্লেষণ',
                   active: true,
+                  badgeCount: highSeverityAnomalyCount,
                 ),
                 label: 'বিশ্লেষণ',
+              ),
+              NavigationDestination(
+                icon: _NavIcon(
+                  icon: Icons.call_split_rounded,
+                  label: 'Split',
+                  active: false,
+                ),
+                selectedIcon: _NavIcon(
+                  icon: Icons.call_split_rounded,
+                  label: 'Split',
+                  active: true,
+                ),
+                label: 'Split',
               ),
             ],
           ),
@@ -409,11 +445,13 @@ class _NavIcon extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.active,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final bool active;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +474,39 @@ class _NavIcon extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Icon(icon, color: active ? activeColor : inactiveColor),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, color: active ? activeColor : inactiveColor),
+            if (badgeCount > 0)
+              Positioned(
+                right: -8,
+                top: -8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: context.cardBackgroundColor,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    badgeCount > 9 ? '9+' : '$badgeCount',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }

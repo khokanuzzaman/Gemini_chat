@@ -1,5 +1,10 @@
 import '../../features/expense/domain/entities/expense_entity.dart';
 import '../../features/category/domain/category_registry.dart';
+import '../../features/anomaly/data/services/anomaly_detection_service.dart';
+import '../../features/anomaly/domain/entities/anomaly_alert.dart';
+import '../../features/budget/data/datasources/budget_plan_local_datasource.dart';
+import '../../features/goals/data/datasources/goal_local_datasource.dart';
+import '../../features/recurring/data/datasources/recurring_local_datasource.dart';
 import '../database/expense_local_datasource.dart';
 import '../database/models/expense_record_model.dart';
 import '../utils/bangla_formatters.dart';
@@ -44,10 +49,23 @@ class RagStructuredData {
 }
 
 class RagContextBuilder {
-  const RagContextBuilder({required ExpenseLocalDataSource localDataSource})
-    : _localDataSource = localDataSource;
+  const RagContextBuilder({
+    required ExpenseLocalDataSource localDataSource,
+    BudgetPlanLocalDataSource? budgetPlanLocalDataSource,
+    GoalLocalDataSource? goalLocalDataSource,
+    RecurringLocalDataSource? recurringLocalDataSource,
+    Future<List<AnomalyAlert>> Function()? anomalyLoader,
+  }) : _localDataSource = localDataSource,
+       _budgetPlanLocalDataSource = budgetPlanLocalDataSource,
+       _goalLocalDataSource = goalLocalDataSource,
+       _recurringLocalDataSource = recurringLocalDataSource,
+       _anomalyLoader = anomalyLoader;
 
   final ExpenseLocalDataSource _localDataSource;
+  final BudgetPlanLocalDataSource? _budgetPlanLocalDataSource;
+  final GoalLocalDataSource? _goalLocalDataSource;
+  final RecurringLocalDataSource? _recurringLocalDataSource;
+  final Future<List<AnomalyAlert>> Function()? _anomalyLoader;
 
   /// Builds personalized context from local expense data for RAG-style prompts.
   Future<RagContext?> buildContext(String userQuestion) async {
@@ -161,7 +179,92 @@ class RagContextBuilder {
       }
     }
 
+    final budgetPlan = await _budgetPlanLocalDataSource?.getLatestPlan();
+    if (budgetPlan != null) {
+      final plan = budgetPlan.toEntity();
+      buffer
+        ..writeln('')
+        ..writeln('## Budget Plan')
+        ..writeln(
+          'Monthly income: ${BanglaFormatters.currency(plan.monthlyIncome)}',
+        )
+        ..writeln(
+          'Budgeted total: ${BanglaFormatters.currency(plan.totalBudgeted)}',
+        )
+        ..writeln(
+          'Savings target: ${BanglaFormatters.currency(plan.savingsAmount)} (${plan.savingsPercentage.toStringAsFixed(0)}%)',
+        );
+      for (final entry in plan.categoryBudgets.entries) {
+        buffer.writeln(
+          '- ${entry.key}: ${BanglaFormatters.currency(entry.value)}',
+        );
+      }
+    }
+
+    final goalModels = await _goalLocalDataSource?.getAllGoals();
+    final activeGoals =
+        goalModels
+            ?.map((goal) => goal.toEntity())
+            .where((goal) => goal.status.name == 'active')
+            .toList(growable: false) ??
+        const [];
+    if (activeGoals.isNotEmpty) {
+      buffer
+        ..writeln('')
+        ..writeln('## Active Goals');
+      for (final goal in activeGoals.take(5)) {
+        buffer.writeln(
+          '- ${goal.emoji} ${goal.title}: ${BanglaFormatters.currency(goal.savedAmount)} / ${BanglaFormatters.currency(goal.targetAmount)} (${goal.progressPercentage.toStringAsFixed(0)}%), ${goal.daysRemaining} days left',
+        );
+      }
+    }
+
+    final recurringModels = await _recurringLocalDataSource?.getAllPatterns();
+    final recurring =
+        recurringModels
+            ?.map((pattern) => pattern.toEntity())
+            .where((pattern) => pattern.isActive)
+            .toList(growable: false) ??
+        const [];
+    if (recurring.isNotEmpty) {
+      buffer
+        ..writeln('')
+        ..writeln('## Upcoming Recurring Expenses');
+      for (final pattern in recurring.take(5)) {
+        buffer.writeln(
+          '- ${pattern.description} (${pattern.category}): ~${BanglaFormatters.currency(pattern.averageAmount)} next ${pattern.nextExpected == null ? 'unknown' : BanglaFormatters.fullDate(pattern.nextExpected!)}',
+        );
+      }
+    }
+
+    final anomalyAlerts = _needsAnomalyContext(userQuestion)
+        ? await (_anomalyLoader?.call() ?? _buildAnomalies(now))
+        : const <AnomalyAlert>[];
+    if (anomalyAlerts.isNotEmpty) {
+      buffer
+        ..writeln('')
+        ..writeln('## Anomaly Alerts');
+      for (final alert in anomalyAlerts.take(3)) {
+        buffer.writeln('- ${alert.message}');
+      }
+    }
+
     return RagContext(textForAi: buffer.toString().trim(), data: data);
+  }
+
+  Future<List<AnomalyAlert>> _buildAnomalies(DateTime now) async {
+    final last30 = await _localDataSource.getExpensesByDateRange(
+      now.subtract(const Duration(days: 30)),
+      now,
+    );
+    final previous90 = await _localDataSource.getExpensesByDateRange(
+      now.subtract(const Duration(days: 120)),
+      now.subtract(const Duration(days: 31)),
+    );
+    return const AnomalyDetectionService().detect(
+      last30Days: _toEntities(last30),
+      previous90Days: _toEntities(previous90),
+    );
   }
 
   /// Returns true when the question looks like it needs personal expense data.
@@ -276,6 +379,14 @@ class RagContextBuilder {
       'মাস',
       'budget',
       'বাজেট',
+      'goal',
+      'লক্ষ্য',
+      'recurring',
+      'নিয়মিত',
+      'split',
+      'ভাগ',
+      'unusual',
+      'অস্বাভাবিক',
       'total',
       'মোট',
       'category',
@@ -286,6 +397,8 @@ class RagContextBuilder {
       'analysis',
       'report',
       'summary',
+      'prediction',
+      'পূর্বাভাস',
       'কোথায়',
       'কিসে',
       'সবচেয়ে',
@@ -340,6 +453,19 @@ class RagContextBuilder {
     return false;
   }
 
+  bool _needsAnomalyContext(String question) {
+    return _containsAny(question, const [
+      'অস্বাভাবিক',
+      'বেশি',
+      'unusual',
+      'alert',
+      'সতর্ক',
+      'সমস্যা',
+      'issue',
+      'warning',
+    ]);
+  }
+
   bool _looksLikeExpenseEntry(String input) {
     final normalized = input.toLowerCase();
     final hasAmount = RegExp(r'\d').hasMatch(normalized);
@@ -368,6 +494,10 @@ class RagContextBuilder {
       'কম',
       'কোথায়',
       'কিসে',
+      'বাজেট',
+      'লক্ষ্য',
+      'অস্বাভাবিক',
+      'নিয়মিত',
     ].any(normalized.contains);
 
     return hasAmount && hasEntryVerb && !hasAnalyticCue;

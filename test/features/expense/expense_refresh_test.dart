@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
+import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
 import 'package:gemini_chat/features/expense/domain/entities/expense_entity.dart';
 import 'package:gemini_chat/features/expense/domain/repositories/expense_repository.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
@@ -145,6 +147,8 @@ void main() {
   test(
     'chat-style expense save refreshes dashboard, expense list, and analytics providers',
     () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
       final seedExpense = ExpenseEntity(
         id: 1,
@@ -157,6 +161,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           expenseRepositoryProvider.overrideWithValue(fakeRepository),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
       );
       addTearDown(container.dispose);

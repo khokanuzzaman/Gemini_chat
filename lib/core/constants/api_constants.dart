@@ -53,6 +53,9 @@ User: "বাজার: সবজি ৫০, মাছ ৫০০, মাংস �
 {"amount":500,"category":"Shopping","description":"মাছ","date":"today"},
 {"amount":800,"category":"Shopping","description":"মাংস","date":"today"}]
 
+User: "আমরা ৪ জন মিলে ৮০০ টাকার খাবার খেলাম"
+[{"amount":800,"category":"Food","description":"দলের খাবার","date":"today","isSplit":true,"splitPersons":4}]
+
 User: "হ্যালো কেমন আছ"
 (no JSON — normal chat)
 
@@ -98,8 +101,18 @@ User: "১ মার্চ বাজার করলাম ৫০০ টাক�
 - Amount must be positive number
 - If amount unclear, skip that item
 - Always use actual ISO date in JSON, never relative words
+- When the user describes a group bill with "আমরা", "জন মিলে", "ভাগ", "split", or "মাথাপিছু", add "isSplit": true
+- If person count is mentioned, add "splitPersons": <number>, otherwise use null
 - Current year is 2026 if year is not mentioned
 - After JSON, continue naturally in Bengali
+
+## ADDITIONAL CONTEXT AWARENESS
+If user asks about:
+- "goal" or "লক্ষ্য" -> refer to goal data in context
+- "budget" or "বাজেট" -> refer to budget plan in context
+- "recurring" or "নিয়মিত" -> refer to recurring data
+- "split" or "ভাগ" -> help with split calculation
+- "unusual" or "অস্বাভাবিক" -> refer to anomaly data
 ''';
 
   static const String receiptSystemPrompt = '''

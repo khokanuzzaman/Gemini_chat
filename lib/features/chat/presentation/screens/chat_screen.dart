@@ -10,6 +10,7 @@ import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/assets/app_icon.dart';
+import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -20,6 +21,8 @@ import '../../domain/entities/message_entity.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/screens/manual_add_screen.dart';
+import '../../../split/presentation/screens/add_edit_split_screen.dart';
+import '../../../split/presentation/widgets/split_suggestion_widget.dart';
 import '../providers/chat_provider.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
@@ -784,7 +787,7 @@ class _MessageListState extends State<_MessageList> {
           final message = widget.messages[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _buildMessageItem(context, message),
+            child: _buildMessageItem(context, message, index),
           );
         }
 
@@ -811,7 +814,11 @@ class _MessageListState extends State<_MessageList> {
     );
   }
 
-  Widget _buildMessageItem(BuildContext context, MessageEntity message) {
+  Widget _buildMessageItem(
+    BuildContext context,
+    MessageEntity message,
+    int index,
+  ) {
     final messageKey = _messageKey(message);
     if (!message.isUser && !message.isError) {
       final expenseResult = _expenseParser.parseExpenseFromResponse(
@@ -848,6 +855,37 @@ class _MessageListState extends State<_MessageList> {
                   _dismissCard(messageKey);
                 },
                 onCancel: () => _dismissCard(messageKey),
+              ),
+            );
+          } else if (expenseResult.isSplit &&
+              expenseResult.expenses.isNotEmpty) {
+            final splitExpense = expenseResult.expenses.first;
+            final splitPersons =
+                (expenseResult.splitPersons ?? splitExpense.splitPersons ?? 2)
+                    .clamp(2, 12);
+            parts.add(
+              SplitSuggestionWidget(
+                expense: splitExpense,
+                personCount: splitPersons,
+                onSaveOnly: () async {
+                  await widget.onSaveExpense(splitExpense);
+                  _dismissCard(messageKey);
+                },
+                onOpenSplit: () {
+                  Navigator.of(context).push(
+                    buildAppRoute(
+                      AddEditSplitScreen(
+                        initialTitle: splitExpense.description.trim().isEmpty
+                            ? 'Split bill'
+                            : splitExpense.description,
+                        initialTotalAmount: splitExpense.amount,
+                        initialPersonCount: splitPersons,
+                        initialCategory: splitExpense.category,
+                        initialDate: splitExpense.parsedDate,
+                      ),
+                    ),
+                  );
+                },
               ),
             );
           } else if (expenseResult.isMultiple) {
@@ -903,9 +941,14 @@ class _MessageListState extends State<_MessageList> {
       return bubble;
     }
 
+    final children = <Widget>[
+      bubble,
+      const SizedBox(height: 6),
+      const _RagIndicatorChip(),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [bubble, const SizedBox(height: 6), const _RagIndicatorChip()],
+      children: children,
     );
   }
 

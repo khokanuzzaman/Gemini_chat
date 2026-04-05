@@ -6,6 +6,7 @@ class AppShellNavigation {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
   static final ValueNotifier<int> selectedTab = ValueNotifier<int>(0);
+  static final ValueNotifier<int> analyticsTab = ValueNotifier<int>(0);
 
   static void openDashboard() => _setTab(0);
 
@@ -13,7 +14,12 @@ class AppShellNavigation {
 
   static void openExpenses() => _setTab(2);
 
-  static void openAnalytics() => _setTab(3);
+  static void openAnalytics({int tabIndex = 0}) {
+    analyticsTab.value = tabIndex;
+    _setTab(3);
+  }
+
+  static void openSplit() => _setTab(4);
 
   static void handlePayload(String? payload) {
     switch (payload) {
@@ -22,6 +28,9 @@ class AppShellNavigation {
         break;
       case 'budget_alert':
         openDashboard();
+        break;
+      case 'anomaly_alert':
+        openAnalytics(tabIndex: 1);
         break;
       case 'weekly_report':
         openAnalytics();

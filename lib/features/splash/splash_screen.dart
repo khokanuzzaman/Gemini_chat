@@ -76,35 +76,76 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final secondaryTextColor = context.secondaryTextColor;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
+          child: Stack(
             children: [
-              const Spacer(),
-              FadeTransition(
-                opacity: _opacity,
-                child: ScaleTransition(
-                  scale: _scale,
-                  child: Column(
-                    children: [
-                      const SmartSpendLogo(
-                        size: 88,
-                        showShadow: true,
-                        borderRadius: BorderRadius.all(AppRadius.xl),
+              Center(
+                child: Transform.translate(
+                  offset: const Offset(0, -44),
+                  child: FadeTransition(
+                    opacity: _opacity,
+                    child: ScaleTransition(
+                      scale: _scale,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 340),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const SmartSpendLogo(
+                                size: 96,
+                                showShadow: true,
+                                borderRadius: BorderRadius.all(AppRadius.xl),
+                              ),
+                              const SizedBox(height: 28),
+                              Text(
+                                AppStrings.appName,
+                                style: textTheme.displayMedium?.copyWith(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                AppStrings.tagline,
+                                style: textTheme.bodyLarge?.copyWith(
+                                  color: secondaryTextColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(AppStrings.appName, style: textTheme.displayMedium),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(AppStrings.tagline, style: textTheme.bodyMedium),
-                    ],
+                    ),
                   ),
                 ),
               ),
-              const Spacer(),
-              Text(AppStrings.poweredBy, style: textTheme.labelSmall),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Text(
+                    AppStrings.poweredBy,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: secondaryTextColor.withValues(alpha: 0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

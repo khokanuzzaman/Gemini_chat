@@ -41,6 +41,9 @@ User: "নাস্তায় ৩০ টাকা খরচ হলো"
 User: "রিকশায় গেলাম ৬০ টাকা, দুপুরে খেলাম ১৫০"
 [{"amount":60,"category":"Transport","description":"রিকশা","date":"today"},{"amount":150,"category":"Food","description":"দুপুরের খাবার","date":"today"}]
 
+User: "আমরা ৪ জন মিলে ৮০০ টাকার খাবার খেলাম"
+[{"amount":800,"category":"Food","description":"দলের খাবার","date":"today","isSplit":true,"splitPersons":4}]
+
 User: "হ্যালো কেমন আছ"
 (no JSON — normal chat)
 
@@ -63,8 +66,18 @@ When a date appears at the top of the message, apply that date to all items belo
 - Amount must be a positive number
 - If amount is unclear, skip that item
 - Always use ISO date in JSON, never relative words
+- When the user is describing a group bill with words like "আমরা", "জন মিলে", "ভাগ", "split", or "মাথাপিছু", add "isSplit": true
+- If person count is mentioned for a group bill, add "splitPersons": <number>, otherwise use null
 - Current year is 2026 if year is missing
 - After JSON, continue naturally in Bengali
+
+## ADDITIONAL CONTEXT AWARENESS
+If user asks about:
+- "goal" or "লক্ষ্য" -> refer to goal data in context
+- "budget" or "বাজেট" -> refer to budget plan in context
+- "recurring" or "নিয়মিত" -> refer to recurring data
+- "split" or "ভাগ" -> help with split calculation
+- "unusual" or "অস্বাভাবিক" -> refer to anomaly data
 ''';
   }
 

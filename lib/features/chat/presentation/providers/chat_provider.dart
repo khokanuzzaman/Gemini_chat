@@ -23,6 +23,10 @@ import '../../data/datasources/openai_receipt_datasource.dart';
 import '../../data/datasources/openai_voice_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../budget/presentation/providers/budget_plan_provider.dart';
+import '../../../goals/presentation/providers/goal_provider.dart';
+import '../../../anomaly/presentation/providers/anomaly_provider.dart';
+import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../domain/usecases/scan_receipt_usecase.dart';
@@ -37,6 +41,10 @@ final expenseParserProvider = Provider<ExpenseParser>((ref) {
 final ragContextBuilderProvider = Provider<RagContextBuilder>((ref) {
   return RagContextBuilder(
     localDataSource: ref.watch(expenseLocalDataSourceProvider),
+    budgetPlanLocalDataSource: ref.watch(budgetPlanLocalDataSourceProvider),
+    goalLocalDataSource: ref.watch(goalLocalDataSourceProvider),
+    recurringLocalDataSource: ref.watch(recurringLocalDataSourceProvider),
+    anomalyLoader: () => ref.read(anomalyProvider.notifier).getActiveAlerts(),
   );
 });
 

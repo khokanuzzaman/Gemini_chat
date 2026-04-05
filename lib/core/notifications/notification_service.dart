@@ -17,6 +17,7 @@ class NotificationService {
   static const int dailyReminderId = 1;
   static const int budgetAlertId = 2;
   static const int weeklyReportId = 3;
+  static const int anomalyAlertId = 4;
 
   static const AndroidNotificationChannel _dailyReminderChannel =
       AndroidNotificationChannel(
@@ -40,6 +41,14 @@ class NotificationService {
         'Weekly Report',
         description: 'Weekly spending summary',
         importance: Importance.defaultImportance,
+      );
+
+  static const AndroidNotificationChannel _anomalyAlertChannel =
+      AndroidNotificationChannel(
+        'anomaly_alert',
+        'Anomaly Alert',
+        description: 'Unusual spending alerts',
+        importance: Importance.high,
       );
 
   static Future<void> initialize() async {
@@ -66,6 +75,7 @@ class NotificationService {
     await androidPlugin?.createNotificationChannel(_dailyReminderChannel);
     await androidPlugin?.createNotificationChannel(_budgetAlertChannel);
     await androidPlugin?.createNotificationChannel(_weeklyReportChannel);
+    await androidPlugin?.createNotificationChannel(_anomalyAlertChannel);
 
     final launchDetails = await _plugin.getNotificationAppLaunchDetails();
     _handlePayload(launchDetails?.notificationResponse?.payload);
@@ -220,6 +230,31 @@ class NotificationService {
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       payload: 'weekly_report',
+    );
+  }
+
+  static Future<void> showAnomalyAlert({
+    required String category,
+    required String message,
+    required double percentage,
+  }) async {
+    await _plugin.show(
+      anomalyAlertId,
+      '⚠️ অস্বাভাবিক খরচ',
+      '$category এ স্বাভাবিকের চেয়ে ${percentage.toStringAsFixed(0)}% বেশি\n$message',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'anomaly_alert',
+          'Anomaly Alert',
+          channelDescription: 'Unusual spending alerts',
+          importance: Importance.high,
+          priority: Priority.high,
+          color: Color(0xFFEA4335),
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      ),
+      payload: 'anomaly_alert',
     );
   }
 

@@ -2,18 +2,122 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/chart_theme.dart';
 import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../anomaly/presentation/providers/anomaly_provider.dart';
+import '../../../anomaly/presentation/screens/anomaly_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../prediction/presentation/widgets/prediction_widget.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
 
-class AnalyticsScreen extends ConsumerWidget {
+class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
+
+  @override
+  ConsumerState<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: AppShellNavigation.analyticsTab.value,
+    );
+    _tabController.addListener(_handleTabChange);
+    AppShellNavigation.analyticsTab.addListener(_handleExternalAnalyticsTab);
+  }
+
+  @override
+  void dispose() {
+    AppShellNavigation.analyticsTab.removeListener(_handleExternalAnalyticsTab);
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final highSeverityCount = ref.watch(anomalyProvider).highSeverityCount;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('বিশ্লেষণ'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            const Tab(text: 'বিশ্লেষণ'),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('অস্বাভাবিক'),
+                  if (highSeverityCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        highSeverityCount > 9
+                            ? '9+'
+                            : '$highSeverityCount',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: const [GlobalSettingsButton()],
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          _AnalyticsOverviewTab(),
+          AnomalyView(includeTopPadding: false),
+        ],
+      ),
+    );
+  }
+
+  void _handleExternalAnalyticsTab() {
+    final targetIndex = AppShellNavigation.analyticsTab.value;
+    if (!_tabController.indexIsChanging && _tabController.index != targetIndex) {
+      _tabController.animateTo(targetIndex);
+    }
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      AppShellNavigation.analyticsTab.value = _tabController.index;
+    }
+  }
+}
+
+class _AnalyticsOverviewTab extends ConsumerWidget {
+  const _AnalyticsOverviewTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,12 +127,7 @@ class AnalyticsScreen extends ConsumerWidget {
         .map((category) => category.name)
         .toList(growable: false);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('বিশ্লেষণ'),
-        actions: const [GlobalSettingsButton()],
-      ),
-      body: analytics.when(
+    return analytics.when(
         data: (state) {
           final data = state.data;
           final dayKeys = data.dailyTotals.keys.toList(growable: false);
@@ -57,6 +156,11 @@ class AnalyticsScreen extends ConsumerWidget {
                   totalSpent: data.totalSpent,
                   highestCategory: data.highestCategory,
                   dailyAverage: dailyAverage,
+                ),
+                const SizedBox(height: 18),
+                PredictionWidget(
+                  month: state.selectedMonth,
+                  currentSpent: data.totalSpent,
                 ),
                 const SizedBox(height: 18),
                 _SpendingTrendChart(
@@ -95,8 +199,7 @@ class AnalyticsScreen extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

@@ -35,6 +35,20 @@ void main() {
     expect(result.conversationalText, 'দুটোই save করব?');
   });
 
+  test('parseExpenseFromResponse detects split metadata', () {
+    const response =
+        '[{"amount":800,"category":"Food","description":"দলের খাবার","date":"today","isSplit":true,"splitPersons":4}]\nSplit করবেন?';
+
+    final result = parser.parseExpenseFromResponse(response);
+
+    expect(result.isExpense, isTrue);
+    expect(result.isSplit, isTrue);
+    expect(result.splitPersons, 4);
+    expect(result.expenses.single.isSplit, isTrue);
+    expect(result.expenses.single.splitPersons, 4);
+    expect(result.conversationalText, 'Split করবেন?');
+  });
+
   test('parseExpenseFromResponse returns non-expense when no json exists', () {
     const response = 'ভালো আছি! আপনি কেমন আছেন?';
 

@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
 import 'package:gemini_chat/core/database/models/expense_record_model.dart';
 import 'package:gemini_chat/core/providers/database_providers.dart';
+import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
 
 void main() {
@@ -16,6 +18,8 @@ void main() {
   test(
     'real Isar save refreshes dashboard monthly total and category totals',
     () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       await Isar.initializeIsarCore(
         libraries: {
           Abi.current():
@@ -38,7 +42,10 @@ void main() {
       });
 
       final container = ProviderContainer(
-        overrides: [isarProvider.overrideWithValue(isar)],
+        overrides: [
+          isarProvider.overrideWithValue(isar),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
       );
       addTearDown(container.dispose);
 

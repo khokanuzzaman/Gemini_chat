@@ -111,11 +111,20 @@ class ExpenseParser {
       }
 
       final cleanText = response.replaceFirst(jsonString, '').trim();
+      int? splitPersons;
+      for (final expense in expenses) {
+        if (expense.splitPersons != null) {
+          splitPersons = expense.splitPersons;
+          break;
+        }
+      }
       return ExpenseResult(
         isExpense: true,
         expenses: expenses,
         isMultiple: expenses.length > 1,
         conversationalText: cleanText.isEmpty ? null : cleanText,
+        isSplit: expenses.any((expense) => expense.isSplit),
+        splitPersons: splitPersons,
       );
     } catch (_) {
       return null;
@@ -142,6 +151,8 @@ class ExpenseParser {
         isExpense: true,
         expenses: [expense],
         conversationalText: cleanText.isEmpty ? null : cleanText,
+        isSplit: expense.isSplit,
+        splitPersons: expense.splitPersons,
       );
     } catch (_) {
       return null;

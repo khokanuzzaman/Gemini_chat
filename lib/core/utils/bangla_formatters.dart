@@ -4,6 +4,7 @@ class BanglaFormatters {
   const BanglaFormatters._();
 
   static final NumberFormat _numberFormat = NumberFormat.decimalPattern('bn');
+  static final NumberFormat _moneyWithDecimals = NumberFormat('#,##0.00', 'bn');
   static final DateFormat _monthFormat = DateFormat('MMMM yyyy', 'bn');
   static final DateFormat _fullDateFormat = DateFormat('d MMMM yyyy', 'bn');
   static final DateFormat _dayMonthFormat = DateFormat('d MMM', 'bn');
@@ -11,6 +12,12 @@ class BanglaFormatters {
 
   static String currency(num amount) {
     return '৳ ${_numberFormat.format(amount.round())}';
+  }
+
+  static String preciseCurrency(num amount) {
+    final rounded = amount.toDouble();
+    final hasFraction = (rounded - rounded.round()).abs() >= 0.01;
+    return '৳ ${hasFraction ? _moneyWithDecimals.format(rounded) : _numberFormat.format(rounded.round())}';
   }
 
   static String monthYear(DateTime date) {

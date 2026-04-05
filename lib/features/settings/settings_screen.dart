@@ -6,8 +6,13 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/app_strings.dart';
 import '../../core/database/expense_seed_data.dart';
+import '../../core/database/models/budget_plan_model.dart';
 import '../../core/database/models/expense_record_model.dart';
+import '../../core/database/models/goal_model.dart';
+import '../../core/database/models/recurring_expense_model.dart';
+import '../../core/database/models/split_bill_model.dart';
 import '../../core/navigation/app_page_route.dart';
+import '../../core/navigation/app_shell_navigation.dart';
 import '../../core/notifications/notification_provider.dart';
 import '../../core/notifications/notification_settings.dart';
 import '../../core/preferences/app_preferences.dart';
@@ -20,8 +25,12 @@ import '../category/presentation/providers/category_provider.dart';
 import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../chat/data/models/message_model.dart';
+import '../anomaly/presentation/providers/anomaly_provider.dart';
+import '../budget/presentation/screens/budget_planner_screen.dart';
 import '../export/presentation/screens/export_screen.dart';
 import '../expense/presentation/providers/expense_providers.dart';
+import '../goals/presentation/screens/goals_screen.dart';
+import '../recurring/presentation/screens/recurring_screen.dart';
 import 'budget_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -37,10 +46,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _lockTimeoutOptions = [0, 30, 60, 300];
 
   bool _loading = true;
-  late bool _ragEnabled;
-  late String _defaultCategory;
-  late String _currencySymbol;
-  late String _dateFormat;
+  bool _ragEnabled = true;
+  String _defaultCategory = 'Other';
+  String _currencySymbol = '৳';
+  String _dateFormat = 'd MMM yyyy';
   String _version = '...';
 
   @override
@@ -68,9 +77,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final biometricState = ref.watch(biometricProvider);
     final biometricService = ref.watch(biometricServiceProvider);
     final notificationSettings = ref.watch(notificationProvider);
+    final anomalyState = ref.watch(anomalyProvider);
+    final activeAnomalyCount = anomalyState.activeAlerts.length;
     final categories = ref.watch(categoryProvider);
     final categoryNames = categories
         .map((category) => category.name)
@@ -78,10 +93,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final defaultCategory = categoryNames.contains(_defaultCategory)
         ? _defaultCategory
         : 'Other';
-
-    if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -390,6 +401,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           _SettingsSection(
+            title: 'AI Features',
+            children: [
+              _ActionTile(
+                title: 'Budget Planner',
+                subtitle: 'AI দিয়ে monthly budget plan',
+                icon: Icons.auto_graph_rounded,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const BudgetPlannerScreen()));
+                },
+              ),
+              _ActionTile(
+                title: 'Regular Expenses',
+                subtitle: 'নিয়মিত খরচ detect করুন',
+                icon: Icons.sync_alt_rounded,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const RecurringScreen()));
+                },
+              ),
+              _ActionTile(
+                title: 'Split Bill',
+                subtitle: 'বন্ধুদের সাথে bill ভাগ করুন',
+                icon: Icons.group_work_rounded,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  AppShellNavigation.openSplit();
+                },
+              ),
+              _ActionTile(
+                title: 'Goal Tracking',
+                subtitle: 'Saving goal manage করুন',
+                icon: Icons.flag_outlined,
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const GoalsScreen()));
+                },
+              ),
+              _ActionTile(
+                title: 'Spending Alerts',
+                subtitle: activeAnomalyCount > 0
+                    ? '$activeAnomalyCount টি alert আছে'
+                    : 'সব স্বাভাবিক',
+                icon: Icons.warning_amber_rounded,
+                trailing: activeAnomalyCount > 0
+                    ? _CountBadge(count: activeAnomalyCount)
+                    : null,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  AppShellNavigation.openAnalytics(tabIndex: 1);
+                },
+              ),
+            ],
+          ),
+          _SettingsSection(
             title: 'Data',
             children: [
               _ActionTile(
@@ -482,6 +551,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(isarProvider).writeTxn(() async {
       await ref.read(isarProvider).expenseRecordModels.clear();
       await ref.read(isarProvider).messageModels.clear();
+      await ref.read(isarProvider).budgetPlanModels.clear();
+      await ref.read(isarProvider).goalModels.clear();
+      await ref.read(isarProvider).recurringExpenseModels.clear();
+      await ref.read(isarProvider).splitBillModels.clear();
     });
     ref.read(expenseRefreshTokenProvider.notifier).state++;
     if (!mounted) {
@@ -686,6 +759,7 @@ class _ActionTile extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.accentColor = AppColors.primary,
+    this.trailing,
   });
 
   final String title;
@@ -693,6 +767,7 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final Color accentColor;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -701,11 +776,36 @@ class _ActionTile extends StatelessWidget {
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: accentColor.withValues(alpha: 0.12),
-        child: Icon(icon, color: accentColor),
+      child: Icon(icon, color: accentColor),
       ),
       title: Text(title),
       subtitle: Text(subtitle),
+      trailing: trailing ?? const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        count > 9 ? '9+' : '$count',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
