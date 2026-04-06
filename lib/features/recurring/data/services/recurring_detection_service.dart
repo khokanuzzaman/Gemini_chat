@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../domain/entities/recurring_expense_entity.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 
@@ -18,14 +20,14 @@ class RecurringDetectionService {
 
     for (final entry in groups.entries) {
       final group = [...entry.value];
-      if (group.length < 2) {
+      if (group.length < 3) {
         continue;
       }
 
       group.sort((first, second) => first.date.compareTo(second.date));
 
-      final monthlyDay = _isMonthlyPattern(group);
-      if (monthlyDay != null) {
+      final monthlyPattern = _isMonthlyPattern(group);
+      if (monthlyPattern != null) {
         patterns.add(
           RecurringExpenseEntity(
             id: 0,
@@ -33,19 +35,23 @@ class RecurringDetectionService {
             category: group.first.category,
             averageAmount: _average(group.map((expense) => expense.amount)),
             frequency: RecurringFrequency.monthly,
-            dayOfMonth: monthlyDay,
+            dayOfMonth: monthlyPattern.dayOfMonth,
             dayOfWeek: 0,
             lastOccurrence: group.last.date,
-            nextExpected: _nextMonthly(group.last.date, monthlyDay),
+            nextExpected: _nextMonthly(
+              group.last.date,
+              monthlyPattern.dayOfMonth,
+            ),
             isActive: true,
             reminderEnabled: true,
+            confidenceScore: monthlyPattern.confidenceScore,
           ),
         );
         continue;
       }
 
-      final weeklyDay = _isWeeklyPattern(group);
-      if (weeklyDay != null) {
+      final weeklyPattern = _isWeeklyPattern(group);
+      if (weeklyPattern != null) {
         patterns.add(
           RecurringExpenseEntity(
             id: 0,
@@ -54,11 +60,12 @@ class RecurringDetectionService {
             averageAmount: _average(group.map((expense) => expense.amount)),
             frequency: RecurringFrequency.weekly,
             dayOfMonth: 0,
-            dayOfWeek: weeklyDay,
+            dayOfWeek: weeklyPattern.dayOfWeek,
             lastOccurrence: group.last.date,
             nextExpected: group.last.date.add(const Duration(days: 7)),
             isActive: true,
             reminderEnabled: true,
+            confidenceScore: weeklyPattern.confidenceScore,
           ),
         );
       }
@@ -72,26 +79,120 @@ class RecurringDetectionService {
     return patterns;
   }
 
-  int? _isMonthlyPattern(List<ExpenseEntity> expenses) {
-    if (expenses.length < 2) {
+  _MonthlyPatternMatch? _isMonthlyPattern(List<ExpenseEntity> expenses) {
+    if (expenses.length < 3 || _hasGapGreaterThan(expenses, 60)) {
       return null;
     }
 
     final days = expenses.map((expense) => expense.date.day).toList();
-    final avgDay = days.reduce((sum, day) => sum + day) ~/ days.length;
-    final allSimilar = days.every((day) => (day - avgDay).abs() <= 3);
-    return allSimilar ? avgDay : null;
-  }
-
-  int? _isWeeklyPattern(List<ExpenseEntity> expenses) {
-    if (expenses.length < 3) {
+    final meanDay = _average(days.map((day) => day.toDouble()));
+    final allSimilar = days.every((day) => (day - meanDay).abs() <= 4);
+    if (!allSimilar) {
       return null;
     }
 
-    final days = expenses.map((expense) => expense.date.weekday).toList();
-    final firstWeekday = days.first;
-    final allSimilar = days.every((day) => day == firstWeekday);
-    return allSimilar ? firstWeekday : null;
+    final confidenceScore = (1.0 - (_stdDev(days, meanDay) / 15.0))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    if (confidenceScore < 0.5) {
+      return null;
+    }
+
+    final dayOfMonth = max(1, min(31, meanDay.round()));
+    return _MonthlyPatternMatch(
+      dayOfMonth: dayOfMonth,
+      confidenceScore: confidenceScore,
+    );
+  }
+
+  _WeeklyPatternMatch? _isWeeklyPattern(List<ExpenseEntity> expenses) {
+    if (expenses.length < 3 || _hasGapGreaterThan(expenses, 21)) {
+      return null;
+    }
+
+    final weekdays = expenses.map((expense) => expense.date.weekday).toList();
+    int? matchedWeekday;
+    var bestDistance = double.infinity;
+
+    for (
+      var candidate = DateTime.monday;
+      candidate <= DateTime.sunday;
+      candidate++
+    ) {
+      final distances = weekdays
+          .map((weekday) => _weekdayDistance(weekday, candidate))
+          .toList(growable: false);
+      if (distances.any((distance) => distance > 1)) {
+        continue;
+      }
+
+      final totalDistance = distances.fold<int>(0, (sum, value) => sum + value);
+      if (totalDistance < bestDistance) {
+        bestDistance = totalDistance.toDouble();
+        matchedWeekday = candidate;
+      }
+    }
+
+    if (matchedWeekday == null) {
+      return null;
+    }
+
+    final intervals = <double>[];
+    for (var index = 1; index < expenses.length; index++) {
+      intervals.add(
+        expenses[index].date
+            .difference(expenses[index - 1].date)
+            .inDays
+            .toDouble(),
+      );
+    }
+
+    final meanInterval = _average(intervals);
+    if (meanInterval < 5 || meanInterval > 9) {
+      return null;
+    }
+
+    final confidenceScore = (1.0 - (_stdDev(intervals, meanInterval) / 7.0))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    if (confidenceScore < 0.5) {
+      return null;
+    }
+
+    return _WeeklyPatternMatch(
+      dayOfWeek: matchedWeekday,
+      confidenceScore: confidenceScore,
+    );
+  }
+
+  bool _hasGapGreaterThan(List<ExpenseEntity> expenses, int maxDays) {
+    for (var index = 1; index < expenses.length; index++) {
+      final gap = expenses[index].date
+          .difference(expenses[index - 1].date)
+          .inDays;
+      if (gap > maxDays) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  int _weekdayDistance(int left, int right) {
+    final diff = (left - right).abs();
+    return min(diff, 7 - diff);
+  }
+
+  double _stdDev(List<num> values, double mean) {
+    if (values.isEmpty) {
+      return 0;
+    }
+
+    final variance =
+        values
+            .map((value) => pow(value.toDouble() - mean, 2).toDouble())
+            .reduce((sum, value) => sum + value) /
+        values.length;
+    return sqrt(variance);
   }
 
   double _average(Iterable<double> values) {
@@ -114,4 +215,24 @@ class RecurringDetectionService {
         : dayOfMonth;
     return DateTime(nextMonth.year, nextMonth.month, safeDay);
   }
+}
+
+class _MonthlyPatternMatch {
+  const _MonthlyPatternMatch({
+    required this.dayOfMonth,
+    required this.confidenceScore,
+  });
+
+  final int dayOfMonth;
+  final double confidenceScore;
+}
+
+class _WeeklyPatternMatch {
+  const _WeeklyPatternMatch({
+    required this.dayOfWeek,
+    required this.confidenceScore,
+  });
+
+  final int dayOfWeek;
+  final double confidenceScore;
 }

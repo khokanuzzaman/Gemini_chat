@@ -1,3 +1,6 @@
+// Feature: Prediction
+// Layer: Data
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -11,12 +14,11 @@ import '../../../../core/network/connectivity_service.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 
 abstract class PredictionDataSource {
-  Stream<String> predictMonthlyExpense({
-    required List<ExpenseEntity> thisMonthSoFar,
+  Stream<String> predict({
+    required List<ExpenseEntity> thisMonthExpenses,
     required List<ExpenseEntity> lastMonthExpenses,
     required int currentDay,
     required int daysInMonth,
-    required double totalBudget,
   });
 }
 
@@ -31,12 +33,11 @@ class PredictionDataSourceImpl implements PredictionDataSource {
   final ConnectivityService _connectivityService;
 
   @override
-  Stream<String> predictMonthlyExpense({
-    required List<ExpenseEntity> thisMonthSoFar,
+  Stream<String> predict({
+    required List<ExpenseEntity> thisMonthExpenses,
     required List<ExpenseEntity> lastMonthExpenses,
     required int currentDay,
     required int daysInMonth,
-    required double totalBudget,
   }) async* {
     final isConnected = await _connectivityService.isConnected();
     if (!isConnected) {
@@ -48,70 +49,63 @@ class PredictionDataSourceImpl implements PredictionDataSource {
       throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
     }
 
-    final thisMonthTotal = _total(thisMonthSoFar);
+    final thisMonthTotal = _total(thisMonthExpenses);
     final lastMonthTotal = _total(lastMonthExpenses);
     final thisMonthDaily = currentDay == 0 ? 0.0 : thisMonthTotal / currentDay;
-    final lastMonthDaily = lastMonthExpenses.isEmpty
+    final lastMonthDaily = daysInMonth == 0
         ? 0.0
-        : lastMonthTotal / 30;
-
-    final prompt =
-        '''
-Today is day $currentDay of $daysInMonth.
-
-This month so far:
-Total: ৳${thisMonthTotal.toStringAsFixed(0)}
-By category:
-${_categoryBreakdown(thisMonthSoFar)}
-
-Last month total: ৳${lastMonthTotal.toStringAsFixed(0)}
-Daily average last month: ৳${lastMonthDaily.toStringAsFixed(0)}
-Daily average this month: ৳${thisMonthDaily.toStringAsFixed(0)}
-Current total monthly budget: ৳${totalBudget.toStringAsFixed(0)}
-
-Predict total expense for this month.
-Return JSON:
-{
-  "predictedTotal": <number>,
-  "confidence": "<low/medium/high>",
-  "daysRemaining": <number>,
-  "remainingBudget": <number>,
-  "trend": "<increasing/decreasing/stable>",
-  "categoryPredictions": {
-    "Food": <predicted total>
-  }
-}
-
-Then write 2-3 sentences in Bengali about the prediction.
-Include specific actionable advice.
-''';
-
-    yield* _streamCompletion(prompt, maxTokens: 700, temperature: 0.3);
-  }
-
-  double _total(List<ExpenseEntity> expenses) {
-    return expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
-  }
-
-  String _categoryBreakdown(List<ExpenseEntity> expenses) {
-    final totals = <String, double>{};
-    for (final expense in expenses) {
-      totals.update(
+        : lastMonthTotal / daysInMonth;
+    final categoryMap = <String, double>{};
+    for (final expense in thisMonthExpenses) {
+      categoryMap.update(
         expense.category,
         (value) => value + expense.amount,
         ifAbsent: () => expense.amount,
       );
     }
+    final categoryText = categoryMap.entries
+        .map((entry) => '${entry.key}: ৳${entry.value.toStringAsFixed(0)}')
+        .join(', ');
 
-    if (totals.isEmpty) {
-      return '- কোনো খরচ নেই';
-    }
+    final prompt =
+        '''
+Today is day $currentDay of $daysInMonth in this month.
+Days remaining: ${daysInMonth - currentDay}
 
-    final buffer = StringBuffer();
-    for (final entry in totals.entries) {
-      buffer.writeln('- ${entry.key}: ৳${entry.value.toStringAsFixed(0)}');
-    }
-    return buffer.toString().trim();
+This month so far:
+Total: ৳${thisMonthTotal.toStringAsFixed(0)}
+Daily average: ৳${thisMonthDaily.toStringAsFixed(0)}/day
+By category: ${categoryText.isEmpty ? 'কোনো খরচ নেই' : categoryText}
+
+Last month total: ৳${lastMonthTotal.toStringAsFixed(0)}
+Last month daily average: ৳${lastMonthDaily.toStringAsFixed(0)}/day
+
+Predict this month's total expense.
+Consider: current pace, last month pattern, day of month.
+
+Return this JSON first (no markdown, raw JSON only):
+{
+  "predictedTotal": <number>,
+  "confidence": "<low/medium/high>",
+  "trend": "<increasing/decreasing/stable>",
+  "projectedDailyAverage": <number>,
+  "categoryPredictions": {
+    "<category>": <predicted monthly total>
+  },
+  "reasoning": "<one sentence in Bengali>"
+}
+
+After JSON, write 2-3 sentences in Bengali:
+- What is the prediction
+- Why (based on current pace)
+- One specific actionable tip to save money
+''';
+
+    yield* _streamCompletion(prompt, maxTokens: 600, temperature: 0.3);
+  }
+
+  double _total(List<ExpenseEntity> expenses) {
+    return expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
   }
 
   Stream<String> _streamCompletion(
@@ -190,7 +184,7 @@ Include specific actionable advice.
             continue;
           }
           buffer.write(text);
-          yield buffer.toString();
+          yield text;
         } catch (_) {
           continue;
         }

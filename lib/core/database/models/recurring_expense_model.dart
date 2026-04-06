@@ -11,6 +11,7 @@ class RecurringExpenseModel {
   late String description;
   late String category;
   late double averageAmount;
+  late double confidenceScore;
   @enumerated
   late RecurringFrequency frequency;
   late int dayOfMonth;
@@ -26,6 +27,7 @@ class RecurringExpenseModel {
       description: description,
       category: category,
       averageAmount: averageAmount,
+      confidenceScore: confidenceScore,
       frequency: frequency,
       dayOfMonth: dayOfMonth,
       dayOfWeek: dayOfWeek,
@@ -37,11 +39,11 @@ class RecurringExpenseModel {
   }
 
   static RecurringExpenseModel fromEntity(RecurringExpenseEntity entity) {
-    return RecurringExpenseModel()
-      ..id = entity.id > 0 ? entity.id : Isar.autoIncrement
+    final model = RecurringExpenseModel()
       ..description = entity.description
       ..category = entity.category
       ..averageAmount = entity.averageAmount
+      ..confidenceScore = entity.confidenceScore
       ..frequency = entity.frequency
       ..dayOfMonth = entity.dayOfMonth
       ..dayOfWeek = entity.dayOfWeek
@@ -49,5 +51,9 @@ class RecurringExpenseModel {
       ..nextExpected = entity.nextExpected
       ..isActive = entity.isActive
       ..reminderEnabled = entity.reminderEnabled;
+    if (entity.id > 0) {
+      model.id = entity.id;
+    }
+    return model;
   }
 }

@@ -15,8 +15,11 @@ import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../budget/presentation/providers/budget_plan_provider.dart';
 import '../../../budget/presentation/screens/budget_planner_screen.dart';
 import '../../../export/presentation/screens/export_screen.dart';
+import '../../../goals/domain/entities/goal_entity.dart';
 import '../../../goals/presentation/providers/goal_provider.dart';
 import '../../../goals/presentation/screens/goals_screen.dart';
+import '../../../prediction/domain/entities/prediction_entity.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../../recurring/presentation/screens/recurring_screen.dart';
@@ -42,12 +45,11 @@ class DashboardScreen extends ConsumerWidget {
     final budgetPlan = ref.watch(budgetPlanProvider).valueOrNull;
     final recurringExpenses =
         ref.watch(recurringProvider).valueOrNull ?? const [];
-    final activeGoals = (ref.watch(goalsProvider).valueOrNull ?? const [])
-        .where((goal) => goal.status.name == 'active')
-        .toList(growable: false);
+    final activeGoals = ref.watch(goalProvider).activeGoals;
     final anomalyState = ref.watch(anomalyProvider);
     final activeAlerts = anomalyState.activeAlerts;
     final highSeverityCount = anomalyState.highSeverityCount;
+    final prediction = ref.watch(predictionProvider).prediction;
     final categoryNames = ref
         .watch(categoryProvider)
         .map((category) => category.name)
@@ -79,7 +81,7 @@ class DashboardScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.of(context).push(buildAppRoute(const GoalsScreen()));
             },
-            icon: const Icon(Icons.account_balance_wallet_rounded),
+            icon: const Icon(Icons.flag_outlined),
             tooltip: 'Goals',
           ),
           PopupMenuButton<String>(
@@ -188,7 +190,7 @@ class DashboardScreen extends ConsumerWidget {
                 if (activeGoals.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
                   _SectionHeader(
-                    title: 'লক্ষ্য অগ্রগতি',
+                    title: 'আমার লক্ষ্য',
                     actionLabel: 'সব দেখুন →',
                     onTap: () {
                       Navigator.of(
@@ -200,6 +202,10 @@ class DashboardScreen extends ConsumerWidget {
                   _GoalsSummaryCard(
                     goals: activeGoals.take(2).toList(growable: false),
                   ),
+                ],
+                if (prediction != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _PredictionTeaserCard(prediction: prediction),
                 ],
                 if (activeAlerts.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
@@ -646,7 +652,7 @@ class _UpcomingRecurringCard extends StatelessWidget {
 class _GoalsSummaryCard extends StatelessWidget {
   const _GoalsSummaryCard({required this.goals});
 
-  final List<dynamic> goals;
+  final List<GoalEntity> goals;
 
   @override
   Widget build(BuildContext context) {
@@ -691,6 +697,86 @@ class _GoalsSummaryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PredictionTeaserCard extends StatelessWidget {
+  const _PredictionTeaserCard({required this.prediction});
+
+  final PredictionEntity prediction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: AppShellNavigation.openAnalytics,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.analytics_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'মাস শেষের পূর্বাভাস',
+                    style: AppTextStyles.caption.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+                  ),
+                  Text(
+                    '৳${_formatPredictionAmount(prediction.predictedTotal)}',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    prediction.trend.icon,
+                    size: 16,
+                    color: prediction.trend.color,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    prediction.trend.label,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: prediction.trend.color,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.secondaryTextColor,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatPredictionAmount(double amount) {
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    }
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    }
+    return amount.toStringAsFixed(0);
   }
 }
 

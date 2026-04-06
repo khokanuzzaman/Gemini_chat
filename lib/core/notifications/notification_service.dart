@@ -18,6 +18,7 @@ class NotificationService {
   static const int budgetAlertId = 2;
   static const int weeklyReportId = 3;
   static const int anomalyAlertId = 4;
+  static const int goalReminderPreviewId = 5;
 
   static const AndroidNotificationChannel _dailyReminderChannel =
       AndroidNotificationChannel(
@@ -51,6 +52,14 @@ class NotificationService {
         importance: Importance.high,
       );
 
+  static const AndroidNotificationChannel _goalReminderChannel =
+      AndroidNotificationChannel(
+        'goal_reminder',
+        'Goal Reminder',
+        description: 'Monthly goal saving reminders',
+        importance: Importance.defaultImportance,
+      );
+
   static Future<void> initialize() async {
     await _initTimezone();
 
@@ -76,6 +85,7 @@ class NotificationService {
     await androidPlugin?.createNotificationChannel(_budgetAlertChannel);
     await androidPlugin?.createNotificationChannel(_weeklyReportChannel);
     await androidPlugin?.createNotificationChannel(_anomalyAlertChannel);
+    await androidPlugin?.createNotificationChannel(_goalReminderChannel);
 
     final launchDetails = await _plugin.getNotificationAppLaunchDetails();
     _handlePayload(launchDetails?.notificationResponse?.payload);
@@ -258,6 +268,64 @@ class NotificationService {
     );
   }
 
+  static Future<void> showGoalReminder({
+    required String goalTitle,
+    required double monthlyNeeded,
+  }) async {
+    await _plugin.show(
+      goalReminderPreviewId,
+      '🎯 Goal reminder',
+      '$goalTitle — এই মাসে ৳${monthlyNeeded.toStringAsFixed(0)} save করার কথা',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'goal_reminder',
+          'Goal Reminder',
+          channelDescription: 'Monthly goal saving reminders',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      ),
+      payload: 'goal_reminder',
+    );
+  }
+
+  static Future<void> scheduleGoalReminder({
+    required int notificationId,
+    required String goalTitle,
+    required double monthlyNeeded,
+  }) async {
+    await _plugin.cancel(notificationId);
+
+    await _plugin.zonedSchedule(
+      notificationId,
+      '🎯 Goal reminder',
+      '$goalTitle — এই মাসে ৳${monthlyNeeded.toStringAsFixed(0)} save করার কথা',
+      _nextGoalReminderDate(),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'goal_reminder',
+          'Goal Reminder',
+          channelDescription: 'Monthly goal saving reminders',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+      payload: 'goal_reminder',
+    );
+  }
+
+  static Future<void> cancelGoalReminder(int notificationId) async {
+    await _plugin.cancel(notificationId);
+  }
+
   static Future<void> cancelWeeklyReport() async {
     await _plugin.cancel(weeklyReportId);
   }
@@ -286,6 +354,17 @@ class NotificationService {
 
     while (scheduled.weekday != DateTime.sunday || scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    return scheduled;
+  }
+
+  static tz.TZDateTime _nextGoalReminderDate() {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, 15, 9);
+
+    if (scheduled.isBefore(now) || scheduled.isAtSameMomentAs(now)) {
+      scheduled = tz.TZDateTime(tz.local, now.year, now.month + 1, 15, 9);
     }
 
     return scheduled;

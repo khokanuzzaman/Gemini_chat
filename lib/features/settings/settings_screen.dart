@@ -9,11 +9,13 @@ import '../../core/database/expense_seed_data.dart';
 import '../../core/database/models/budget_plan_model.dart';
 import '../../core/database/models/expense_record_model.dart';
 import '../../core/database/models/goal_model.dart';
+import '../../core/database/models/goal_saving_model.dart';
 import '../../core/database/models/recurring_expense_model.dart';
 import '../../core/database/models/split_bill_model.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/navigation/app_shell_navigation.dart';
 import '../../core/notifications/notification_provider.dart';
+import '../../core/notifications/budget_settings.dart';
 import '../../core/notifications/notification_settings.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/providers/database_providers.dart';
@@ -29,6 +31,7 @@ import '../anomaly/presentation/providers/anomaly_provider.dart';
 import '../budget/presentation/screens/budget_planner_screen.dart';
 import '../export/presentation/screens/export_screen.dart';
 import '../expense/presentation/providers/expense_providers.dart';
+import '../goals/presentation/providers/goal_provider.dart';
 import '../goals/presentation/screens/goals_screen.dart';
 import '../recurring/presentation/screens/recurring_screen.dart';
 import 'budget_settings_screen.dart';
@@ -85,7 +88,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final biometricService = ref.watch(biometricServiceProvider);
     final notificationSettings = ref.watch(notificationProvider);
     final anomalyState = ref.watch(anomalyProvider);
+    final goalState = ref.watch(goalProvider);
     final activeAnomalyCount = anomalyState.activeAlerts.length;
+    final activeGoalCount = goalState.activeGoals.length;
     final categories = ref.watch(categoryProvider);
     final categoryNames = categories
         .map((category) => category.name)
@@ -434,7 +439,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _ActionTile(
                 title: 'Goal Tracking',
-                subtitle: 'Saving goal manage করুন',
+                subtitle: activeGoalCount == 0
+                    ? 'কোনো লক্ষ্য নেই'
+                    : '$activeGoalCountটি চলমান লক্ষ্য',
                 icon: Icons.flag_outlined,
                 onTap: () {
                   Navigator.of(
@@ -553,10 +560,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).messageModels.clear();
       await ref.read(isarProvider).budgetPlanModels.clear();
       await ref.read(isarProvider).goalModels.clear();
+      await ref.read(isarProvider).goalSavingModels.clear();
       await ref.read(isarProvider).recurringExpenseModels.clear();
       await ref.read(isarProvider).splitBillModels.clear();
     });
+
+    await ref.read(budgetProvider.notifier).clearBudgets();
+    await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.invalidate(goalsProvider);
     if (!mounted) {
       return;
     }
@@ -776,7 +788,7 @@ class _ActionTile extends StatelessWidget {
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: accentColor.withValues(alpha: 0.12),
-      child: Icon(icon, color: accentColor),
+        child: Icon(icon, color: accentColor),
       ),
       title: Text(title),
       subtitle: Text(subtitle),

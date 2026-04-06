@@ -1,6 +1,7 @@
 import 'package:isar/isar.dart';
 
 import '../../../../core/database/models/goal_model.dart';
+import '../../../../core/database/models/goal_saving_model.dart';
 
 class GoalLocalDataSource {
   const GoalLocalDataSource(this._isar);
@@ -23,5 +24,31 @@ class GoalLocalDataSource {
     await _isar.writeTxn(() async {
       await _isar.goalModels.putAll(models);
     });
+  }
+
+  Future<GoalModel?> getGoalById(int id) {
+    return _isar.goalModels.get(id);
+  }
+
+  Future<void> deleteGoal(int id) async {
+    await _isar.writeTxn(() async {
+      await _isar.goalModels.delete(id);
+      await _isar.goalSavingModels.filter().goalIdEqualTo(id).deleteAll();
+    });
+  }
+
+  Future<void> saveSaving(GoalSavingModel model) async {
+    await _isar.writeTxn(() async {
+      await _isar.goalSavingModels.put(model);
+    });
+  }
+
+  Future<List<GoalSavingModel>> getSavingsForGoal(int goalId) async {
+    final savings = await _isar.goalSavingModels
+        .filter()
+        .goalIdEqualTo(goalId)
+        .findAll();
+    savings.sort((first, second) => second.date.compareTo(first.date));
+    return savings;
   }
 }

@@ -174,6 +174,19 @@ class AnomalyNotifier extends Notifier<AnomalyState> {
     return state.activeAlerts;
   }
 
+  Future<void> clear() async {
+    state = const AnomalyState(
+      alerts: [],
+      isDetecting: false,
+      lastDetected: null,
+    );
+
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.remove(_cacheKey);
+    await prefs.remove(_lastDetectedKey);
+    await prefs.remove(_lastHighSignatureKey);
+  }
+
   Future<void> _persistState() async {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setString(

@@ -8,13 +8,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_strings.dart';
-import 'core/database/expense_local_datasource.dart';
-import 'core/database/expense_seed_data.dart';
 import 'core/database/models/expense_record_model.dart';
 import 'core/database/models/budget_plan_model.dart';
 import 'core/database/models/goal_model.dart';
+import 'core/database/models/goal_saving_model.dart';
 import 'core/database/models/recurring_expense_model.dart';
 import 'core/database/models/split_bill_model.dart';
+import 'features/prediction/data/models/prediction_cache_model.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
@@ -60,7 +60,6 @@ Future<void> main() async {
   }
 
   final isar = await _openIsar();
-  final expenseLocalDataSource = ExpenseLocalDataSource(isar);
   final categoryLocalDataSource = CategoryLocalDataSource(isar);
   await categoryLocalDataSource.seedDefaultCategories();
   final bootCategories = await categoryLocalDataSource.getAllCategories();
@@ -69,7 +68,6 @@ Future<void> main() async {
         .map((category) => category.toEntity())
         .toList(growable: false),
   );
-  await ExpenseSeedData.seedIfNeeded(expenseLocalDataSource);
 
   final bootstrapContainer = ProviderContainer(
     overrides: [sharedPreferencesProvider.overrideWithValue(sharedPreferences)],
@@ -115,8 +113,10 @@ Future<Isar> _openIsar() async {
       CategoryModelSchema,
       BudgetPlanModelSchema,
       GoalModelSchema,
+      GoalSavingModelSchema,
       RecurringExpenseModelSchema,
       SplitBillModelSchema,
+      PredictionCacheModelSchema,
     ],
     directory: directory.path,
     name: instanceName,

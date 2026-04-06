@@ -11,7 +11,8 @@ import '../../../../core/utils/bangla_formatters.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../anomaly/presentation/screens/anomaly_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
-import '../../../prediction/presentation/widgets/prediction_widget.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
+import '../../../prediction/presentation/widgets/prediction_card.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
@@ -37,11 +38,16 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     );
     _tabController.addListener(_handleTabChange);
     AppShellNavigation.analyticsTab.addListener(_handleExternalAnalyticsTab);
+    AppShellNavigation.selectedTab.addListener(_handleShellTabChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerPredictionLoadIfVisible();
+    });
   }
 
   @override
   void dispose() {
     AppShellNavigation.analyticsTab.removeListener(_handleExternalAnalyticsTab);
+    AppShellNavigation.selectedTab.removeListener(_handleShellTabChange);
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
@@ -75,9 +81,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        highSeverityCount > 9
-                            ? '9+'
-                            : '$highSeverityCount',
+                        highSeverityCount > 9 ? '9+' : '$highSeverityCount',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -104,7 +108,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
 
   void _handleExternalAnalyticsTab() {
     final targetIndex = AppShellNavigation.analyticsTab.value;
-    if (!_tabController.indexIsChanging && _tabController.index != targetIndex) {
+    if (!_tabController.indexIsChanging &&
+        _tabController.index != targetIndex) {
       _tabController.animateTo(targetIndex);
     }
   }
@@ -113,6 +118,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     if (_tabController.indexIsChanging) {
       AppShellNavigation.analyticsTab.value = _tabController.index;
     }
+    _triggerPredictionLoadIfVisible();
+  }
+
+  void _handleShellTabChange() {
+    _triggerPredictionLoadIfVisible();
+  }
+
+  void _triggerPredictionLoadIfVisible() {
+    if (!mounted) {
+      return;
+    }
+    final isAnalyticsScreen = AppShellNavigation.selectedTab.value == 3;
+    final isOverviewTab = _tabController.index == 0;
+    if (!isAnalyticsScreen || !isOverviewTab) {
+      return;
+    }
+    ref.read(predictionProvider.notifier).loadPrediction();
   }
 }
 
@@ -128,78 +150,78 @@ class _AnalyticsOverviewTab extends ConsumerWidget {
         .toList(growable: false);
 
     return analytics.when(
-        data: (state) {
-          final data = state.data;
-          final dayKeys = data.dailyTotals.keys.toList(growable: false);
-          final selectedDay = state.selectedDay;
-          final selectedExpenses = selectedDay == null
-              ? null
-              : data.expensesByDay[selectedDay] ?? const <ExpenseEntity>[];
-          final totalDays = data.dailyTotals.isEmpty
-              ? 1
-              : data.dailyTotals.length;
-          final dailyAverage = data.totalSpent / totalDays;
+      data: (state) {
+        final data = state.data;
+        final dayKeys = data.dailyTotals.keys.toList(growable: false);
+        final selectedDay = state.selectedDay;
+        final selectedExpenses = selectedDay == null
+            ? null
+            : data.expensesByDay[selectedDay] ?? const <ExpenseEntity>[];
+        final totalDays = data.dailyTotals.isEmpty
+            ? 1
+            : data.dailyTotals.length;
+        final dailyAverage = data.totalSpent / totalDays;
 
-          if (data.transactionCount < 1) {
-            return const _AnalyticsEmptyState();
-          }
+        if (data.transactionCount < 1) {
+          return const _AnalyticsEmptyState();
+        }
 
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(analyticsControllerProvider.notifier).refresh(),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _MonthSelector(month: state.selectedMonth),
+        return RefreshIndicator(
+          onRefresh: () =>
+              ref.read(analyticsControllerProvider.notifier).refresh(),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              if (state.selectedMonth.year == DateTime.now().year &&
+                  state.selectedMonth.month == DateTime.now().month) ...[
+                const PredictionCard(),
                 const SizedBox(height: 16),
-                _SummaryRow(
-                  totalSpent: data.totalSpent,
-                  highestCategory: data.highestCategory,
-                  dailyAverage: dailyAverage,
-                ),
-                const SizedBox(height: 18),
-                PredictionWidget(
-                  month: state.selectedMonth,
-                  currentSpent: data.totalSpent,
-                ),
-                const SizedBox(height: 18),
-                _SpendingTrendChart(
-                  dayKeys: dayKeys,
-                  totals: data.dailyTotals,
-                  selectedDay: selectedDay,
-                ),
-                const SizedBox(height: 18),
-                _CategoryDonutChart(
-                  totalSpent: data.totalSpent,
-                  categoryTotals: data.thisMonthByCategory,
-                ),
-                const SizedBox(height: 18),
-                _SelectedDayCard(
-                  selectedDay: selectedDay,
-                  expenses: selectedExpenses,
-                ),
-                const SizedBox(height: 18),
-                _ComparisonSection(
-                  categories: categoryNames,
-                  thisMonth: data.thisMonthByCategory,
-                  lastMonth: data.lastMonthByCategory,
-                ),
               ],
-            ),
-          );
-        },
-        loading: () => const _AnalyticsLoading(),
-        error: (error, stackTrace) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'বিশ্লেষণ লোড করা যায়নি\n$error',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLarge,
-            ),
+              _MonthSelector(month: state.selectedMonth),
+              const SizedBox(height: 16),
+              _SummaryRow(
+                totalSpent: data.totalSpent,
+                highestCategory: data.highestCategory,
+                dailyAverage: dailyAverage,
+              ),
+              const SizedBox(height: 18),
+              _SpendingTrendChart(
+                dayKeys: dayKeys,
+                totals: data.dailyTotals,
+                selectedDay: selectedDay,
+              ),
+              const SizedBox(height: 18),
+              _CategoryDonutChart(
+                totalSpent: data.totalSpent,
+                categoryTotals: data.thisMonthByCategory,
+              ),
+              const SizedBox(height: 18),
+              _SelectedDayCard(
+                selectedDay: selectedDay,
+                expenses: selectedExpenses,
+              ),
+              const SizedBox(height: 18),
+              _ComparisonSection(
+                categories: categoryNames,
+                thisMonth: data.thisMonthByCategory,
+                lastMonth: data.lastMonthByCategory,
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const _AnalyticsLoading(),
+      error: (error, stackTrace) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'বিশ্লেষণ লোড করা যায়নি\n$error',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyLarge,
           ),
         ),
-      );
+      ),
+    );
   }
 }
 

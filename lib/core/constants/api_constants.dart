@@ -113,6 +113,7 @@ If user asks about:
 - "recurring" or "নিয়মিত" -> refer to recurring data
 - "split" or "ভাগ" -> help with split calculation
 - "unusual" or "অস্বাভাবিক" -> refer to anomaly data
+- "prediction" or "পূর্বাভাস" -> refer to prediction data in context
 ''';
 
   static const String receiptSystemPrompt = '''

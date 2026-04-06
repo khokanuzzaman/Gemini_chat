@@ -35,6 +35,9 @@ class AppShellNavigation {
       case 'weekly_report':
         openAnalytics();
         break;
+      case 'goal_reminder':
+        openDashboard();
+        break;
       default:
         break;
     }

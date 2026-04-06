@@ -115,6 +115,15 @@ class BudgetNotifier extends Notifier<BudgetSettings> {
     await _save(defaults);
   }
 
+  Future<void> clearBudgets() async {
+    final clearedBudgets = {
+      for (final entry in state.categoryBudgets.entries) entry.key: 0.0,
+    };
+    final clearedSettings = state.copyWith(categoryBudgets: clearedBudgets);
+    state = clearedSettings;
+    await _save(clearedSettings);
+  }
+
   Future<void> _save(BudgetSettings settings) async {
     final prefs = _prefsOrNull();
     if (prefs == null) {

@@ -28,43 +28,52 @@ const RecurringExpenseModelSchema = CollectionSchema(
       name: r'category',
       type: IsarType.string,
     ),
-    r'dayOfMonth': PropertySchema(
+    r'confidenceScore': PropertySchema(
       id: 2,
+      name: r'confidenceScore',
+      type: IsarType.double,
+    ),
+    r'dayOfMonth': PropertySchema(
+      id: 3,
       name: r'dayOfMonth',
       type: IsarType.long,
     ),
     r'dayOfWeek': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'dayOfWeek',
       type: IsarType.long,
     ),
     r'description': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'description',
       type: IsarType.string,
     ),
     r'frequency': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'frequency',
       type: IsarType.byte,
       enumMap: _RecurringExpenseModelfrequencyEnumValueMap,
     ),
-    r'isActive': PropertySchema(id: 6, name: r'isActive', type: IsarType.bool),
-    r'lastOccurrence': PropertySchema(
+    r'isActive': PropertySchema(
       id: 7,
+      name: r'isActive',
+      type: IsarType.bool,
+    ),
+    r'lastOccurrence': PropertySchema(
+      id: 8,
       name: r'lastOccurrence',
       type: IsarType.dateTime,
     ),
     r'nextExpected': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'nextExpected',
       type: IsarType.dateTime,
     ),
     r'reminderEnabled': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'reminderEnabled',
       type: IsarType.bool,
-    ),
+    )
   },
   estimateSize: _recurringExpenseModelEstimateSize,
   serialize: _recurringExpenseModelSerialize,
@@ -99,14 +108,15 @@ void _recurringExpenseModelSerialize(
 ) {
   writer.writeDouble(offsets[0], object.averageAmount);
   writer.writeString(offsets[1], object.category);
-  writer.writeLong(offsets[2], object.dayOfMonth);
-  writer.writeLong(offsets[3], object.dayOfWeek);
-  writer.writeString(offsets[4], object.description);
-  writer.writeByte(offsets[5], object.frequency.index);
-  writer.writeBool(offsets[6], object.isActive);
-  writer.writeDateTime(offsets[7], object.lastOccurrence);
-  writer.writeDateTime(offsets[8], object.nextExpected);
-  writer.writeBool(offsets[9], object.reminderEnabled);
+  writer.writeDouble(offsets[2], object.confidenceScore);
+  writer.writeLong(offsets[3], object.dayOfMonth);
+  writer.writeLong(offsets[4], object.dayOfWeek);
+  writer.writeString(offsets[5], object.description);
+  writer.writeByte(offsets[6], object.frequency.index);
+  writer.writeBool(offsets[7], object.isActive);
+  writer.writeDateTime(offsets[8], object.lastOccurrence);
+  writer.writeDateTime(offsets[9], object.nextExpected);
+  writer.writeBool(offsets[10], object.reminderEnabled);
 }
 
 RecurringExpenseModel _recurringExpenseModelDeserialize(
@@ -118,19 +128,18 @@ RecurringExpenseModel _recurringExpenseModelDeserialize(
   final object = RecurringExpenseModel();
   object.averageAmount = reader.readDouble(offsets[0]);
   object.category = reader.readString(offsets[1]);
-  object.dayOfMonth = reader.readLong(offsets[2]);
-  object.dayOfWeek = reader.readLong(offsets[3]);
-  object.description = reader.readString(offsets[4]);
-  object.frequency =
-      _RecurringExpenseModelfrequencyValueEnumMap[reader.readByteOrNull(
-        offsets[5],
-      )] ??
+  object.confidenceScore = reader.readDouble(offsets[2]);
+  object.dayOfMonth = reader.readLong(offsets[3]);
+  object.dayOfWeek = reader.readLong(offsets[4]);
+  object.description = reader.readString(offsets[5]);
+  object.frequency = _RecurringExpenseModelfrequencyValueEnumMap[
+          reader.readByteOrNull(offsets[6])] ??
       RecurringFrequency.daily;
   object.id = id;
-  object.isActive = reader.readBool(offsets[6]);
-  object.lastOccurrence = reader.readDateTime(offsets[7]);
-  object.nextExpected = reader.readDateTimeOrNull(offsets[8]);
-  object.reminderEnabled = reader.readBool(offsets[9]);
+  object.isActive = reader.readBool(offsets[7]);
+  object.lastOccurrence = reader.readDateTime(offsets[8]);
+  object.nextExpected = reader.readDateTimeOrNull(offsets[9]);
+  object.reminderEnabled = reader.readBool(offsets[10]);
   return object;
 }
 
@@ -146,24 +155,24 @@ P _recurringExpenseModelDeserializeProp<P>(
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 3:
       return (reader.readLong(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 5:
-      return (_RecurringExpenseModelfrequencyValueEnumMap[reader.readByteOrNull(
-                offset,
-              )] ??
-              RecurringFrequency.daily)
-          as P;
+      return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
+      return (_RecurringExpenseModelfrequencyValueEnumMap[
+              reader.readByteOrNull(offset)] ??
+          RecurringFrequency.daily) as P;
     case 7:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 8:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 9:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 10:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -186,45 +195,39 @@ Id _recurringExpenseModelGetId(RecurringExpenseModel object) {
 }
 
 List<IsarLinkBase<dynamic>> _recurringExpenseModelGetLinks(
-  RecurringExpenseModel object,
-) {
+    RecurringExpenseModel object) {
   return [];
 }
 
 void _recurringExpenseModelAttach(
-  IsarCollection<dynamic> col,
-  Id id,
-  RecurringExpenseModel object,
-) {
+    IsarCollection<dynamic> col, Id id, RecurringExpenseModel object) {
   object.id = id;
 }
 
 extension RecurringExpenseModelQueryWhereSort
     on QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QWhere> {
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhere>
-  anyId() {
+      anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
 }
 
-extension RecurringExpenseModelQueryWhere
-    on
-        QueryBuilder<
-          RecurringExpenseModel,
-          RecurringExpenseModel,
-          QWhereClause
-        > {
+extension RecurringExpenseModelQueryWhere on QueryBuilder<RecurringExpenseModel,
+    RecurringExpenseModel, QWhereClause> {
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhereClause>
-  idEqualTo(Id id) {
+      idEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
+      return query.addWhereClause(IdWhereClause.between(
+        lower: id,
+        upper: id,
+      ));
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhereClause>
-  idNotEqualTo(Id id) {
+      idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -247,7 +250,7 @@ extension RecurringExpenseModelQueryWhere
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhereClause>
-  idGreaterThan(Id id, {bool include = false}) {
+      idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -256,7 +259,7 @@ extension RecurringExpenseModelQueryWhere
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhereClause>
-  idLessThan(Id id, {bool include = false}) {
+      idLessThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -265,99 +268,73 @@ extension RecurringExpenseModelQueryWhere
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterWhereClause>
-  idBetween(
+      idBetween(
     Id lowerId,
     Id upperId, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IdWhereClause.between(
-          lower: lowerId,
-          includeLower: includeLower,
-          upper: upperId,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addWhereClause(IdWhereClause.between(
+        lower: lowerId,
+        includeLower: includeLower,
+        upper: upperId,
+        includeUpper: includeUpper,
+      ));
     });
   }
 }
 
-extension RecurringExpenseModelQueryFilter
-    on
-        QueryBuilder<
-          RecurringExpenseModel,
-          RecurringExpenseModel,
-          QFilterCondition
-        > {
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  averageAmountEqualTo(double value, {double epsilon = Query.epsilon}) {
+extension RecurringExpenseModelQueryFilter on QueryBuilder<
+    RecurringExpenseModel, RecurringExpenseModel, QFilterCondition> {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> averageAmountEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'averageAmount',
-          value: value,
-          epsilon: epsilon,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'averageAmount',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  averageAmountGreaterThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> averageAmountGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'averageAmount',
-          value: value,
-          epsilon: epsilon,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'averageAmount',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  averageAmountLessThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> averageAmountLessThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'averageAmount',
-          value: value,
-          epsilon: epsilon,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'averageAmount',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  averageAmountBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> averageAmountBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -365,86 +342,65 @@ extension RecurringExpenseModelQueryFilter
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'averageAmount',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          epsilon: epsilon,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'averageAmount',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryEqualTo(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryGreaterThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryLessThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -452,322 +408,315 @@ extension RecurringExpenseModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'category',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'category',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryStartsWith(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryEndsWith(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+          QAfterFilterCondition>
+      categoryContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'category',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'category',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+          QAfterFilterCondition>
+      categoryMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'category',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'category',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryIsEmpty() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'category', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'category',
+        value: '',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  categoryIsNotEmpty() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> categoryIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'category', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'category',
+        value: '',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfMonthEqualTo(int value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> confidenceScoreEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'dayOfMonth', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'confidenceScore',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfMonthGreaterThan(int value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> confidenceScoreGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'dayOfMonth',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'confidenceScore',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfMonthLessThan(int value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> confidenceScoreLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'dayOfMonth',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'confidenceScore',
+        value: value,
+        epsilon: epsilon,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfMonthBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> confidenceScoreBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'confidenceScore',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfMonthEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dayOfMonth',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfMonthGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dayOfMonth',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfMonthLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dayOfMonth',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfMonthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'dayOfMonth',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dayOfMonth',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfWeekEqualTo(int value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfWeekEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'dayOfWeek', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dayOfWeek',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfWeekGreaterThan(int value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfWeekGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'dayOfWeek',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dayOfWeek',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfWeekLessThan(int value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfWeekLessThan(
+    int value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'dayOfWeek',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dayOfWeek',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  dayOfWeekBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> dayOfWeekBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'dayOfWeek',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dayOfWeek',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionEqualTo(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionGreaterThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionLessThan(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -775,603 +724,509 @@ extension RecurringExpenseModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'description',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'description',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionStartsWith(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionEndsWith(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+          QAfterFilterCondition>
+      descriptionContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'description',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'description',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+          QAfterFilterCondition>
+      descriptionMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'description',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'description',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionIsEmpty() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'description', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'description',
+        value: '',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  descriptionIsNotEmpty() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> descriptionIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'description', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'description',
+        value: '',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  frequencyEqualTo(RecurringFrequency value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> frequencyEqualTo(RecurringFrequency value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'frequency', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'frequency',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  frequencyGreaterThan(RecurringFrequency value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> frequencyGreaterThan(
+    RecurringFrequency value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'frequency',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'frequency',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  frequencyLessThan(RecurringFrequency value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> frequencyLessThan(
+    RecurringFrequency value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'frequency',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'frequency',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  frequencyBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> frequencyBetween(
     RecurringFrequency lower,
     RecurringFrequency upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'frequency',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'frequency',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  idEqualTo(Id value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'id', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  idGreaterThan(Id value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> idGreaterThan(
+    Id value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'id',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  idLessThan(Id value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> idLessThan(
+    Id value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'id',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  idBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> idBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'id',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'id',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  isActiveEqualTo(bool value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> isActiveEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'isActive', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isActive',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  lastOccurrenceEqualTo(DateTime value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> lastOccurrenceEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'lastOccurrence', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'lastOccurrence',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  lastOccurrenceGreaterThan(DateTime value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> lastOccurrenceGreaterThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'lastOccurrence',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'lastOccurrence',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  lastOccurrenceLessThan(DateTime value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> lastOccurrenceLessThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'lastOccurrence',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'lastOccurrence',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  lastOccurrenceBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> lastOccurrenceBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'lastOccurrence',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'lastOccurrence',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedIsNull() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        const FilterCondition.isNull(property: r'nextExpected'),
-      );
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'nextExpected',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedIsNotNull() {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        const FilterCondition.isNotNull(property: r'nextExpected'),
-      );
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'nextExpected',
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedEqualTo(DateTime? value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedEqualTo(DateTime? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'nextExpected', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'nextExpected',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedGreaterThan(DateTime? value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'nextExpected',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'nextExpected',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedLessThan(DateTime? value, {bool include = false}) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'nextExpected',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'nextExpected',
+        value: value,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  nextExpectedBetween(
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> nextExpectedBetween(
     DateTime? lower,
     DateTime? upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'nextExpected',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'nextExpected',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
-  QueryBuilder<
-    RecurringExpenseModel,
-    RecurringExpenseModel,
-    QAfterFilterCondition
-  >
-  reminderEnabledEqualTo(bool value) {
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel,
+      QAfterFilterCondition> reminderEnabledEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'reminderEnabled', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'reminderEnabled',
+        value: value,
+      ));
     });
   }
 }
 
-extension RecurringExpenseModelQueryObject
-    on
-        QueryBuilder<
-          RecurringExpenseModel,
-          RecurringExpenseModel,
-          QFilterCondition
-        > {}
+extension RecurringExpenseModelQueryObject on QueryBuilder<
+    RecurringExpenseModel, RecurringExpenseModel, QFilterCondition> {}
 
-extension RecurringExpenseModelQueryLinks
-    on
-        QueryBuilder<
-          RecurringExpenseModel,
-          RecurringExpenseModel,
-          QFilterCondition
-        > {}
+extension RecurringExpenseModelQueryLinks on QueryBuilder<RecurringExpenseModel,
+    RecurringExpenseModel, QFilterCondition> {}
 
 extension RecurringExpenseModelQuerySortBy
     on QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QSortBy> {
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByAverageAmount() {
+      sortByAverageAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'averageAmount', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByAverageAmountDesc() {
+      sortByAverageAmountDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'averageAmount', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByCategory() {
+      sortByCategory() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'category', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByCategoryDesc() {
+      sortByCategoryDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'category', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDayOfMonth() {
+      sortByConfidenceScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'confidenceScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
+      sortByConfidenceScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'confidenceScore', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
+      sortByDayOfMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfMonth', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDayOfMonthDesc() {
+      sortByDayOfMonthDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfMonth', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDayOfWeek() {
+      sortByDayOfWeek() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfWeek', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDayOfWeekDesc() {
+      sortByDayOfWeekDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfWeek', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDescription() {
+      sortByDescription() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'description', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByDescriptionDesc() {
+      sortByDescriptionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'description', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByFrequency() {
+      sortByFrequency() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByFrequencyDesc() {
+      sortByFrequencyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByIsActive() {
+      sortByIsActive() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isActive', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByIsActiveDesc() {
+      sortByIsActiveDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isActive', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByLastOccurrence() {
+      sortByLastOccurrence() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastOccurrence', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByLastOccurrenceDesc() {
+      sortByLastOccurrenceDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastOccurrence', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByNextExpected() {
+      sortByNextExpected() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextExpected', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByNextExpectedDesc() {
+      sortByNextExpectedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextExpected', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByReminderEnabled() {
+      sortByReminderEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'reminderEnabled', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  sortByReminderEnabledDesc() {
+      sortByReminderEnabledDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'reminderEnabled', Sort.desc);
     });
@@ -1381,154 +1236,168 @@ extension RecurringExpenseModelQuerySortBy
 extension RecurringExpenseModelQuerySortThenBy
     on QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QSortThenBy> {
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByAverageAmount() {
+      thenByAverageAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'averageAmount', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByAverageAmountDesc() {
+      thenByAverageAmountDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'averageAmount', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByCategory() {
+      thenByCategory() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'category', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByCategoryDesc() {
+      thenByCategoryDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'category', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDayOfMonth() {
+      thenByConfidenceScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'confidenceScore', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
+      thenByConfidenceScoreDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'confidenceScore', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
+      thenByDayOfMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfMonth', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDayOfMonthDesc() {
+      thenByDayOfMonthDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfMonth', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDayOfWeek() {
+      thenByDayOfWeek() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfWeek', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDayOfWeekDesc() {
+      thenByDayOfWeekDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dayOfWeek', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDescription() {
+      thenByDescription() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'description', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByDescriptionDesc() {
+      thenByDescriptionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'description', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByFrequency() {
+      thenByFrequency() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByFrequencyDesc() {
+      thenByFrequencyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'frequency', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenById() {
+      thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByIdDesc() {
+      thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByIsActive() {
+      thenByIsActive() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isActive', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByIsActiveDesc() {
+      thenByIsActiveDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isActive', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByLastOccurrence() {
+      thenByLastOccurrence() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastOccurrence', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByLastOccurrenceDesc() {
+      thenByLastOccurrenceDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastOccurrence', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByNextExpected() {
+      thenByNextExpected() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextExpected', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByNextExpectedDesc() {
+      thenByNextExpectedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextExpected', Sort.desc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByReminderEnabled() {
+      thenByReminderEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'reminderEnabled', Sort.asc);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QAfterSortBy>
-  thenByReminderEnabledDesc() {
+      thenByReminderEnabledDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'reminderEnabled', Sort.desc);
     });
@@ -1538,83 +1407,85 @@ extension RecurringExpenseModelQuerySortThenBy
 extension RecurringExpenseModelQueryWhereDistinct
     on QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct> {
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByAverageAmount() {
+      distinctByAverageAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'averageAmount');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByCategory({bool caseSensitive = true}) {
+      distinctByCategory({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'category', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByDayOfMonth() {
+      distinctByConfidenceScore() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'confidenceScore');
+    });
+  }
+
+  QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
+      distinctByDayOfMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dayOfMonth');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByDayOfWeek() {
+      distinctByDayOfWeek() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dayOfWeek');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByDescription({bool caseSensitive = true}) {
+      distinctByDescription({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'description', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByFrequency() {
+      distinctByFrequency() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'frequency');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByIsActive() {
+      distinctByIsActive() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isActive');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByLastOccurrence() {
+      distinctByLastOccurrence() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastOccurrence');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByNextExpected() {
+      distinctByNextExpected() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'nextExpected');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringExpenseModel, QDistinct>
-  distinctByReminderEnabled() {
+      distinctByReminderEnabled() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'reminderEnabled');
     });
   }
 }
 
-extension RecurringExpenseModelQueryProperty
-    on
-        QueryBuilder<
-          RecurringExpenseModel,
-          RecurringExpenseModel,
-          QQueryProperty
-        > {
+extension RecurringExpenseModelQueryProperty on QueryBuilder<
+    RecurringExpenseModel, RecurringExpenseModel, QQueryProperty> {
   QueryBuilder<RecurringExpenseModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
@@ -1622,70 +1493,77 @@ extension RecurringExpenseModelQueryProperty
   }
 
   QueryBuilder<RecurringExpenseModel, double, QQueryOperations>
-  averageAmountProperty() {
+      averageAmountProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'averageAmount');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, String, QQueryOperations>
-  categoryProperty() {
+      categoryProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'category');
     });
   }
 
+  QueryBuilder<RecurringExpenseModel, double, QQueryOperations>
+      confidenceScoreProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'confidenceScore');
+    });
+  }
+
   QueryBuilder<RecurringExpenseModel, int, QQueryOperations>
-  dayOfMonthProperty() {
+      dayOfMonthProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'dayOfMonth');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, int, QQueryOperations>
-  dayOfWeekProperty() {
+      dayOfWeekProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'dayOfWeek');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, String, QQueryOperations>
-  descriptionProperty() {
+      descriptionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'description');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, RecurringFrequency, QQueryOperations>
-  frequencyProperty() {
+      frequencyProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'frequency');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, bool, QQueryOperations>
-  isActiveProperty() {
+      isActiveProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isActive');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, DateTime, QQueryOperations>
-  lastOccurrenceProperty() {
+      lastOccurrenceProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastOccurrence');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, DateTime?, QQueryOperations>
-  nextExpectedProperty() {
+      nextExpectedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'nextExpected');
     });
   }
 
   QueryBuilder<RecurringExpenseModel, bool, QQueryOperations>
-  reminderEnabledProperty() {
+      reminderEnabledProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'reminderEnabled');
     });

@@ -8,6 +8,7 @@ import '../../../../core/notifications/notification_provider.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/ai/expense_result.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../data/repositories/expense_repository_impl.dart';
 import '../../domain/entities/analytics_data.dart';
 import '../../domain/entities/dashboard_data.dart';
@@ -167,11 +168,11 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
       }
 
       await ref.read(deleteExpenseUseCaseProvider).call(expense.id!);
-      _notifyExpenseChanged();
       await ref.read(anomalyProvider.notifier).reDetect();
       ref.invalidate(dashboardControllerProvider);
       ref.invalidate(analyticsControllerProvider);
       state = AsyncData(await _loadState());
+      _notifyExpenseChanged();
       return null;
     } on Failure catch (failure) {
       state = AsyncData(await _loadState());
@@ -198,11 +199,11 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
       }
 
       await ref.read(updateExpenseUseCaseProvider).call(expense);
-      _notifyExpenseChanged();
       await ref.read(anomalyProvider.notifier).reDetect();
       ref.invalidate(dashboardControllerProvider);
       ref.invalidate(analyticsControllerProvider);
       state = AsyncData(await _loadState());
+      _notifyExpenseChanged();
       return null;
     } on Failure catch (failure) {
       state = AsyncData(await _loadState());
@@ -374,7 +375,7 @@ class ExpenseMutationController {
         date: expenseData.parsedDate,
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
-      await _notifyExpenseChanged();
+      await _notifyExpenseChanged(addedCount: 1);
       await _ref
           .read(notificationProvider.notifier)
           .checkBudgetAlert(expense.category);
@@ -407,7 +408,7 @@ class ExpenseMutationController {
       }
 
       await _ref.read(saveExpenseUseCaseProvider).saveMany(validExpenses);
-      await _notifyExpenseChanged();
+      await _notifyExpenseChanged(addedCount: validExpenses.length);
       final categories = validExpenses
           .map((expense) => expense.category)
           .toSet()
@@ -438,7 +439,7 @@ class ExpenseMutationController {
         date: ExpenseData.parseDateValue(dateValue),
       );
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
-      await _notifyExpenseChanged();
+      await _notifyExpenseChanged(addedCount: 1);
       await _ref
           .read(notificationProvider.notifier)
           .checkBudgetAlert(expense.category);
@@ -460,7 +461,7 @@ class ExpenseMutationController {
         isManual: true,
       );
       await _ref.read(saveExpenseUseCaseProvider).call(normalizedExpense);
-      await _notifyExpenseChanged();
+      await _notifyExpenseChanged(addedCount: 1);
       await _ref
           .read(notificationProvider.notifier)
           .checkBudgetAlert(normalizedExpense.category);
@@ -472,11 +473,16 @@ class ExpenseMutationController {
     }
   }
 
-  Future<void> _notifyExpenseChanged() async {
+  Future<void> _notifyExpenseChanged({int addedCount = 0}) async {
     _ref.read(expenseRefreshTokenProvider.notifier).state++;
     _ref.invalidate(dashboardControllerProvider);
     _ref.invalidate(expenseListControllerProvider);
     _ref.invalidate(analyticsControllerProvider);
     await _ref.read(anomalyProvider.notifier).reDetect();
+    if (addedCount > 0) {
+      await _ref
+          .read(predictionProvider.notifier)
+          .registerExpenseSaves(addedCount);
+    }
   }
 }

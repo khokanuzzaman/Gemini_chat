@@ -9,6 +9,7 @@ class RecurringExpenseEntity {
     required this.description,
     required this.category,
     required this.averageAmount,
+    required this.confidenceScore,
     required this.frequency,
     required this.dayOfMonth,
     required this.dayOfWeek,
@@ -22,6 +23,7 @@ class RecurringExpenseEntity {
   final String description;
   final String category;
   final double averageAmount;
+  final double confidenceScore;
   final RecurringFrequency frequency;
   final int dayOfMonth;
   final int dayOfWeek;
@@ -35,6 +37,7 @@ class RecurringExpenseEntity {
     String? description,
     String? category,
     double? averageAmount,
+    double? confidenceScore,
     RecurringFrequency? frequency,
     int? dayOfMonth,
     int? dayOfWeek,
@@ -48,6 +51,7 @@ class RecurringExpenseEntity {
       description: description ?? this.description,
       category: category ?? this.category,
       averageAmount: averageAmount ?? this.averageAmount,
+      confidenceScore: confidenceScore ?? this.confidenceScore,
       frequency: frequency ?? this.frequency,
       dayOfMonth: dayOfMonth ?? this.dayOfMonth,
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,

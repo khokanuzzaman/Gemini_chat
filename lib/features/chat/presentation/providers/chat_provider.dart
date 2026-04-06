@@ -26,6 +26,7 @@ import '../../../category/presentation/providers/category_provider.dart';
 import '../../../budget/presentation/providers/budget_plan_provider.dart';
 import '../../../goals/presentation/providers/goal_provider.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -45,6 +46,13 @@ final ragContextBuilderProvider = Provider<RagContextBuilder>((ref) {
     goalLocalDataSource: ref.watch(goalLocalDataSourceProvider),
     recurringLocalDataSource: ref.watch(recurringLocalDataSourceProvider),
     anomalyLoader: () => ref.read(anomalyProvider.notifier).getActiveAlerts(),
+    predictionLoader: () async {
+      final currentPrediction = ref.read(predictionProvider).prediction;
+      if (currentPrediction != null) {
+        return currentPrediction;
+      }
+      return ref.read(predictionProvider.notifier).getCachedPrediction();
+    },
   );
 });
 

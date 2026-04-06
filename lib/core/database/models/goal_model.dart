@@ -17,6 +17,7 @@ class GoalModel {
   late DateTime createdAt;
   @enumerated
   late GoalStatus status;
+  String? notes;
 
   GoalEntity toEntity() {
     return GoalEntity(
@@ -28,18 +29,23 @@ class GoalModel {
       targetDate: targetDate,
       createdAt: createdAt,
       status: status,
+      notes: notes,
     );
   }
 
   static GoalModel fromEntity(GoalEntity entity) {
-    return GoalModel()
-      ..id = entity.id > 0 ? entity.id : Isar.autoIncrement
+    final model = GoalModel()
       ..title = entity.title
       ..emoji = entity.emoji
       ..targetAmount = entity.targetAmount
       ..savedAmount = entity.savedAmount
       ..targetDate = entity.targetDate
       ..createdAt = entity.createdAt
-      ..status = entity.status;
+      ..status = entity.status
+      ..notes = entity.notes;
+    if (entity.id > 0) {
+      model.id = entity.id;
+    }
+    return model;
   }
 }

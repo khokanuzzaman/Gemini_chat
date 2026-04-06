@@ -4,6 +4,7 @@ import '../../features/anomaly/data/services/anomaly_detection_service.dart';
 import '../../features/anomaly/domain/entities/anomaly_alert.dart';
 import '../../features/budget/data/datasources/budget_plan_local_datasource.dart';
 import '../../features/goals/data/datasources/goal_local_datasource.dart';
+import '../../features/prediction/domain/entities/prediction_entity.dart';
 import '../../features/recurring/data/datasources/recurring_local_datasource.dart';
 import '../database/expense_local_datasource.dart';
 import '../database/models/expense_record_model.dart';
@@ -55,17 +56,20 @@ class RagContextBuilder {
     GoalLocalDataSource? goalLocalDataSource,
     RecurringLocalDataSource? recurringLocalDataSource,
     Future<List<AnomalyAlert>> Function()? anomalyLoader,
+    Future<PredictionEntity?> Function()? predictionLoader,
   }) : _localDataSource = localDataSource,
        _budgetPlanLocalDataSource = budgetPlanLocalDataSource,
        _goalLocalDataSource = goalLocalDataSource,
        _recurringLocalDataSource = recurringLocalDataSource,
-       _anomalyLoader = anomalyLoader;
+       _anomalyLoader = anomalyLoader,
+       _predictionLoader = predictionLoader;
 
   final ExpenseLocalDataSource _localDataSource;
   final BudgetPlanLocalDataSource? _budgetPlanLocalDataSource;
   final GoalLocalDataSource? _goalLocalDataSource;
   final RecurringLocalDataSource? _recurringLocalDataSource;
   final Future<List<AnomalyAlert>> Function()? _anomalyLoader;
+  final Future<PredictionEntity?> Function()? _predictionLoader;
 
   /// Builds personalized context from local expense data for RAG-style prompts.
   Future<RagContext?> buildContext(String userQuestion) async {
@@ -201,7 +205,9 @@ class RagContextBuilder {
       }
     }
 
-    final goalModels = await _goalLocalDataSource?.getAllGoals();
+    final goalModels = _needsGoalContext(userQuestion)
+        ? await _goalLocalDataSource?.getAllGoals()
+        : null;
     final activeGoals =
         goalModels
             ?.map((goal) => goal.toEntity())
@@ -211,10 +217,10 @@ class RagContextBuilder {
     if (activeGoals.isNotEmpty) {
       buffer
         ..writeln('')
-        ..writeln('## Active Goals');
+        ..writeln('## Saving Goals');
       for (final goal in activeGoals.take(5)) {
         buffer.writeln(
-          '- ${goal.emoji} ${goal.title}: ${BanglaFormatters.currency(goal.savedAmount)} / ${BanglaFormatters.currency(goal.targetAmount)} (${goal.progressPercentage.toStringAsFixed(0)}%), ${goal.daysRemaining} days left',
+          '- ${goal.emoji} ${goal.title}: ${BanglaFormatters.currency(goal.savedAmount)} / ${BanglaFormatters.currency(goal.targetAmount)} (${goal.progressPercentage.toStringAsFixed(0)}%), ${goal.daysRemaining} days remaining, ${goal.isOnTrack ? "on track" : "behind schedule"}',
         );
       }
     }
@@ -247,6 +253,24 @@ class RagContextBuilder {
       for (final alert in anomalyAlerts.take(3)) {
         buffer.writeln('- ${alert.message}');
       }
+    }
+
+    final prediction = _needsPredictionContext(userQuestion)
+        ? await _predictionLoader?.call()
+        : null;
+    if (prediction != null) {
+      buffer
+        ..writeln('')
+        ..writeln('## Expense Prediction')
+        ..writeln(
+          'Predicted end-of-month total: ৳${prediction.predictedTotal.toStringAsFixed(0)}',
+        )
+        ..writeln(
+          'Current total: ৳${prediction.currentTotal.toStringAsFixed(0)}',
+        )
+        ..writeln('Days remaining: ${prediction.daysRemaining}')
+        ..writeln('Trend: ${prediction.trend.name}')
+        ..writeln('Confidence: ${prediction.confidence.name}');
     }
 
     return RagContext(textForAi: buffer.toString().trim(), data: data);
@@ -381,6 +405,12 @@ class RagContextBuilder {
       'বাজেট',
       'goal',
       'লক্ষ্য',
+      'save',
+      'সংরক্ষণ',
+      'target',
+      'পূরণ',
+      'progress',
+      'অগ্রগতি',
       'recurring',
       'নিয়মিত',
       'split',
@@ -463,6 +493,32 @@ class RagContextBuilder {
       'সমস্যা',
       'issue',
       'warning',
+    ]);
+  }
+
+  bool _needsPredictionContext(String question) {
+    return _containsAny(question, const [
+      'পূর্বাভাস',
+      'prediction',
+      'মাস শেষ',
+      'কত হবে',
+      'হওয়ার সম্ভাবনা',
+      'forecast',
+      'আনুমানিক',
+      'শেষে',
+    ]);
+  }
+
+  bool _needsGoalContext(String question) {
+    return _containsAny(question, const [
+      'goal',
+      'লক্ষ্য',
+      'save',
+      'সংরক্ষণ',
+      'target',
+      'পূরণ',
+      'progress',
+      'অগ্রগতি',
     ]);
   }
 
