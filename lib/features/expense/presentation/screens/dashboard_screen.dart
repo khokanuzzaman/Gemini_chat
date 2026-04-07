@@ -12,7 +12,8 @@ import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/utils/category_icon.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
-import '../../../budget/presentation/providers/budget_plan_provider.dart';
+import '../../../budget/domain/entities/budget_plan_entity.dart';
+import '../../../budget/presentation/providers/budget_provider.dart';
 import '../../../budget/presentation/screens/budget_planner_screen.dart';
 import '../../../export/presentation/screens/export_screen.dart';
 import '../../../goals/domain/entities/goal_entity.dart';
@@ -41,8 +42,8 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(dashboardControllerProvider);
-    final budgets = ref.watch(budgetProvider).categoryBudgets;
-    final budgetPlan = ref.watch(budgetPlanProvider).valueOrNull;
+    final budgets = ref.watch(budgetSettingsProvider).categoryBudgets;
+    final budgetPlan = ref.watch(budgetProvider).activeBudget;
     final recurringExpenses =
         ref.watch(recurringProvider).valueOrNull ?? const [];
     final activeGoals = ref.watch(goalProvider).activeGoals;
@@ -70,6 +71,15 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('হোম'),
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(buildAppRoute(const BudgetPlannerScreen()));
+            },
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'Budget Planner',
+          ),
           IconButton(
             onPressed: () {
               Navigator.of(context).push(buildAppRoute(const ExportScreen()));
@@ -105,7 +115,7 @@ class DashboardScreen extends ConsumerWidget {
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'budget', child: Text('Budget Planner')),
+              PopupMenuItem(value: 'budget', child: Text('AI Budget Planner')),
               PopupMenuItem(
                 value: 'recurring',
                 child: Text('Regular Expenses'),
@@ -156,23 +166,6 @@ class DashboardScreen extends ConsumerWidget {
                   budgets: budgets,
                   onTapCategory: onOpenExpenses,
                 ),
-                if (budgetPlan != null) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  _SectionHeader(
-                    title: 'বাজেট অগ্রগতি',
-                    actionLabel: 'Planner',
-                    onTap: () {
-                      Navigator.of(
-                        context,
-                      ).push(buildAppRoute(const BudgetPlannerScreen()));
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _BudgetProgressCard(
-                    spent: data.thisMonthTotal,
-                    plan: budgetPlan,
-                  ),
-                ],
                 if (upcomingRecurring.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
                   _SectionHeader(
@@ -186,6 +179,17 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   _UpcomingRecurringCard(patterns: upcomingRecurring),
+                ],
+                if (prediction != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _PredictionTeaserCard(prediction: prediction),
+                ],
+                if (budgetPlan != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _BudgetProgressCard(
+                    spent: data.thisMonthTotal,
+                    plan: budgetPlan,
+                  ),
                 ],
                 if (activeGoals.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
@@ -202,10 +206,6 @@ class DashboardScreen extends ConsumerWidget {
                   _GoalsSummaryCard(
                     goals: activeGoals.take(2).toList(growable: false),
                   ),
-                ],
-                if (prediction != null) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  _PredictionTeaserCard(prediction: prediction),
                 ],
                 if (activeAlerts.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.lg),
@@ -561,44 +561,83 @@ class _BudgetProgressCard extends StatelessWidget {
   const _BudgetProgressCard({required this.spent, required this.plan});
 
   final double spent;
-  final dynamic plan;
+  final BudgetPlanEntity plan;
 
   @override
   Widget build(BuildContext context) {
     final totalBudget = plan.totalBudgeted <= 0 ? 1.0 : plan.totalBudgeted;
     final progress = (spent / totalBudget).clamp(0.0, 1.0);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.savings_outlined, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text('বাজেট অগ্রগতি', style: AppTextStyles.titleMedium),
-                const Spacer(),
-                Text('${(progress * 100).toStringAsFixed(0)}%'),
-              ],
-            ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              color: progress > 0.95
-                  ? AppColors.error
-                  : progress > 0.75
-                  ? AppColors.warning
-                  : AppColors.success,
-              backgroundColor: context.borderColor.withValues(alpha: 0.35),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${BanglaFormatters.currency(spent)} / ${BanglaFormatters.currency(plan.totalBudgeted)}',
-              style: AppTextStyles.bodySmall,
-            ),
-          ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(buildAppRoute(const BudgetPlannerScreen()));
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('মাসিক বাজেট', style: AppTextStyles.titleMedium),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const BudgetPlannerScreen()));
+                    },
+                    child: const Text('দেখুন →'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    '${BanglaFormatters.currency(spent)} / ${BanglaFormatters.currency(plan.totalBudgeted)}',
+                    style: AppTextStyles.titleMedium,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${(progress * 100).toStringAsFixed(0)}%',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: progress >= 1
+                          ? AppColors.error
+                          : progress >= 0.8
+                          ? AppColors.warning
+                          : AppColors.success,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                color: progress >= 1
+                    ? AppColors.error
+                    : progress >= 0.8
+                    ? AppColors.warning
+                    : AppColors.primary,
+                backgroundColor: context.borderColor.withValues(alpha: 0.35),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'সঞ্চয় লক্ষ্য: ${BanglaFormatters.currency(plan.savingsAmount)} (${plan.savingsPercentage.toStringAsFixed(0)}%)',
+                style: AppTextStyles.caption,
+              ),
+            ],
+          ),
         ),
       ),
     );

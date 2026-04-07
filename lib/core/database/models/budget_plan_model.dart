@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:isar/isar.dart';
 
 import '../../../features/budget/domain/entities/budget_plan_entity.dart';
@@ -9,40 +11,61 @@ class BudgetPlanModel {
   Id id = Isar.autoIncrement;
 
   late double monthlyIncome;
-  late List<String> categoryNames;
-  late List<double> categoryAmounts;
+  late String categoryBudgetsJson;
+  late double totalBudgeted;
+  late double savingsAmount;
+  late double savingsPercentage;
+  late String aiExplanation;
+  late String budgetRule;
   late DateTime createdAt;
   late DateTime updatedAt;
-  late String aiSuggestion;
+  late bool isActive;
 
   BudgetPlanEntity toEntity() {
     final budgets = <String, double>{};
-    final length = categoryNames.length < categoryAmounts.length
-        ? categoryNames.length
-        : categoryAmounts.length;
-    for (var index = 0; index < length; index++) {
-      budgets[categoryNames[index]] = categoryAmounts[index];
+    final decoded = jsonDecode(categoryBudgetsJson);
+    if (decoded is Map) {
+      for (final entry in decoded.entries) {
+        final value = entry.value;
+        if (value is num) {
+          budgets[entry.key.toString()] = value.toDouble();
+        }
+      }
     }
 
     return BudgetPlanEntity(
       id: id,
       monthlyIncome: monthlyIncome,
       categoryBudgets: budgets,
+      totalBudgeted: totalBudgeted,
+      savingsAmount: savingsAmount,
+      savingsPercentage: savingsPercentage,
+      aiExplanation: aiExplanation,
+      budgetRule: BudgetRule.values.firstWhere(
+        (value) => value.name == budgetRule,
+        orElse: () => BudgetRule.fiftyThirtyTwenty,
+      ),
       createdAt: createdAt,
       updatedAt: updatedAt,
-      aiSuggestion: aiSuggestion,
+      isActive: isActive,
     );
   }
 
   static BudgetPlanModel fromEntity(BudgetPlanEntity entity) {
-    final entries = entity.categoryBudgets.entries.toList(growable: false);
-    return BudgetPlanModel()
-      ..id = entity.id > 0 ? entity.id : Isar.autoIncrement
+    final model = BudgetPlanModel()
       ..monthlyIncome = entity.monthlyIncome
-      ..categoryNames = entries.map((entry) => entry.key).toList()
-      ..categoryAmounts = entries.map((entry) => entry.value).toList()
+      ..categoryBudgetsJson = jsonEncode(entity.categoryBudgets)
+      ..totalBudgeted = entity.totalBudgeted
+      ..savingsAmount = entity.savingsAmount
+      ..savingsPercentage = entity.savingsPercentage
+      ..aiExplanation = entity.aiExplanation
+      ..budgetRule = entity.budgetRule.name
       ..createdAt = entity.createdAt
       ..updatedAt = entity.updatedAt
-      ..aiSuggestion = entity.aiSuggestion;
+      ..isActive = entity.isActive;
+    if (entity.id > 0) {
+      model.id = entity.id;
+    }
+    return model;
   }
 }

@@ -183,24 +183,26 @@ class RagContextBuilder {
       }
     }
 
-    final budgetPlan = await _budgetPlanLocalDataSource?.getLatestPlan();
+    final budgetPlan = _needsBudgetContext(userQuestion)
+        ? await _budgetPlanLocalDataSource?.getActiveBudget()
+        : null;
     if (budgetPlan != null) {
-      final plan = budgetPlan.toEntity();
       buffer
         ..writeln('')
-        ..writeln('## Budget Plan')
+        ..writeln('## Active Budget Plan')
         ..writeln(
-          'Monthly income: ${BanglaFormatters.currency(plan.monthlyIncome)}',
+          'Monthly income: ${BanglaFormatters.currency(budgetPlan.monthlyIncome)}',
         )
         ..writeln(
-          'Budgeted total: ${BanglaFormatters.currency(plan.totalBudgeted)}',
+          'Total budgeted: ${BanglaFormatters.currency(budgetPlan.totalBudgeted)}',
         )
         ..writeln(
-          'Savings target: ${BanglaFormatters.currency(plan.savingsAmount)} (${plan.savingsPercentage.toStringAsFixed(0)}%)',
+          'Savings goal: ${BanglaFormatters.currency(budgetPlan.savingsAmount)} (${budgetPlan.savingsPercentage.toStringAsFixed(0)}%)',
         );
-      for (final entry in plan.categoryBudgets.entries) {
+      buffer.writeln('Category limits:');
+      for (final entry in budgetPlan.categoryBudgets.entries) {
         buffer.writeln(
-          '- ${entry.key}: ${BanglaFormatters.currency(entry.value)}',
+          '  ${entry.key}: ${BanglaFormatters.currency(entry.value)}/month',
         );
       }
     }
@@ -403,6 +405,10 @@ class RagContextBuilder {
       'মাস',
       'budget',
       'বাজেট',
+      'income',
+      'আয়',
+      'plan',
+      'সীমা',
       'goal',
       'লক্ষ্য',
       'save',
@@ -493,6 +499,20 @@ class RagContextBuilder {
       'সমস্যা',
       'issue',
       'warning',
+    ]);
+  }
+
+  bool _needsBudgetContext(String question) {
+    return _containsAny(question, const [
+      'budget',
+      'বাজেট',
+      'সীমা',
+      'limit',
+      'পরিকল্পনা',
+      'plan',
+      'সঞ্চয়',
+      'income',
+      'আয়',
     ]);
   }
 

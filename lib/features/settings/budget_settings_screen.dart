@@ -23,7 +23,7 @@ class _BudgetSettingsScreenState extends ConsumerState<BudgetSettingsScreen> {
   void initState() {
     super.initState();
     _draftBudgets = Map<String, double>.from(
-      ref.read(budgetProvider).categoryBudgets,
+      ref.read(budgetSettingsProvider).categoryBudgets,
     );
     _controllers = {};
   }
@@ -131,7 +131,7 @@ class _BudgetSettingsScreenState extends ConsumerState<BudgetSettingsScreen> {
                   category: _draftBudgets[category] ?? 0,
               };
               await ref
-                  .read(budgetProvider.notifier)
+                  .read(budgetSettingsProvider.notifier)
                   .saveBudgets(budgetsToSave);
               if (!mounted) {
                 return;
@@ -152,14 +152,16 @@ class _BudgetSettingsScreenState extends ConsumerState<BudgetSettingsScreen> {
     setState(() {
       _draftBudgets[category] = parsedValue;
     });
-    await ref.read(budgetProvider.notifier).updateBudget(category, parsedValue);
+    await ref
+        .read(budgetSettingsProvider.notifier)
+        .updateBudget(category, parsedValue);
   }
 
   void _syncCategoryControllers(List<String> categories) {
     for (final category in categories) {
       _draftBudgets.putIfAbsent(
         category,
-        () => ref.read(budgetProvider).categoryBudgets[category] ?? 0,
+        () => ref.read(budgetSettingsProvider).categoryBudgets[category] ?? 0,
       );
       _controllers.putIfAbsent(
         category,

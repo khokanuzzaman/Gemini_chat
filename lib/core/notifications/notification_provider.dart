@@ -68,7 +68,7 @@ class NotificationNotifier extends Notifier<NotificationSettings> {
       return;
     }
 
-    final budget = ref.read(budgetProvider).categoryBudgets[category];
+    final budget = ref.read(budgetSettingsProvider).categoryBudgets[category];
     if (budget == null || budget <= 0) {
       return;
     }

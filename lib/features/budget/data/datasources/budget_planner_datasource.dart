@@ -8,19 +8,10 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/connectivity_service.dart';
-import '../../../category/domain/entities/category_entity.dart';
-import '../../../expense/domain/entities/expense_entity.dart';
+import '../../domain/entities/budget_plan_entity.dart';
 
-abstract class BudgetPlannerDataSource {
-  Stream<String> generateBudgetPlan({
-    required double monthlyIncome,
-    required List<ExpenseEntity> last3MonthsExpenses,
-    required List<CategoryEntity> categories,
-  });
-}
-
-class BudgetPlannerDataSourceImpl implements BudgetPlannerDataSource {
-  BudgetPlannerDataSourceImpl({
+class BudgetPlannerDataSource {
+  BudgetPlannerDataSource({
     http.Client? client,
     ConnectivityService? connectivityService,
   }) : _client = client ?? http.Client(),
@@ -29,11 +20,11 @@ class BudgetPlannerDataSourceImpl implements BudgetPlannerDataSource {
   final http.Client _client;
   final ConnectivityService _connectivityService;
 
-  @override
-  Stream<String> generateBudgetPlan({
+  Stream<String> generateBudget({
     required double monthlyIncome,
-    required List<ExpenseEntity> last3MonthsExpenses,
-    required List<CategoryEntity> categories,
+    required Map<String, double> avgMonthlyByCategory,
+    required List<String> availableCategories,
+    required BudgetRule preferredRule,
   }) async* {
     final isConnected = await _connectivityService.isConnected();
     if (!isConnected) {
@@ -45,70 +36,55 @@ class BudgetPlannerDataSourceImpl implements BudgetPlannerDataSource {
       throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
     }
 
+    final spendingHistory = avgMonthlyByCategory.entries
+        .map(
+          (entry) =>
+              '${entry.key}: ৳${entry.value.toStringAsFixed(0)}/month avg',
+        )
+        .join('\n');
+
     final prompt =
         '''
-User's monthly income: ৳${monthlyIncome.toStringAsFixed(0)}
+Monthly income: ৳${monthlyIncome.toStringAsFixed(0)}
 
-Spending history (last 3 months average):
-${_buildSpendingHistory(last3MonthsExpenses, categories)}
+Current average monthly spending by category:
+$spendingHistory
 
-Available categories: ${categories.map((c) => c.name).join(', ')}
+Available categories: ${availableCategories.join(', ')}
 
-Create a realistic monthly budget plan for Bangladesh.
-Follow 50/30/20 rule if possible:
-- 50% needs (Food, Transport, Bill, Healthcare)
-- 30% wants (Shopping, Entertainment)
-- 20% savings
+Budget rule to apply: ${preferredRule.label}
+- ${preferredRule.description}
 
-Return JSON first, then explanation:
+Create a realistic monthly budget for Bangladesh context.
+Consider: rent, food costs, transport in Dhaka/Bangladesh.
+
+Rules:
+- Total budgeted amount MUST be less than income
+- Savings must be at least 10% of income
+- Each category gets a realistic amount
+- Use only the available categories listed above
+
+Return this JSON (raw, no markdown):
 {
+  "rule": "<fiftyThirtyTwenty/seventyTwentyTen/custom>",
   "categoryBudgets": {
-    "Food": <amount>,
-    "Transport": <amount>
+    "<category>": <monthly amount>
   },
-  "savings": <amount>,
-  "totalBudgeted": <amount>,
+  "totalBudgeted": <number>,
+  "savingsAmount": <number>,
   "savingsPercentage": <number>
 }
 
-Then write 2-3 sentences in Bengali explaining the plan.
+After JSON, write in Bengali (3-4 sentences):
+1. Summary of the plan
+2. Which categories need attention
+3. How to reach savings goal
+4. One specific money-saving tip for Bangladesh
 ''';
 
-    yield* _streamCompletion(prompt, maxTokens: 900, temperature: 0.4);
-  }
-
-  String _buildSpendingHistory(
-    List<ExpenseEntity> expenses,
-    List<CategoryEntity> categories,
-  ) {
-    final totals = <String, double>{};
-    for (final category in categories) {
-      totals[category.name] = 0;
-    }
-    for (final expense in expenses) {
-      totals.update(
-        expense.category,
-        (value) => value + expense.amount,
-        ifAbsent: () => expense.amount,
-      );
-    }
-
-    final buffer = StringBuffer();
-    for (final entry in totals.entries) {
-      final average = expenses.isEmpty ? 0.0 : entry.value / 3;
-      buffer.writeln('- ${entry.key}: ৳${average.toStringAsFixed(0)}');
-    }
-    return buffer.toString().trim();
-  }
-
-  Stream<String> _streamCompletion(
-    String prompt, {
-    required int maxTokens,
-    required double temperature,
-  }) async* {
     final request = http.Request('POST', Uri.parse(ApiConstants.chatUrl));
     request.headers.addAll({
-      HttpHeaders.authorizationHeader: 'Bearer ${ApiConstants.openAiApiKey}',
+      HttpHeaders.authorizationHeader: 'Bearer $apiKey',
       HttpHeaders.contentTypeHeader: 'application/json',
     });
     request.body = jsonEncode({
@@ -117,16 +93,15 @@ Then write 2-3 sentences in Bengali explaining the plan.
         {
           'role': 'system',
           'content':
-              'You are a careful financial planner for Bangladesh. Always respond in Bengali.',
+              'You are a financial advisor specializing in Bangladesh personal finance. '
+              'Create practical, achievable budgets. Always return raw JSON first, then Bengali explanation.',
         },
         {'role': 'user', 'content': prompt},
       ],
       'stream': true,
-      'max_tokens': maxTokens,
-      'temperature': temperature,
+      'max_tokens': 800,
+      'temperature': 0.4,
     });
-
-    final buffer = StringBuffer();
 
     try {
       final response = await _client
@@ -140,9 +115,10 @@ Then write 2-3 sentences in Bengali explaining the plan.
         throw const QuotaExceededException();
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw const GeneralException(AppStrings.generalError);
+        throw const GeneralException('Budget generation failed');
       }
 
+      var hasContent = false;
       await for (final line
           in response.stream
               .transform(utf8.decoder)
@@ -151,9 +127,9 @@ Then write 2-3 sentences in Bengali explaining the plan.
         if (!line.startsWith('data: ') || line.trim() == 'data: [DONE]') {
           continue;
         }
-        final payload = line.substring(6);
+
         try {
-          final decoded = jsonDecode(payload) as Map<String, dynamic>;
+          final decoded = jsonDecode(line.substring(6)) as Map<String, dynamic>;
           final choices = decoded['choices'];
           if (choices is! List || choices.isEmpty) {
             continue;
@@ -176,14 +152,14 @@ Then write 2-3 sentences in Bengali explaining the plan.
           if (text.isEmpty) {
             continue;
           }
-          buffer.write(text);
-          yield buffer.toString();
+          hasContent = true;
+          yield text;
         } catch (_) {
           continue;
         }
       }
 
-      if (buffer.isEmpty) {
+      if (!hasContent) {
         throw const GeneralException(AppStrings.openAiEmptyResponse);
       }
     } on SocketException {
@@ -197,7 +173,7 @@ Then write 2-3 sentences in Bengali explaining the plan.
     } on GeneralException {
       rethrow;
     } catch (_) {
-      throw const GeneralException(AppStrings.generalError);
+      throw const GeneralException('Budget generation failed');
     }
   }
 }

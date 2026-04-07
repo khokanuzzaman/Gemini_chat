@@ -75,11 +75,12 @@ class BudgetSettings {
   String toJsonString() => jsonEncode(toJson());
 }
 
-final budgetProvider = NotifierProvider<BudgetNotifier, BudgetSettings>(
-  BudgetNotifier.new,
-);
+final budgetSettingsProvider =
+    NotifierProvider<BudgetSettingsNotifier, BudgetSettings>(
+      BudgetSettingsNotifier.new,
+    );
 
-class BudgetNotifier extends Notifier<BudgetSettings> {
+class BudgetSettingsNotifier extends Notifier<BudgetSettings> {
   @override
   BudgetSettings build() {
     final prefs = _prefsOrNull();

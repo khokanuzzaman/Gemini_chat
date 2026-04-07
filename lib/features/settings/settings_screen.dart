@@ -23,11 +23,14 @@ import '../../core/security/biometric_provider.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_provider.dart';
+import '../../core/utils/bangla_formatters.dart';
 import '../category/presentation/providers/category_provider.dart';
 import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../chat/data/models/message_model.dart';
 import '../anomaly/presentation/providers/anomaly_provider.dart';
+import '../budget/domain/entities/budget_plan_entity.dart';
+import '../budget/presentation/providers/budget_provider.dart';
 import '../budget/presentation/screens/budget_planner_screen.dart';
 import '../export/presentation/screens/export_screen.dart';
 import '../expense/presentation/providers/expense_providers.dart';
@@ -89,6 +92,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final notificationSettings = ref.watch(notificationProvider);
     final anomalyState = ref.watch(anomalyProvider);
     final goalState = ref.watch(goalProvider);
+    final activeBudget = ref.watch(budgetProvider).activeBudget;
     final activeAnomalyCount = anomalyState.activeAlerts.length;
     final activeGoalCount = goalState.activeGoals.length;
     final categories = ref.watch(categoryProvider);
@@ -409,9 +413,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'AI Features',
             children: [
               _ActionTile(
-                title: 'Budget Planner',
-                subtitle: 'AI দিয়ে monthly budget plan',
-                icon: Icons.auto_graph_rounded,
+                title: 'AI Budget Planner',
+                subtitle: activeBudget != null
+                    ? '${BanglaFormatters.currency(activeBudget.monthlyIncome)} আয় · ${activeBudget.budgetRule.label}'
+                    : 'Budget তৈরি করুন',
+                icon: Icons.account_balance_wallet_outlined,
                 onTap: () {
                   Navigator.of(
                     context,
@@ -565,9 +571,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).splitBillModels.clear();
     });
 
-    await ref.read(budgetProvider.notifier).clearBudgets();
+    await ref.read(budgetSettingsProvider.notifier).clearBudgets();
     await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.invalidate(budgetProvider);
     ref.invalidate(goalsProvider);
     if (!mounted) {
       return;
