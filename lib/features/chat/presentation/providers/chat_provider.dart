@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_parser.dart';
+import '../../../../core/ai/expense_result.dart';
 import '../../../../core/ai/rag_response_parser.dart';
 import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/ai/rag_context_builder.dart';
@@ -139,6 +140,8 @@ final latestRagStructuredDataProvider = StateProvider<RagStructuredData?>(
 final ragResponseMapProvider = StateProvider<Map<String, RagResponseData>>(
   (ref) => const {},
 );
+final parsedExpenseResultMapProvider =
+    StateProvider<Map<String, ExpenseResult>>((ref) => const {});
 
 final chatProvider = AsyncNotifierProvider<ChatNotifier, List<MessageEntity>>(
   ChatNotifier.new,
@@ -581,6 +584,7 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     if (ragResponse != null) {
       _storeRagResponse(assistantMessage, ragResponse);
     }
+    _storeParsedExpenseResult(assistantMessage, responseText);
   }
 
   Future<void> _startStreaming() async {
@@ -701,6 +705,18 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     final key = buildChatMessageKey(message);
     final notifier = ref.read(ragResponseMapProvider.notifier);
     notifier.state = {...notifier.state, key: ragResponse};
+  }
+
+  void _storeParsedExpenseResult(MessageEntity message, String responseText) {
+    final parsed = ref.read(expenseParserProvider).parseExpenseFromResponse(
+      responseText,
+    );
+    if (!parsed.isExpense && !parsed.isIncome) {
+      return;
+    }
+    final key = buildChatMessageKey(message);
+    final notifier = ref.read(parsedExpenseResultMapProvider.notifier);
+    notifier.state = {...notifier.state, key: parsed};
   }
 
   void _startRecordingTimer() {

@@ -1,5 +1,3 @@
-import 'package:isar/isar.dart';
-
 import '../../../../core/database/models/expense_record_model.dart';
 import '../../domain/entities/expense_entity.dart';
 
@@ -11,6 +9,7 @@ extension ExpenseRecordModelMapper on ExpenseRecordModel {
       category: category,
       description: description,
       date: date,
+      walletId: walletId,
       isManual: isManual,
     );
   }
@@ -18,12 +17,16 @@ extension ExpenseRecordModelMapper on ExpenseRecordModel {
 
 extension ExpenseEntityMapper on ExpenseEntity {
   ExpenseRecordModel toModel() {
-    return ExpenseRecordModel()
-      ..id = id ?? Isar.autoIncrement
+    final model = ExpenseRecordModel()
       ..amount = amount.round()
       ..category = category
       ..description = description
+      ..walletId = walletId
       ..isManual = isManual
       ..date = date;
+    if (id != null && id! > 0) {
+      model.id = id!;
+    }
+    return model;
   }
 }

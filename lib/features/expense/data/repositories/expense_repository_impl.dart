@@ -83,6 +83,18 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
+  Future<List<ExpenseEntity>> getExpensesByWallet(int walletId) async {
+    try {
+      final expenses = await _localDataSource.getExpensesByWallet(walletId);
+      return expenses
+          .map((expense) => expense.toEntity())
+          .toList(growable: false);
+    } catch (_) {
+      throw const StorageFailure();
+    }
+  }
+
+  @override
   Future<List<ExpenseEntity>> getExpensesByDateRange(
     DateTime start,
     DateTime end,

@@ -16,6 +16,12 @@ class GetExpenseListUseCase {
           .toList(growable: false);
     }
 
+    if (filter.walletId != null) {
+      expenses = expenses
+          .where((expense) => expense.walletId == filter.walletId)
+          .toList(growable: false);
+    }
+
     if (filter.hasDateRange) {
       final start = DateTime(
         filter.startDate!.year,

@@ -157,6 +157,18 @@ class ExpenseLocalDataSource {
         .toList(growable: false);
   }
 
+  Future<List<ExpenseRecordModel>> getExpensesByWallet(int walletId) async {
+    final expenses = await _loadAllSortedExpenses();
+    return expenses
+        .where((expense) => expense.walletId == walletId)
+        .toList(growable: false);
+  }
+
+  Future<double> getWalletSpentTotal(int walletId) async {
+    final expenses = await getExpensesByWallet(walletId);
+    return expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
+  }
+
   Future<List<ExpenseRecordModel>> getExpensesByDateRange(
     DateTime start,
     DateTime end,

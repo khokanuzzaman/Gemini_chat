@@ -45,6 +45,12 @@ class _FakeExpenseRepository implements ExpenseRepository {
           .toList(growable: false);
 
   @override
+  Future<List<ExpenseEntity>> getExpensesByWallet(int walletId) async =>
+      _monthExpenses
+          .where((expense) => expense.walletId == walletId)
+          .toList(growable: false);
+
+  @override
   Future<List<ExpenseEntity>> getExpensesByDateRange(
     DateTime start,
     DateTime end,

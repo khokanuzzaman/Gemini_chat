@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
 import 'package:gemini_chat/features/chat/presentation/widgets/multiple_expense_confirmation_widget.dart';
+import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
+import 'package:gemini_chat/features/wallet/presentation/providers/wallet_provider.dart';
 
 void main() {
   test('ExpenseData parses common past date formats', () {
@@ -49,30 +52,33 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: MultipleExpenseConfirmationWidget(
-            expenses: const [
-              ExpenseData(
-                amount: 30,
-                category: 'Food',
-                description: 'নাস্তা',
-                date: '2026-02-02',
-              ),
-              ExpenseData(
-                amount: 60,
-                category: 'Transport',
-                description: 'রিকশা',
-                date: '2026-02-02',
-              ),
-              ExpenseData(
-                amount: 200,
-                category: 'Food',
-                description: 'লাঞ্চ',
-                date: '2026-02-03',
-              ),
-            ],
-            onSave: _noopSave,
-            onCancel: _noop,
+        home: ProviderScope(
+          overrides: [walletProvider.overrideWith(_TestWalletNotifier.new)],
+          child: Scaffold(
+            body: MultipleExpenseConfirmationWidget(
+              expenses: const [
+                ExpenseData(
+                  amount: 30,
+                  category: 'Food',
+                  description: 'নাস্তা',
+                  date: '2026-02-02',
+                ),
+                ExpenseData(
+                  amount: 60,
+                  category: 'Transport',
+                  description: 'রিকশা',
+                  date: '2026-02-02',
+                ),
+                ExpenseData(
+                  amount: 200,
+                  category: 'Food',
+                  description: 'লাঞ্চ',
+                  date: '2026-02-03',
+                ),
+              ],
+              onSave: _noopSave,
+              onCancel: _noop,
+            ),
           ),
         ),
       ),
@@ -85,6 +91,29 @@ void main() {
   });
 }
 
-Future<void> _noopSave(List<ExpenseData> _) async {}
+Future<void> _noopSave(List<ExpenseData> _, int? walletId) async {}
 
 void _noop() {}
+
+class _TestWalletNotifier extends WalletNotifier {
+  @override
+  Future<List<WalletEntity>> build() async {
+    final now = DateTime(2026, 1, 1);
+    return [
+      WalletEntity(
+        id: 1,
+        name: 'Cash',
+        type: WalletType.cash,
+        emoji: '💵',
+        initialBalance: 0,
+        currentBalance: 0,
+        accountNumber: null,
+        note: null,
+        sortOrder: 1,
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ];
+  }
+}

@@ -9,6 +9,7 @@ class ExpenseRecordModel {
   late int amount;
   late String category;
   late String description;
+  int? walletId;
   bool isManual = false;
 
   @Index()

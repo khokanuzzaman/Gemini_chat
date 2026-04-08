@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/widgets/wallet_selector.dart';
 
-class MultipleExpenseConfirmationWidget extends StatefulWidget {
+class MultipleExpenseConfirmationWidget extends ConsumerStatefulWidget {
   const MultipleExpenseConfirmationWidget({
     super.key,
     required this.expenses,
@@ -15,18 +18,20 @@ class MultipleExpenseConfirmationWidget extends StatefulWidget {
   });
 
   final List<ExpenseData> expenses;
-  final Future<void> Function(List<ExpenseData> selectedExpenses) onSave;
+  final Future<void> Function(List<ExpenseData> selectedExpenses, int? walletId)
+  onSave;
   final VoidCallback onCancel;
 
   @override
-  State<MultipleExpenseConfirmationWidget> createState() =>
+  ConsumerState<MultipleExpenseConfirmationWidget> createState() =>
       _MultipleExpenseConfirmationWidgetState();
 }
 
 class _MultipleExpenseConfirmationWidgetState
-    extends State<MultipleExpenseConfirmationWidget> {
+    extends ConsumerState<MultipleExpenseConfirmationWidget> {
   late final List<bool> _checked;
   late List<ExpenseData> _displayExpenses;
+  int? _selectedWalletId;
 
   bool get _hasOverflow => widget.expenses.length > 10;
 
@@ -39,6 +44,8 @@ class _MultipleExpenseConfirmationWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final activeWallet = ref.watch(activeWalletProvider);
+    final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final groupedExpenses = _buildGroups();
     final selectedTotal = _selectedExpenses.fold<double>(
       0,
@@ -160,6 +167,15 @@ class _MultipleExpenseConfirmationWidgetState
                   ),
                 ),
                 const SizedBox(height: 14),
+                WalletSelectorWidget(
+                  selectedWalletId: effectiveWalletId,
+                  onChanged: (walletId) {
+                    setState(() {
+                      _selectedWalletId = walletId;
+                    });
+                  },
+                ),
+                const SizedBox(height: 14),
                 Divider(height: 1, color: context.borderColor),
                 const SizedBox(height: 14),
                 Row(
@@ -188,7 +204,10 @@ class _MultipleExpenseConfirmationWidgetState
                     FilledButton(
                       onPressed: _selectedExpenses.isEmpty
                           ? null
-                          : () => widget.onSave(_selectedExpenses),
+                          : () => widget.onSave(
+                              _selectedExpenses,
+                              effectiveWalletId,
+                            ),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.success,
                         foregroundColor: Theme.of(

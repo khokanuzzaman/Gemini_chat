@@ -56,6 +56,173 @@ class AppColors {
   static const other = Color(0xFF80868B);
 }
 
+class AppElevation {
+  const AppElevation._();
+
+  static List<BoxShadow> get level1 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
+
+  static List<BoxShadow> get level2 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.06),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ];
+
+  static List<BoxShadow> get level3 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.08),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  static List<BoxShadow> get level4 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.12),
+          blurRadius: 32,
+          offset: const Offset(0, 12),
+        ),
+      ];
+
+  static List<BoxShadow> get darkLevel1 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
+
+  static List<BoxShadow> get darkLevel2 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.25),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ];
+
+  static List<BoxShadow> get darkLevel3 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.32),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  static List<BoxShadow> get darkLevel4 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.4),
+          blurRadius: 32,
+          offset: const Offset(0, 12),
+        ),
+      ];
+}
+
+class AppGradients {
+  const AppGradients._();
+
+  static const LinearGradient primary = LinearGradient(
+    colors: [Color(0xFF1A73E8), Color(0xFF1557B0)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient primaryDark = LinearGradient(
+    colors: [Color(0xFF4A9EFF), Color(0xFF1557B0)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient success = LinearGradient(
+    colors: [Color(0xFF34A853), Color(0xFF1B7A33)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient warning = LinearGradient(
+    colors: [Color(0xFFFBBC04), Color(0xFFE89800)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient danger = LinearGradient(
+    colors: [Color(0xFFEA4335), Color(0xFFB31412)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient surfaceLight = LinearGradient(
+    colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient surfaceDark = LinearGradient(
+    colors: [Color(0xFF1E1E1E), Color(0xFF171C26)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient income = LinearGradient(
+    colors: [Color(0xFF00C853), Color(0xFF00897B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient expense = LinearGradient(
+    colors: [Color(0xFFFF5252), Color(0xFFC62828)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient walletBlue = LinearGradient(
+    colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient walletPurple = LinearGradient(
+    colors: [Color(0xFF7B1FA2), Color(0xFF4A148C)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient walletTeal = LinearGradient(
+    colors: [Color(0xFF00897B), Color(0xFF004D40)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient walletOrange = LinearGradient(
+    colors: [Color(0xFFFF6D00), Color(0xFFBF360C)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
+
+class AppMotion {
+  const AppMotion._();
+
+  static const Duration instant = Duration(milliseconds: 100);
+  static const Duration fast = Duration(milliseconds: 200);
+  static const Duration normal = Duration(milliseconds: 300);
+  static const Duration slow = Duration(milliseconds: 500);
+  static const Duration verySlow = Duration(milliseconds: 800);
+
+  static const Curve standard = Curves.easeOutCubic;
+  static const Curve emphasized = Curves.easeOutQuart;
+  static const Curve bounce = Curves.elasticOut;
+  static const Curve smooth = Curves.fastOutSlowIn;
+
+  static const Duration staggerDelay = Duration(milliseconds: 50);
+}
+
 class AppTextStyles {
   const AppTextStyles._();
 
@@ -102,6 +269,49 @@ class AppTextStyles {
     fontWeight: FontWeight.normal,
     letterSpacing: 0.2,
   );
+
+  static const heroAmount = TextStyle(
+    fontSize: 36,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -1.0,
+    height: 1.1,
+  );
+
+  static const heroLabel = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.5,
+  );
+
+  static const statValue = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.3,
+  );
+
+  static const statLabel = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.2,
+  );
+
+  static const sectionTitle = TextStyle(
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+  );
+
+  static const sectionSubtitle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+  );
+
+  static const chipLabel = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.1,
+  );
 }
 
 class AppSpacing {
@@ -113,6 +323,13 @@ class AppSpacing {
   static const lg = 24.0;
   static const xl = 32.0;
   static const xxl = 48.0;
+
+  static const cardPadding = 20.0;
+  static const cardGap = 16.0;
+  static const sectionGap = 24.0;
+  static const screenPadding = 20.0;
+  static const tightGap = 12.0;
+  static const looseGap = 32.0;
 }
 
 class AppRadius {
@@ -123,6 +340,18 @@ class AppRadius {
   static const lg = Radius.circular(16);
   static const xl = Radius.circular(24);
   static const full = Radius.circular(100);
+
+  static const card = Radius.circular(20);
+  static const heroCard = Radius.circular(24);
+  static const button = Radius.circular(16);
+  static const chip = Radius.circular(100);
+  static const sheet = Radius.circular(28);
+  static const input = Radius.circular(14);
+
+  static const cardAll = BorderRadius.all(card);
+  static const heroCardAll = BorderRadius.all(heroCard);
+  static const buttonAll = BorderRadius.all(button);
+  static const sheetAll = BorderRadius.all(sheet);
 }
 
 class AppTheme {
@@ -428,6 +657,70 @@ extension AppThemeContext on BuildContext {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  List<BoxShadow> elevationLevel(int level) {
+    if (isDarkMode) {
+      return switch (level) {
+        1 => AppElevation.darkLevel1,
+        2 => AppElevation.darkLevel2,
+        3 => AppElevation.darkLevel3,
+        4 => AppElevation.darkLevel4,
+        _ => AppElevation.darkLevel2,
+      };
+    }
+    return switch (level) {
+      1 => AppElevation.level1,
+      2 => AppElevation.level2,
+      3 => AppElevation.level3,
+      4 => AppElevation.level4,
+      _ => AppElevation.level2,
+    };
+  }
+
+  LinearGradient get primaryGradient =>
+      isDarkMode ? AppGradients.primaryDark : AppGradients.primary;
+
+  LinearGradient get surfaceGradient =>
+      isDarkMode ? AppGradients.surfaceDark : AppGradients.surfaceLight;
+
+  BoxDecoration cardDecoration({int elevation = 2}) {
+    return BoxDecoration(
+      color: cardBackgroundColor,
+      borderRadius: AppRadius.cardAll,
+      boxShadow: elevationLevel(elevation),
+      border: Border.all(
+        color: borderColor.withValues(alpha: isDarkMode ? 0.4 : 0.6),
+        width: 0.5,
+      ),
+    );
+  }
+
+  BoxDecoration heroCardDecoration({Gradient? gradient}) {
+    return BoxDecoration(
+      gradient: gradient ?? primaryGradient,
+      borderRadius: AppRadius.heroCardAll,
+      boxShadow: elevationLevel(3),
+    );
+  }
+
+  BoxDecoration glassDecoration() {
+    return BoxDecoration(
+      color: cardBackgroundColor.withValues(alpha: isDarkMode ? 0.6 : 0.7),
+      borderRadius: AppRadius.cardAll,
+      border: Border.all(
+        color: Colors.white.withValues(alpha: isDarkMode ? 0.1 : 0.5),
+        width: 1,
+      ),
+      boxShadow: elevationLevel(2),
+    );
+  }
+
+  Color get incomeColor => AppColors.success;
+  Color get expenseColor => AppColors.error;
+  Color get incomeBackgroundColor =>
+      AppColors.success.withValues(alpha: isDarkMode ? 0.15 : 0.08);
+  Color get expenseBackgroundColor =>
+      AppColors.error.withValues(alpha: isDarkMode ? 0.15 : 0.08);
 
   Color ragCardBackground(Color tint) =>
       isDarkMode ? cardBackgroundColor : tint.withValues(alpha: 0.08);

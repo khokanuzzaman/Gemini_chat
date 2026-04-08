@@ -8,9 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
 import 'package:gemini_chat/core/database/models/expense_record_model.dart';
+import 'package:gemini_chat/core/database/models/wallet_model.dart';
 import 'package:gemini_chat/core/providers/database_providers.dart';
 import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
+import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,10 +32,23 @@ void main() {
         'smartspend-dashboard-',
       );
       final isar = await Isar.open(
-        [ExpenseRecordModelSchema],
+        [ExpenseRecordModelSchema, WalletModelSchema],
         directory: tempDir.path,
         name: 'dashboard_refresh_test',
       );
+      final walletId = await isar.writeTxn(() async {
+        final wallet = WalletModel()
+          ..name = 'Cash'
+          ..type = WalletType.cash
+          ..emoji = '💵'
+          ..initialBalance = 0
+          ..currentBalance = 1000
+          ..sortOrder = 1
+          ..isArchived = false
+          ..createdAt = DateTime.now()
+          ..updatedAt = DateTime.now();
+        return isar.walletModels.put(wallet);
+      });
       addTearDown(() async {
         await isar.close(deleteFromDisk: true);
         if (await tempDir.exists()) {
@@ -64,6 +79,7 @@ void main() {
               description: 'খাবারের বিল',
               date: 'today',
             ),
+            walletId: walletId,
           );
 
       expect(error, isNull);

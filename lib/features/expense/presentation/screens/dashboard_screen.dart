@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/ai/expense_result.dart';
 import '../../../../core/notifications/budget_settings.dart';
-import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -24,8 +22,14 @@ import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../../recurring/presentation/screens/recurring_screen.dart';
+import '../../../income/presentation/providers/income_providers.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/screens/wallet_management_screen.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
+import '../widgets/cash_flow_widget.dart';
+import '../widgets/net_worth_card.dart';
+import '../screens/manual_add_screen.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
 
@@ -128,7 +132,7 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showQuickAddSheet(context, ref),
+        onPressed: () => showManualAddSheet(context),
         child: const Icon(Icons.add_rounded),
       ),
       body: dashboard.when(
@@ -141,11 +145,35 @@ class DashboardScreen extends ConsumerWidget {
           );
 
           return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(dashboardControllerProvider.notifier).refresh(),
+            onRefresh: () async {
+              ref.invalidate(cashFlowProvider);
+              ref.invalidate(walletProvider);
+              ref.read(incomeRefreshTokenProvider.notifier).state++;
+              await ref.read(dashboardControllerProvider.notifier).refresh();
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
+                const NetWorthCard(),
+                const SizedBox(height: AppSpacing.md),
+                const CashFlowWidget(),
+                const SizedBox(height: AppSpacing.lg),
+                _WalletSummarySection(
+                  onTapWallet: (walletId) async {
+                    final controller = ref.read(
+                      expenseListControllerProvider.notifier,
+                    );
+                    await controller.clearFilters();
+                    await controller.setWallet(walletId);
+                    AppShellNavigation.openExpenses();
+                  },
+                  onTapManage: () {
+                    Navigator.of(
+                      context,
+                    ).push(buildAppRoute(const WalletManagementScreen()));
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
                 _HeaderCard(data: data),
                 const SizedBox(height: AppSpacing.md),
                 _QuickStatsRow(
@@ -270,32 +298,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showQuickAddSheet(BuildContext context, WidgetRef ref) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.cardBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) => _QuickAddSheet(
-        onSaved: (expense) async {
-          final error = await ref
-              .read(expenseMutationControllerProvider)
-              .saveDetectedExpense(expense);
-          if (sheetContext.mounted) {
-            Navigator.of(sheetContext).pop();
-          }
-          if (!context.mounted) {
-            return;
-          }
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(error ?? 'খরচ যোগ করা হয়েছে')));
-        },
-      ),
-    );
-  }
 }
 
 class _HeaderCard extends StatelessWidget {
@@ -966,6 +968,226 @@ class _DashboardEmptyState extends StatelessWidget {
   }
 }
 
+class _WalletSummarySection extends ConsumerWidget {
+  const _WalletSummarySection({
+    required this.onTapWallet,
+    required this.onTapManage,
+  });
+
+  final ValueChanged<int> onTapWallet;
+  final VoidCallback onTapManage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final walletsAsync = ref.watch(walletProvider);
+    final totalBalance = ref.watch(totalBalanceProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('আমার ওয়ালেট', style: AppTextStyles.titleLarge),
+            const Spacer(),
+            Text(
+              'মোট ব্যালেন্স ${BanglaFormatters.currency(totalBalance)}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.secondaryTextColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        walletsAsync.when(
+          data: (wallets) {
+            final activeWallets = wallets
+                .where((wallet) => !wallet.isArchived)
+                .toList(growable: false);
+
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...activeWallets.map(
+                    (wallet) => Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _DashboardWalletCard(
+                        walletId: wallet.id,
+                        emoji: wallet.emoji,
+                        name: wallet.name,
+                        balance: wallet.currentBalance,
+                        onTap: () => onTapWallet(wallet.id),
+                      ),
+                    ),
+                  ),
+                  _AddWalletCard(onTap: onTapManage),
+                ],
+              ),
+            );
+          },
+          loading: () => const SizedBox(
+            height: 152,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ShimmerBox(height: 152, width: 160, radius: 20),
+                  SizedBox(width: 12),
+                  ShimmerBox(height: 152, width: 160, radius: 20),
+                  SizedBox(width: 12),
+                  ShimmerBox(height: 152, width: 120, radius: 20),
+                ],
+              ),
+            ),
+          ),
+          error: (_, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'ওয়ালেট লোড করা যায়নি',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(walletProvider.notifier).refresh(),
+                    child: const Text('আবার চেষ্টা'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardWalletCard extends ConsumerWidget {
+  const _DashboardWalletCard({
+    required this.walletId,
+    required this.emoji,
+    required this.name,
+    required this.balance,
+    required this.onTap,
+  });
+
+  final int walletId;
+  final String emoji;
+  final String name;
+  final double balance;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final monthlySpent = ref.watch(walletMonthlySpentProvider(walletId));
+
+    return SizedBox(
+      width: 160,
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: 28)),
+                const SizedBox(height: 12),
+                Text(
+                  name,
+                  style: AppTextStyles.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  BanglaFormatters.currency(balance),
+                  style: AppTextStyles.titleLarge.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                monthlySpent.when(
+                  data: (spent) => Text(
+                    'এই মাসে খরচ: ${BanglaFormatters.currency(spent)}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  loading: () =>
+                      const ShimmerBox(height: 14, width: 96, radius: 999),
+                  error: (_, _) => Text(
+                    'খরচ জানা যায়নি',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddWalletCard extends StatelessWidget {
+  const _AddWalletCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 112,
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: context.mutedSurfaceColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'নতুন\nওয়ালেট',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.titleMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, this.actionLabel, this.onTap});
 
@@ -1006,6 +1228,19 @@ class _DashboardLoading extends StatelessWidget {
           ],
         ),
         SizedBox(height: 24),
+        ShimmerBox(height: 28, width: 180),
+        SizedBox(height: 12),
+        SizedBox(
+          height: 152,
+          child: Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 152)),
+              SizedBox(width: 12),
+              Expanded(child: ShimmerBox(height: 152)),
+            ],
+          ),
+        ),
+        SizedBox(height: 24),
         ShimmerBox(height: 28, width: 160),
         SizedBox(height: 12),
         SizedBox(
@@ -1028,202 +1263,5 @@ class _DashboardLoading extends StatelessWidget {
         ShimmerBox(height: 76),
       ],
     );
-  }
-}
-
-class _QuickAddSheet extends ConsumerStatefulWidget {
-  const _QuickAddSheet({required this.onSaved});
-
-  final Future<void> Function(ExpenseData expense) onSaved;
-
-  @override
-  ConsumerState<_QuickAddSheet> createState() => _QuickAddSheetState();
-}
-
-class _QuickAddSheetState extends ConsumerState<_QuickAddSheet> {
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
-  bool _saving = false;
-  String _selectedCategory = 'Other';
-  DateTime _selectedDate = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDefaults();
-  }
-
-  Future<void> _loadDefaults() async {
-    final category = await AppPreferences.defaultCategory();
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _selectedCategory = category;
-    });
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final categoryNames = ref
-        .watch(categoryProvider)
-        .map((category) => category.name)
-        .toList(growable: false);
-    if (!categoryNames.contains(_selectedCategory) &&
-        categoryNames.isNotEmpty) {
-      _selectedCategory = categoryNames.contains('Other')
-          ? 'Other'
-          : categoryNames.first;
-    }
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 52,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: context.borderColor,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            const Text('Quick add', style: AppTextStyles.displayMedium),
-            const SizedBox(height: 6),
-            const Text(
-              'দ্রুত নতুন খরচ যোগ করুন',
-              style: AppTextStyles.bodySmall,
-            ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(hintText: 'কী কিনলেন?'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(hintText: 'পরিমাণ'),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 42,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemBuilder: (context, index) {
-                  final category = categoryNames[index];
-                  final selected = category == _selectedCategory;
-                  return ChoiceChip(
-                    label: Text(category),
-                    selected: selected,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    },
-                  );
-                },
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemCount: categoryNames.length,
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_month_rounded),
-              label: Text(BanglaFormatters.fullDate(_selectedDate)),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (picked == null) {
-      return;
-    }
-    setState(() {
-      _selectedDate = DateTime(
-        picked.year,
-        picked.month,
-        picked.day,
-        _selectedDate.hour,
-        _selectedDate.minute,
-      );
-    });
-  }
-
-  Future<void> _save() async {
-    final amount = double.tryParse(_amountController.text.trim());
-    final description = _descriptionController.text.trim();
-    if (amount == null || amount <= 0 || description.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('সব তথ্য ঠিকভাবে দিন')));
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-    });
-
-    await widget.onSaved(
-      ExpenseData(
-        amount: amount,
-        category: _selectedCategory,
-        description: description,
-        date: _selectedDate.toIso8601String().split('T').first,
-      ),
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _saving = false;
-    });
   }
 }

@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import '../../features/category/domain/category_registry.dart';
+import '../../features/income/domain/entities/income_source.dart';
 import 'expense_result.dart';
+import 'income_data.dart';
 
 class ExpenseParser {
   const ExpenseParser();
@@ -19,6 +21,11 @@ class ExpenseParser {
       return const ExpenseResult(isExpense: false);
     }
 
+    final structuredResult = _parseStructuredPayload(trimmedResponse);
+    if (structuredResult != null) {
+      return structuredResult;
+    }
+
     final receiptResult = _tryParseReceipt(trimmedResponse);
     if (receiptResult != null) {
       return receiptResult;
@@ -26,6 +33,22 @@ class ExpenseParser {
 
     final arrayMatch = _arrayRegex.firstMatch(trimmedResponse);
     if (arrayMatch != null) {
+      final mixedResult = _parseMixedArray(
+        arrayMatch.group(0)!,
+        trimmedResponse,
+      );
+      if (mixedResult != null) {
+        return mixedResult;
+      }
+
+      final parsedIncomeArray = _parseIncomeArray(
+        arrayMatch.group(0)!,
+        trimmedResponse,
+      );
+      if (parsedIncomeArray != null) {
+        return parsedIncomeArray;
+      }
+
       final parsedArrayResult = _parseExpenseArray(
         arrayMatch.group(0)!,
         trimmedResponse,
@@ -46,6 +69,90 @@ class ExpenseParser {
     }
 
     return ExpenseResult(isExpense: false, conversationalText: trimmedResponse);
+  }
+
+  ExpenseResult? _parseStructuredPayload(String response) {
+    for (final jsonString in _extractJsonCandidates(response)) {
+      try {
+        final decoded = jsonDecode(jsonString);
+        if (decoded is! Map) {
+          continue;
+        }
+
+        if (!decoded.containsKey('expenses') &&
+            !decoded.containsKey('incomes')) {
+          continue;
+        }
+
+        final expenseList = _parseExpenseList(decoded['expenses']);
+        final incomeList = _parseIncomeList(decoded['incomes']);
+        if (expenseList.isEmpty && incomeList.isEmpty) {
+          continue;
+        }
+
+        final textValue = decoded['text'] ??
+            decoded['message'] ??
+            decoded['reply'] ??
+            decoded['response'] ??
+            decoded['conversation'];
+        final cleanText = response.replaceFirst(jsonString, '').trim();
+        final conversationalText = textValue is String && textValue.trim().isNotEmpty
+            ? textValue.trim()
+            : (cleanText.isNotEmpty ? cleanText : null);
+
+        final hasMixed = expenseList.isNotEmpty && incomeList.isNotEmpty;
+        return ExpenseResult(
+          isExpense: expenseList.isNotEmpty,
+          expenses: expenseList,
+          isMultiple: expenseList.length > 1,
+          incomes: incomeList,
+          isIncome: incomeList.isNotEmpty,
+          hasMixedEntries: hasMixed,
+          conversationalText: conversationalText,
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  List<ExpenseData> _parseExpenseList(dynamic payload) {
+    if (payload is! List) {
+      return const [];
+    }
+
+    final expenses = payload
+        .whereType<Map>()
+        .map((item) => ExpenseData.fromJson(Map<String, dynamic>.from(item)))
+        .map(_normalizeExpenseCategory)
+        .where((expense) => expense.isValid)
+        .where((expense) => _supportedCategories.contains(expense.category))
+        .toList(growable: false);
+
+    return expenses;
+  }
+
+  List<IncomeData> _parseIncomeList(dynamic payload) {
+    if (payload is! List) {
+      return const [];
+    }
+
+    final incomes = <IncomeData>[];
+    for (final item in payload.whereType<Map>()) {
+      final income = IncomeData.fromJson(Map<String, dynamic>.from(item));
+      final normalizedSource = findIncomeSourceByName(income.source);
+      if (normalizedSource == null) {
+        continue;
+      }
+      final normalizedIncome = income.copyWith(source: normalizedSource.name);
+      if (!normalizedIncome.isValid) {
+        continue;
+      }
+      incomes.add(normalizedIncome);
+    }
+    return incomes;
   }
 
   ExpenseResult? _tryParseReceipt(String response) {
@@ -125,6 +232,78 @@ class ExpenseParser {
         conversationalText: cleanText.isEmpty ? null : cleanText,
         isSplit: expenses.any((expense) => expense.isSplit),
         splitPersons: splitPersons,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ExpenseResult? _parseMixedArray(String jsonString, String response) {
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) {
+        return null;
+      }
+
+      final expenseItems = <Map<String, dynamic>>[];
+      final incomeItems = <Map<String, dynamic>>[];
+
+      for (final item in decoded.whereType<Map>()) {
+        final map = Map<String, dynamic>.from(item);
+        final type = (map['type'] as String?)?.toLowerCase();
+        if (type == 'income') {
+          incomeItems.add(map);
+        } else if (type == 'expense') {
+          expenseItems.add(map);
+        }
+      }
+
+      if (expenseItems.isEmpty && incomeItems.isEmpty) {
+        return null;
+      }
+
+      final expenses = _parseExpenseList(expenseItems);
+      final incomes = _parseIncomeList(incomeItems);
+      if (expenses.isEmpty && incomes.isEmpty) {
+        return null;
+      }
+
+      final cleanText = response.replaceFirst(jsonString, '').trim();
+      return ExpenseResult(
+        isExpense: expenses.isNotEmpty,
+        expenses: expenses,
+        isMultiple: expenses.length > 1,
+        incomes: incomes,
+        isIncome: incomes.isNotEmpty,
+        hasMixedEntries: expenses.isNotEmpty && incomes.isNotEmpty,
+        conversationalText: cleanText.isEmpty ? null : cleanText,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ExpenseResult? _parseIncomeArray(String jsonString, String response) {
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) {
+        return null;
+      }
+
+      final incomes = _parseIncomeList(decoded);
+      if (incomes.isEmpty) {
+        return null;
+      }
+
+      final cleanText = response.replaceFirst(jsonString, '').trim();
+      return ExpenseResult(
+        isExpense: false,
+        expenses: const [],
+        isMultiple: false,
+        incomes: incomes,
+        isIncome: true,
+        hasMixedEntries: false,
+        conversationalText: cleanText.isEmpty ? null : cleanText,
       );
     } catch (_) {
       return null;

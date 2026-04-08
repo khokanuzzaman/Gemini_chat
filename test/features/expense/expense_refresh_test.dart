@@ -1,12 +1,20 @@
+import 'dart:ffi';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:isar/isar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
+import 'package:gemini_chat/core/database/models/wallet_model.dart';
 import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
 import 'package:gemini_chat/features/expense/domain/entities/expense_entity.dart';
 import 'package:gemini_chat/features/expense/domain/repositories/expense_repository.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
+import 'package:gemini_chat/features/wallet/data/datasources/wallet_local_datasource.dart';
+import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
+import 'package:gemini_chat/features/wallet/presentation/providers/wallet_provider.dart';
 
 class _FakeExpenseRepository implements ExpenseRepository {
   final List<ExpenseEntity> _expenses;
@@ -92,6 +100,13 @@ class _FakeExpenseRepository implements ExpenseRepository {
   }
 
   @override
+  Future<List<ExpenseEntity>> getExpensesByWallet(int walletId) async {
+    return _expenses
+        .where((expense) => expense.walletId == walletId)
+        .toList(growable: false);
+  }
+
+  @override
   Future<List<ExpenseEntity>> getExpensesByDateRange(
     DateTime start,
     DateTime end,
@@ -149,6 +164,40 @@ void main() {
     () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
+      await Isar.initializeIsarCore(
+        libraries: {
+          Abi.current():
+              '${Platform.environment['HOME']!}/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/macos/libisar.dylib',
+        },
+      );
+      final tempDir = await Directory.systemTemp.createTemp(
+        'smartspend-wallet-refresh-',
+      );
+      final isar = await Isar.open(
+        [WalletModelSchema],
+        directory: tempDir.path,
+        name: 'wallet_refresh_test',
+      );
+      final walletId = await isar.writeTxn(() async {
+        final wallet = WalletModel()
+          ..name = 'Cash'
+          ..type = WalletType.cash
+          ..emoji = '💵'
+          ..initialBalance = 0
+          ..currentBalance = 1000
+          ..sortOrder = 1
+          ..isArchived = false
+          ..createdAt = DateTime.now()
+          ..updatedAt = DateTime.now();
+        return isar.walletModels.put(wallet);
+      });
+      addTearDown(() async {
+        await isar.close(deleteFromDisk: true);
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
       final now = DateTime.now();
       final seedExpense = ExpenseEntity(
         id: 1,
@@ -162,6 +211,9 @@ void main() {
         overrides: [
           expenseRepositoryProvider.overrideWithValue(fakeRepository),
           sharedPreferencesProvider.overrideWithValue(prefs),
+          walletLocalDataSourceProvider.overrideWithValue(
+            WalletLocalDataSource(isar),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -193,6 +245,7 @@ void main() {
                 now.day,
               ).toIso8601String().split('T').first,
             ),
+            walletId: walletId,
           );
 
       expect(error, isNull);

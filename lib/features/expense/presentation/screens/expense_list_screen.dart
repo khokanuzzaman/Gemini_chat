@@ -7,6 +7,8 @@ import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/global_settings_button.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../../domain/entities/expense_list_filter.dart';
 import '../providers/expense_providers.dart';
@@ -79,6 +81,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 const SizedBox(height: 12),
                 _MonthSelector(filter: data.filter),
                 const SizedBox(height: 16),
+                _WalletFilterBar(filter: data.filter),
+                const SizedBox(height: 12),
                 _FilterBar(filter: data.filter),
                 const SizedBox(height: 16),
                 if (visibleExpenses.isEmpty)
@@ -309,6 +313,61 @@ class _FilterBar extends ConsumerWidget {
   }
 }
 
+class _WalletFilterBar extends ConsumerWidget {
+  const _WalletFilterBar({required this.filter});
+
+  final ExpenseListFilter filter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(expenseListControllerProvider.notifier);
+    final walletsAsync = ref.watch(walletProvider);
+
+    return walletsAsync.when(
+      data: (wallets) {
+        return SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: wallets.length + 1,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _WalletFilterChip(
+                  label: 'সব ওয়ালেট',
+                  isSelected: filter.walletId == null,
+                  onTap: () => controller.setWallet(null),
+                );
+              }
+
+              final wallet = wallets[index - 1];
+              return _WalletFilterChip(
+                label: wallet.name,
+                emoji: wallet.emoji,
+                isSelected: filter.walletId == wallet.id,
+                onTap: () => controller.setWallet(wallet.id),
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            ShimmerBox(height: 36, width: 104, radius: 999),
+            SizedBox(width: 8),
+            ShimmerBox(height: 36, width: 96, radius: 999),
+            SizedBox(width: 8),
+            ShimmerBox(height: 36, width: 112, radius: 999),
+          ],
+        ),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
 class _ExpenseDateSection extends ConsumerWidget {
   const _ExpenseDateSection({required this.date, required this.expenses});
 
@@ -406,6 +465,9 @@ class _ExpenseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final meta = resolveExpenseCategory(expense.category);
+    final wallet = expense.walletId == null
+        ? null
+        : ref.watch(walletByIdProvider(expense.walletId!));
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -456,6 +518,18 @@ class _ExpenseCard extends ConsumerWidget {
                           icon: meta.icon,
                           color: meta.color,
                         ),
+                        if (wallet != null)
+                          _WalletMetaPill(
+                            emoji: wallet.emoji,
+                            label: wallet.name,
+                            onTap: () async {
+                              final controller = ref.read(
+                                expenseListControllerProvider.notifier,
+                              );
+                              await controller.clearFilters();
+                              await controller.setWallet(wallet.id);
+                            },
+                          ),
                         if (expense.isManual)
                           const _ExpenseMetaPill(
                             label: 'Manual',
@@ -480,6 +554,90 @@ class _ExpenseCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WalletMetaPill extends StatelessWidget {
+  const _WalletMetaPill({required this.emoji, required this.label, this.onTap});
+
+  final String emoji;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: context.mutedSurfaceColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: context.borderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: context.secondaryTextColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletFilterChip extends StatelessWidget {
+  const _WalletFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.emoji,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final String? emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (emoji != null) ...[
+          Text(emoji!, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 6),
+        ],
+        Text(label),
+      ],
+    );
+
+    return ChoiceChip(
+      label: labelWidget,
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      selectedColor: AppColors.primary,
+      backgroundColor: context.mutedSurfaceColor,
+      labelStyle: TextStyle(
+        color: isSelected
+            ? Theme.of(context).colorScheme.onPrimary
+            : context.primaryTextColor,
+        fontWeight: FontWeight.w700,
+      ),
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : context.borderColor,
       ),
     );
   }
@@ -536,6 +694,7 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _amountController;
   late String _selectedCategory;
+  int? _selectedWalletId;
   late DateTime _selectedDate;
   bool _isSaving = false;
 
@@ -549,6 +708,8 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
       text: widget.expense.amount.round().toString(),
     );
     _selectedCategory = widget.expense.category;
+    _selectedWalletId =
+        widget.expense.walletId ?? ref.read(activeWalletProvider)?.id;
     _selectedDate = widget.expense.date;
   }
 
@@ -561,6 +722,8 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final activeWallet = ref.watch(activeWalletProvider);
+    final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final categories = ref
         .watch(categoryProvider)
         .map((category) => category.name)
@@ -624,6 +787,15 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
                 });
               },
               decoration: const InputDecoration(labelText: 'ক্যাটাগরি'),
+            ),
+            const SizedBox(height: 12),
+            WalletSelectorWidget(
+              selectedWalletId: effectiveWalletId,
+              onChanged: (walletId) {
+                setState(() {
+                  _selectedWalletId = walletId;
+                });
+              },
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -702,11 +874,20 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
   Future<void> _save() async {
     final amount = double.tryParse(_amountController.text.trim());
     final description = _descriptionController.text.trim();
+    final selectedWalletId =
+        _selectedWalletId ?? ref.read(activeWalletProvider)?.id;
 
     if (amount == null || amount <= 0 || description.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('সব তথ্য ঠিকভাবে দিন')));
+      return;
+    }
+
+    if (selectedWalletId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('একটি ওয়ালেট বেছে নিন')));
       return;
     }
 
@@ -722,6 +903,7 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
             category: _selectedCategory,
             description: description,
             date: _selectedDate,
+            walletId: selectedWalletId,
           ),
         );
 

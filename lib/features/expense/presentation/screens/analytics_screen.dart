@@ -13,6 +13,8 @@ import '../../../anomaly/presentation/screens/anomaly_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../prediction/presentation/widgets/prediction_card.dart';
+import '../../../wallet/domain/entities/wallet_entity.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
@@ -32,7 +34,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
       initialIndex: AppShellNavigation.analyticsTab.value,
     );
@@ -92,6 +94,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 ],
               ),
             ),
+            const Tab(text: 'ওয়ালেট'),
           ],
         ),
         actions: const [GlobalSettingsButton()],
@@ -101,6 +104,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         children: const [
           _AnalyticsOverviewTab(),
           AnomalyView(includeTopPadding: false),
+          _WalletAnalyticsTab(),
         ],
       ),
     );
@@ -135,6 +139,185 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
       return;
     }
     ref.read(predictionProvider.notifier).loadPrediction();
+  }
+}
+
+class _WalletAnalyticsTab extends ConsumerWidget {
+  const _WalletAnalyticsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final analytics = ref.watch(analyticsControllerProvider);
+    final walletsAsync = ref.watch(walletProvider);
+
+    return analytics.when(
+      data: (state) {
+        final breakdownAsync = ref.watch(
+          walletBreakdownForMonthProvider(state.selectedMonth),
+        );
+
+        return RefreshIndicator(
+          onRefresh: () =>
+              ref.read(analyticsControllerProvider.notifier).refresh(),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              _MonthSelector(month: state.selectedMonth),
+              const SizedBox(height: 16),
+              breakdownAsync.when(
+                data: (breakdown) {
+                  final activeBreakdown = Map<int, double>.fromEntries(
+                    breakdown.entries.where((entry) => entry.value > 0),
+                  );
+                  final totalSpent = activeBreakdown.values.fold<double>(
+                    0,
+                    (sum, amount) => sum + amount,
+                  );
+
+                  if (activeBreakdown.isEmpty) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(18),
+                        child: Text(
+                          'এই মাসে কোনো ওয়ালেট খরচ পাওয়া যায়নি',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final wallets =
+                      walletsAsync.valueOrNull ?? const <WalletEntity>[];
+                  final walletLookup = <int, WalletEntity>{
+                    for (final wallet in wallets) wallet.id: wallet,
+                  };
+                  final sortedEntries = activeBreakdown.entries.toList()
+                    ..sort(
+                      (first, second) => second.value.compareTo(first.value),
+                    );
+
+                  return Column(
+                    children: [
+                      _WalletBreakdownChart(
+                        totalSpent: totalSpent,
+                        breakdown: activeBreakdown,
+                        walletLookup: walletLookup,
+                      ),
+                      const SizedBox(height: 18),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ওয়ালেট অনুযায়ী তালিকা',
+                                style: AppTextStyles.titleLarge,
+                              ),
+                              const SizedBox(height: 16),
+                              ...sortedEntries.map((entry) {
+                                final wallet = walletLookup[entry.key];
+                                final percentage = totalSpent == 0
+                                    ? 0
+                                    : (entry.value / totalSpent) * 100;
+                                final color = _walletChartColor(entry.key);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            wallet?.emoji ?? '👛',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              wallet?.name ??
+                                                  'ওয়ালেট ${entry.key}',
+                                              style: AppTextStyles.titleMedium,
+                                            ),
+                                          ),
+                                          Text(
+                                            BanglaFormatters.currency(
+                                              entry.value,
+                                            ),
+                                            style: AppTextStyles.titleMedium,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              child: LinearProgressIndicator(
+                                                value: percentage / 100,
+                                                minHeight: 8,
+                                                color: color,
+                                                backgroundColor: context
+                                                    .borderColor
+                                                    .withValues(alpha: 0.35),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            '${percentage.toStringAsFixed(0)}%',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color: color,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const _AnalyticsLoading(),
+                error: (error, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Text(
+                      'ওয়ালেট অনুযায়ী খরচ লোড করা যায়নি\n$error',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const _AnalyticsLoading(),
+      error: (error, stackTrace) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'বিশ্লেষণ লোড করা যায়নি\n$error',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyLarge,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -593,6 +776,113 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
       ),
     );
   }
+}
+
+class _WalletBreakdownChart extends StatelessWidget {
+  const _WalletBreakdownChart({
+    required this.totalSpent,
+    required this.breakdown,
+    required this.walletLookup,
+  });
+
+  final double totalSpent;
+  final Map<int, double> breakdown;
+  final Map<int, WalletEntity> walletLookup;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = breakdown.entries.toList()
+      ..sort((first, second) => second.value.compareTo(first.value));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('ওয়ালেট অনুযায়ী খরচ', style: AppTextStyles.titleLarge),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 240,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  PieChart(
+                    PieChartData(
+                      centerSpaceRadius: 54,
+                      centerSpaceColor: Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor,
+                      sectionsSpace: 4,
+                      sections: entries
+                          .map((entry) {
+                            final wallet = walletLookup[entry.key];
+                            final percentage = totalSpent == 0
+                                ? 0
+                                : (entry.value / totalSpent) * 100;
+                            return PieChartSectionData(
+                              color: _walletChartColor(entry.key),
+                              value: entry.value,
+                              radius: 58,
+                              title: percentage >= 10
+                                  ? '${percentage.toStringAsFixed(0)}%'
+                                  : '',
+                              titleStyle: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                              badgeWidget: percentage < 10
+                                  ? null
+                                  : Padding(
+                                      padding: const EdgeInsets.all(2),
+                                      child: Text(
+                                        wallet?.emoji ?? '👛',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                            );
+                          })
+                          .toList(growable: false),
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('মোট', style: AppTextStyles.caption),
+                      const SizedBox(height: 4),
+                      Text(
+                        BanglaFormatters.currency(totalSpent),
+                        style: AppTextStyles.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Color _walletChartColor(int walletId) {
+  const palette = <Color>[
+    AppColors.primary,
+    AppColors.success,
+    AppColors.warning,
+    AppColors.error,
+    AppColors.food,
+    AppColors.transport,
+    AppColors.shopping,
+    AppColors.bill,
+    AppColors.entertainment,
+    AppColors.other,
+  ];
+
+  return palette[walletId.abs() % palette.length];
 }
 
 class _SelectedDayCard extends StatelessWidget {

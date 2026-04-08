@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/widgets/wallet_selector.dart';
 
-class ReceiptConfirmationWidget extends StatefulWidget {
+class ReceiptConfirmationWidget extends ConsumerStatefulWidget {
   const ReceiptConfirmationWidget({
     super.key,
     required this.receiptData,
@@ -15,18 +18,21 @@ class ReceiptConfirmationWidget extends StatefulWidget {
   });
 
   final Map<String, dynamic> receiptData;
-  final Future<void> Function(Map<String, dynamic> receiptData) onSave;
+  final Future<void> Function(Map<String, dynamic> receiptData, int? walletId)
+  onSave;
   final VoidCallback onCancel;
 
   @override
-  State<ReceiptConfirmationWidget> createState() =>
+  ConsumerState<ReceiptConfirmationWidget> createState() =>
       _ReceiptConfirmationWidgetState();
 }
 
-class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
+class _ReceiptConfirmationWidgetState
+    extends ConsumerState<ReceiptConfirmationWidget> {
   late DateTime _selectedDate;
   late bool _autoAdjustedToToday;
   late bool _hadInvalidDate;
+  int? _selectedWalletId;
 
   Map<String, dynamic> get _effectiveReceiptData {
     return {...widget.receiptData, 'date': _formatIsoDate(_selectedDate)};
@@ -43,6 +49,8 @@ class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final activeWallet = ref.watch(activeWalletProvider);
+    final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final merchant = widget.receiptData['merchant'] as String? ?? 'Receipt';
     final category = widget.receiptData['category'] as String? ?? 'Other';
     final summary = widget.receiptData['summary'] as String? ?? '';
@@ -266,11 +274,23 @@ class _ReceiptConfirmationWidgetState extends State<ReceiptConfirmationWidget> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                WalletSelectorWidget(
+                  selectedWalletId: effectiveWalletId,
+                  onChanged: (walletId) {
+                    setState(() {
+                      _selectedWalletId = walletId;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: () => widget.onSave(_effectiveReceiptData),
+                        onPressed: () => widget.onSave(
+                          _effectiveReceiptData,
+                          effectiveWalletId,
+                        ),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.success,
                           foregroundColor: Theme.of(

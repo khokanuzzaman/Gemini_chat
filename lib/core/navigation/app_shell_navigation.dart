@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'app_page_route.dart';
+import '../../features/income/presentation/screens/income_list_screen.dart';
+
 class AppShellNavigation {
   AppShellNavigation._();
 
@@ -20,6 +23,15 @@ class AppShellNavigation {
   }
 
   static void openSplit() => _setTab(4);
+
+  static void openIncome() {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+    navigator.popUntil((route) => route.isFirst);
+    navigator.push(buildAppRoute(const IncomeListScreen()));
+  }
 
   static void handlePayload(String? payload) {
     switch (payload) {

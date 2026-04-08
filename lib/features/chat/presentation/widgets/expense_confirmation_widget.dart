@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/widgets/wallet_selector.dart';
 
-class ExpenseConfirmationWidget extends StatefulWidget {
+class ExpenseConfirmationWidget extends ConsumerStatefulWidget {
   const ExpenseConfirmationWidget({
     super.key,
     required this.expense,
@@ -15,19 +18,23 @@ class ExpenseConfirmationWidget extends StatefulWidget {
   });
 
   final ExpenseData expense;
-  final Future<void> Function(ExpenseData expense) onSave;
+  final Future<void> Function(ExpenseData expense, int? walletId) onSave;
   final VoidCallback onCancel;
 
   @override
-  State<ExpenseConfirmationWidget> createState() =>
+  ConsumerState<ExpenseConfirmationWidget> createState() =>
       _ExpenseConfirmationWidgetState();
 }
 
-class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
+class _ExpenseConfirmationWidgetState
+    extends ConsumerState<ExpenseConfirmationWidget> {
   late ExpenseData _expense = widget.expense;
+  int? _selectedWalletId;
 
   @override
   Widget build(BuildContext context) {
+    final activeWallet = ref.watch(activeWalletProvider);
+    final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final categoryMeta = resolveExpenseCategory(_expense.category);
 
     return Align(
@@ -165,6 +172,15 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                WalletSelectorWidget(
+                  selectedWalletId: effectiveWalletId,
+                  onChanged: (walletId) {
+                    setState(() {
+                      _selectedWalletId = walletId;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -180,7 +196,8 @@ class _ExpenseConfirmationWidgetState extends State<ExpenseConfirmationWidget> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton(
-                        onPressed: () => widget.onSave(_expense),
+                        onPressed: () =>
+                            widget.onSave(_expense, effectiveWalletId),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.success,
                           foregroundColor: Theme.of(

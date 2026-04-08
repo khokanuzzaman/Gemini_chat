@@ -13,6 +13,8 @@ abstract class ExpenseRepository {
 
   Future<List<ExpenseEntity>> getExpensesByCategory(String category);
 
+  Future<List<ExpenseEntity>> getExpensesByWallet(int walletId);
+
   Future<List<ExpenseEntity>> getExpensesByDateRange(
     DateTime start,
     DateTime end,

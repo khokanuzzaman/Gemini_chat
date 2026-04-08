@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_parser.dart';
 import '../../../../core/ai/expense_result.dart';
+import '../../../../core/ai/income_data.dart';
 import '../../../../core/ai/rag_response_parser.dart';
 import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/ai/token_usage.dart';
@@ -21,12 +22,16 @@ import '../../domain/entities/message_entity.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/screens/manual_add_screen.dart';
+import '../../../income/domain/entities/income_entity.dart';
+import '../../../income/presentation/providers/income_providers.dart';
 import '../../../split/presentation/screens/add_edit_split_screen.dart';
 import '../../../split/presentation/widgets/split_suggestion_widget.dart';
 import '../providers/chat_provider.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
+import '../widgets/income_confirmation_widget.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/multiple_income_confirmation_widget.dart';
 import '../widgets/multiple_expense_confirmation_widget.dart';
 import '../widgets/pulsing_recording_widget.dart';
 import '../widgets/receipt_confirmation_widget.dart';
@@ -111,6 +116,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final lastMessageUsedRag =
         ref.watch(lastMessageUsedRagProvider) && isResponding;
     final ragResponseMap = ref.watch(ragResponseMapProvider);
+    final parsedExpenseMap = ref.watch(parsedExpenseResultMapProvider);
     final usageData = _buildUsageData(
       messages.valueOrNull ?? const [],
       liveRateLimit,
@@ -169,8 +175,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       onSaveExpense: _saveExpenseData,
                       onSaveExpenseList: _saveExpenseList,
                       onSaveReceipt: _saveReceiptData,
+                      onSaveIncome: _saveIncomeData,
+                      onSaveIncomeList: _saveIncomeList,
                       onOpenAnalytics: _openAnalytics,
                       ragResponseMap: ragResponseMap,
+                      parsedExpenseMap: parsedExpenseMap,
                       scrollController: _scrollController,
                       onSuggestionTap: _handleSuggestionTap,
                     ),
@@ -486,10 +495,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
   }
 
-  Future<void> _saveExpenseData(ExpenseData expenseData) async {
+  Future<void> _saveExpenseData(
+    ExpenseData expenseData, [
+    int? walletId,
+  ]) async {
     final error = await ref
         .read(expenseMutationControllerProvider)
-        .saveDetectedExpense(expenseData);
+        .saveDetectedExpense(expenseData, walletId: walletId);
 
     if (!mounted) {
       return;
@@ -500,10 +512,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ..showSnackBar(SnackBar(content: Text(error ?? AppStrings.expenseSaved)));
   }
 
-  Future<void> _saveExpenseList(List<ExpenseData> expenses) async {
+  Future<void> _saveExpenseList(
+    List<ExpenseData> expenses, [
+    int? walletId,
+  ]) async {
     final error = await ref
         .read(expenseMutationControllerProvider)
-        .saveDetectedExpenses(expenses);
+        .saveDetectedExpenses(expenses, walletId: walletId);
 
     if (!mounted) {
       return;
@@ -517,10 +532,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ..showSnackBar(SnackBar(content: Text(error ?? successMessage)));
   }
 
-  Future<void> _saveReceiptData(Map<String, dynamic> receiptData) async {
+  Future<void> _saveReceiptData(
+    Map<String, dynamic> receiptData, [
+    int? walletId,
+  ]) async {
     final error = await ref
         .read(expenseMutationControllerProvider)
-        .saveReceiptExpense(receiptData);
+        .saveReceiptExpense(receiptData, walletId: walletId);
 
     if (!mounted) {
       return;
@@ -529,6 +547,68 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(error ?? AppStrings.expenseSaved)));
+  }
+
+  Future<void> _saveIncomeData(
+    IncomeData incomeData, [
+    int? walletId,
+  ]) async {
+    final income = IncomeEntity(
+      amount: incomeData.amount,
+      source: incomeData.source,
+      description: incomeData.description.trim(),
+      date: incomeData.parsedDate,
+      walletId: walletId,
+      isRecurring: incomeData.isRecurring,
+      isManual: false,
+      createdAt: DateTime.now(),
+    );
+    final error = await ref
+        .read(incomeMutationControllerProvider)
+        .saveDetectedIncome(income, walletId: walletId);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(error ?? 'আয় সংরক্ষণ হয়েছে')),
+      );
+  }
+
+  Future<void> _saveIncomeList(
+    List<IncomeData> incomes, [
+    int? walletId,
+  ]) async {
+    final incomeEntities = incomes
+        .map(
+          (income) => IncomeEntity(
+            amount: income.amount,
+            source: income.source,
+            description: income.description.trim(),
+            date: income.parsedDate,
+            walletId: walletId,
+            isRecurring: income.isRecurring,
+            isManual: false,
+            createdAt: DateTime.now(),
+          ),
+        )
+        .toList(growable: false);
+    final error = await ref
+        .read(incomeMutationControllerProvider)
+        .saveDetectedIncomeBatch(incomeEntities, walletId: walletId);
+
+    if (!mounted) {
+      return;
+    }
+
+    final successMessage =
+        'আয় ${BanglaFormatters.count(incomes.length)}টি সংরক্ষণ হয়েছে';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error ?? successMessage)));
   }
 
   Future<void> _copyAiMessage(String text) async {
@@ -687,8 +767,11 @@ class _MessageList extends StatefulWidget {
     required this.onSaveExpense,
     required this.onSaveExpenseList,
     required this.onSaveReceipt,
+    required this.onSaveIncome,
+    required this.onSaveIncomeList,
     required this.onOpenAnalytics,
     required this.ragResponseMap,
+    required this.parsedExpenseMap,
     required this.scrollController,
     required this.onSuggestionTap,
   });
@@ -698,11 +781,19 @@ class _MessageList extends StatefulWidget {
   final bool isResponding;
   final bool isStreamingWithRag;
   final ValueChanged<String> onCopyAiMessage;
-  final Future<void> Function(ExpenseData expenseData) onSaveExpense;
-  final Future<void> Function(List<ExpenseData> expenses) onSaveExpenseList;
-  final Future<void> Function(Map<String, dynamic> receiptData) onSaveReceipt;
+  final Future<void> Function(ExpenseData expenseData, [int? walletId])
+  onSaveExpense;
+  final Future<void> Function(List<ExpenseData> expenses, [int? walletId])
+  onSaveExpenseList;
+  final Future<void> Function(Map<String, dynamic> receiptData, [int? walletId])
+  onSaveReceipt;
+  final Future<void> Function(IncomeData incomeData, [int? walletId])
+  onSaveIncome;
+  final Future<void> Function(List<IncomeData> incomes, [int? walletId])
+  onSaveIncomeList;
   final VoidCallback onOpenAnalytics;
   final Map<String, RagResponseData> ragResponseMap;
+  final Map<String, ExpenseResult> parsedExpenseMap;
   final ScrollController scrollController;
   final ValueChanged<String> onSuggestionTap;
 
@@ -821,11 +912,11 @@ class _MessageListState extends State<_MessageList> {
   ) {
     final messageKey = _messageKey(message);
     if (!message.isUser && !message.isError) {
-      final expenseResult = _expenseParser.parseExpenseFromResponse(
-        message.text,
-      );
+      final expenseResult =
+          widget.parsedExpenseMap[messageKey] ??
+          _expenseParser.parseExpenseFromResponse(message.text);
 
-      if (expenseResult.isExpense) {
+      if (expenseResult.isExpense || expenseResult.isIncome) {
         final parts = <Widget>[];
         final conversationalText =
             expenseResult.conversationalText?.trim() ?? '';
@@ -850,8 +941,8 @@ class _MessageListState extends State<_MessageList> {
             parts.add(
               ReceiptConfirmationWidget(
                 receiptData: expenseResult.receiptData!,
-                onSave: (editedReceiptData) async {
-                  await widget.onSaveReceipt(editedReceiptData);
+                onSave: (editedReceiptData, walletId) async {
+                  await widget.onSaveReceipt(editedReceiptData, walletId);
                   _dismissCard(messageKey);
                 },
                 onCancel: () => _dismissCard(messageKey),
@@ -892,8 +983,8 @@ class _MessageListState extends State<_MessageList> {
             parts.add(
               MultipleExpenseConfirmationWidget(
                 expenses: expenseResult.expenses,
-                onSave: (selectedExpenses) async {
-                  await widget.onSaveExpenseList(selectedExpenses);
+                onSave: (selectedExpenses, walletId) async {
+                  await widget.onSaveExpenseList(selectedExpenses, walletId);
                   _dismissCard(messageKey);
                 },
                 onCancel: () => _dismissCard(messageKey),
@@ -903,13 +994,54 @@ class _MessageListState extends State<_MessageList> {
             parts.add(
               ExpenseConfirmationWidget(
                 expense: expenseResult.expenses.first,
-                onSave: (editedExpense) async {
-                  await widget.onSaveExpense(editedExpense);
+                onSave: (editedExpense, walletId) async {
+                  await widget.onSaveExpense(editedExpense, walletId);
                   _dismissCard(messageKey);
                 },
                 onCancel: () => _dismissCard(messageKey),
               ),
             );
+          }
+
+          if (expenseResult.incomes.isNotEmpty) {
+            if (parts.isNotEmpty) {
+              parts.add(const SizedBox(height: 12));
+              if (expenseResult.hasMixedEntries) {
+                parts.add(
+                  MessageBubble(
+                    text: 'আয়ের তথ্যও পাওয়া গেছে। দেখুন:',
+                    isUser: false,
+                    createdAt: message.createdAt,
+                  ),
+                );
+                parts.add(const SizedBox(height: 8));
+              } else {
+                parts.add(Divider(height: 1, color: context.borderColor));
+                parts.add(const SizedBox(height: 12));
+              }
+            }
+
+            if (expenseResult.incomes.length > 1) {
+              parts.add(
+                MultipleIncomeConfirmationWidget(
+                  incomes: expenseResult.incomes,
+                  onSave: (selectedIncomes, walletId) async {
+                    await widget.onSaveIncomeList(selectedIncomes, walletId);
+                  },
+                  onCancel: () => _dismissCard(messageKey),
+                ),
+              );
+            } else {
+              parts.add(
+                IncomeConfirmationWidget(
+                  income: expenseResult.incomes.first,
+                  onSave: (editedIncome, walletId) async {
+                    await widget.onSaveIncome(editedIncome, walletId);
+                  },
+                  onCancel: () => _dismissCard(messageKey),
+                ),
+              );
+            }
           }
         }
 

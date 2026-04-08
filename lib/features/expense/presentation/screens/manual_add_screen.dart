@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
@@ -45,6 +47,7 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   String _selectedCategory = 'Food';
+  int? _selectedWalletId;
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
 
@@ -59,6 +62,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final categories = ref.watch(categoryProvider);
+    final activeWallet = ref.watch(activeWalletProvider);
+    final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final categoryNames = categories
         .map((category) => category.name)
         .toList(growable: false);
@@ -178,6 +183,15 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                   .toList(growable: false),
             ),
             const SizedBox(height: 16),
+            WalletSelectorWidget(
+              selectedWalletId: effectiveWalletId,
+              onChanged: (walletId) {
+                setState(() {
+                  _selectedWalletId = walletId;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
             InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: _pickDate,
@@ -257,6 +271,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
   Future<void> _save() async {
     final amount = double.tryParse(_amountController.text.trim());
     final description = _descriptionController.text.trim();
+    final selectedWalletId =
+        _selectedWalletId ?? ref.read(activeWalletProvider)?.id;
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(
@@ -269,6 +285,13 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('একটি category বেছে নিন')));
+      return;
+    }
+
+    if (selectedWalletId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('একটি ওয়ালেট বেছে নিন')));
       return;
     }
 
@@ -286,7 +309,7 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
 
     final error = await ref
         .read(expenseMutationControllerProvider)
-        .saveManualExpense(expense);
+        .saveManualExpense(expense, walletId: selectedWalletId);
 
     if (!mounted) {
       return;

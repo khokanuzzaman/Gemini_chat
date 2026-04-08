@@ -8,12 +8,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/database/expense_migration.dart';
 import 'core/database/models/expense_record_model.dart';
+import 'core/database/models/income_record_model.dart';
 import 'core/database/models/budget_plan_model.dart';
 import 'core/database/models/goal_model.dart';
 import 'core/database/models/goal_saving_model.dart';
 import 'core/database/models/recurring_expense_model.dart';
 import 'core/database/models/split_bill_model.dart';
+import 'core/database/models/wallet_model.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
@@ -40,6 +43,8 @@ import 'features/onboarding/onboarding_screen.dart';
 import 'features/security/lock_screen.dart';
 import 'features/split/presentation/screens/split_bill_screen.dart';
 import 'features/splash/splash_screen.dart';
+import 'features/wallet/data/datasources/wallet_local_datasource.dart';
+import 'features/wallet/presentation/providers/wallet_provider.dart';
 
 const _notificationPermissionAskedKey = 'notification_permission_asked';
 
@@ -62,6 +67,12 @@ Future<void> main() async {
   final isar = await _openIsar();
   final categoryLocalDataSource = CategoryLocalDataSource(isar);
   await categoryLocalDataSource.seedDefaultCategories();
+  final walletLocalDataSource = WalletLocalDataSource(isar);
+  await walletLocalDataSource.seedDefaultWallets();
+  await ExpenseMigration.migrateExpensesToDefaultWallet(
+    isar: isar,
+    prefs: sharedPreferences,
+  );
   final bootCategories = await categoryLocalDataSource.getAllCategories();
   CategoryRegistry.setCategories(
     bootCategories
@@ -116,7 +127,9 @@ Future<Isar> _openIsar() async {
       GoalSavingModelSchema,
       RecurringExpenseModelSchema,
       SplitBillModelSchema,
+      WalletModelSchema,
       PredictionCacheModelSchema,
+      IncomeRecordModelSchema,
     ],
     directory: directory.path,
     name: instanceName,
@@ -273,10 +286,12 @@ class _MainShellState extends ConsumerState<_MainShell> {
 
   Future<void> _hydratePreferences() async {
     final ragEnabled = await AppPreferences.isRagEnabled();
+    final activeWalletId = await AppPreferences.activeWalletId();
     if (!mounted) {
       return;
     }
     ref.read(ragEnabledProvider.notifier).state = ragEnabled;
+    ref.read(activeWalletIdProvider.notifier).state = activeWalletId;
   }
 
   @override

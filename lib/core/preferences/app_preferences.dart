@@ -9,6 +9,7 @@ class AppPreferences {
   static const defaultCategoryKey = 'default_category';
   static const currencySymbolKey = 'currency_symbol';
   static const dateFormatKey = 'date_format';
+  static const _activeWalletIdKey = 'active_wallet_id';
 
   static Future<SharedPreferences> get _prefs async =>
       SharedPreferences.getInstance();
@@ -59,5 +60,14 @@ class AppPreferences {
 
   static Future<void> setDateFormat(String value) async {
     await (await _prefs).setString(dateFormatKey, value);
+  }
+
+  static Future<int?> activeWalletId() async {
+    final value = (await _prefs).getInt(_activeWalletIdKey);
+    return value == 0 ? null : value;
+  }
+
+  static Future<void> setActiveWalletId(int walletId) async {
+    await (await _prefs).setInt(_activeWalletIdKey, walletId);
   }
 }

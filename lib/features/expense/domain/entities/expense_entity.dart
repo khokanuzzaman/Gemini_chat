@@ -5,6 +5,7 @@ class ExpenseEntity {
     required this.category,
     required this.description,
     required this.date,
+    this.walletId,
     this.isManual = false,
   });
 
@@ -13,6 +14,7 @@ class ExpenseEntity {
   final String category;
   final String description;
   final DateTime date;
+  final int? walletId;
   final bool isManual;
 
   ExpenseEntity copyWith({
@@ -21,6 +23,7 @@ class ExpenseEntity {
     String? category,
     String? description,
     DateTime? date,
+    int? walletId,
     bool? isManual,
   }) {
     return ExpenseEntity(
@@ -29,6 +32,7 @@ class ExpenseEntity {
       category: category ?? this.category,
       description: description ?? this.description,
       date: date ?? this.date,
+      walletId: walletId ?? this.walletId,
       isManual: isManual ?? this.isManual,
     );
   }

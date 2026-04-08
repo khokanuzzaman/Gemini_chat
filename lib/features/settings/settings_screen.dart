@@ -10,8 +10,10 @@ import '../../core/database/models/budget_plan_model.dart';
 import '../../core/database/models/expense_record_model.dart';
 import '../../core/database/models/goal_model.dart';
 import '../../core/database/models/goal_saving_model.dart';
+import '../../core/database/models/income_record_model.dart';
 import '../../core/database/models/recurring_expense_model.dart';
 import '../../core/database/models/split_bill_model.dart';
+import '../../core/database/models/wallet_model.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/navigation/app_shell_navigation.dart';
 import '../../core/notifications/notification_provider.dart';
@@ -36,7 +38,11 @@ import '../export/presentation/screens/export_screen.dart';
 import '../expense/presentation/providers/expense_providers.dart';
 import '../goals/presentation/providers/goal_provider.dart';
 import '../goals/presentation/screens/goals_screen.dart';
+import '../income/presentation/providers/income_providers.dart';
+import '../income/presentation/screens/income_list_screen.dart';
 import '../recurring/presentation/screens/recurring_screen.dart';
+import '../wallet/presentation/providers/wallet_provider.dart';
+import '../wallet/presentation/screens/wallet_management_screen.dart';
 import 'budget_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -149,6 +155,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Navigator.of(
                     context,
                   ).push(buildAppRoute(const CategoryManagementScreen()));
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('ওয়ালেট ম্যানেজমেন্ট'),
+                subtitle: const Text(
+                  'ক্যাশ, বিকাশ, ব্যাংক একাউন্ট ম্যানেজ করুন',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const WalletManagementScreen()));
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.attach_money),
+                title: const Text('আয় ব্যবস্থাপনা'),
+                subtitle: const Text('আপনার আয়ের তথ্য দেখুন ও যোগ করুন'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(
+                    context,
+                  ).push(buildAppRoute(const IncomeListScreen()));
                 },
               ),
             ],
@@ -563,7 +595,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     await ref.read(isarProvider).writeTxn(() async {
       await ref.read(isarProvider).expenseRecordModels.clear();
+      await ref.read(isarProvider).incomeRecordModels.clear();
       await ref.read(isarProvider).messageModels.clear();
+      await ref.read(isarProvider).walletModels.clear();
       await ref.read(isarProvider).budgetPlanModels.clear();
       await ref.read(isarProvider).goalModels.clear();
       await ref.read(isarProvider).goalSavingModels.clear();
@@ -571,11 +605,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).splitBillModels.clear();
     });
 
+    await AppPreferences.setActiveWalletId(0);
     await ref.read(budgetSettingsProvider.notifier).clearBudgets();
     await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.read(incomeRefreshTokenProvider.notifier).state++;
     ref.invalidate(budgetProvider);
     ref.invalidate(goalsProvider);
+    ref.invalidate(walletProvider);
+    ref.invalidate(incomeListControllerProvider);
     if (!mounted) {
       return;
     }
