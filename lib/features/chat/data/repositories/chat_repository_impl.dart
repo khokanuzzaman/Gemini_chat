@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/ai/rag_context_builder.dart';
 import '../../../../core/errors/exceptions.dart';

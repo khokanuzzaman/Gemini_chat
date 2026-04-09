@@ -13,10 +13,13 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
+import '../../../../core/providers/database_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../../ai_guide/presentation/screens/ai_guide_screen.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/screens/manual_add_screen.dart';
@@ -25,6 +28,7 @@ import '../../../income/presentation/providers/income_providers.dart';
 import '../../../split/presentation/screens/add_edit_split_screen.dart';
 import '../../../split/presentation/widgets/split_suggestion_widget.dart';
 import '../providers/chat_provider.dart';
+import '../utils/chat_suggestion_engine.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
 import '../widgets/chat_input_area.dart';
@@ -36,6 +40,43 @@ import '../widgets/receipt_confirmation_widget.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/usage_details_sheet.dart';
 
+final chatSuggestionHistoryProvider =
+    FutureProvider<List<ChatSuggestionExpense>>((ref) async {
+      ref.watch(expenseRefreshTokenProvider);
+
+      final expenses = await ref
+          .watch(expenseLocalDataSourceProvider)
+          .getAllExpenses();
+      final suggestions = <ChatSuggestionExpense>[];
+      final seen = <String>{};
+
+      for (final expense in expenses.take(30)) {
+        final description = expense.description.trim();
+        if (description.isEmpty) {
+          continue;
+        }
+
+        final key = '${description.toLowerCase()}|${expense.category}';
+        if (!seen.add(key)) {
+          continue;
+        }
+
+        suggestions.add(
+          ChatSuggestionExpense(
+            description: description,
+            category: expense.category,
+            amount: expense.amount,
+          ),
+        );
+
+        if (suggestions.length >= 12) {
+          break;
+        }
+      }
+
+      return suggestions;
+    });
+
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
@@ -46,19 +87,25 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen>
     with WidgetsBindingObserver {
   static const _maxMessageLength = 500;
+  static const _suggestionEngine = ChatSuggestionEngine();
 
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();
   final ValueNotifier<int> _characterCountNotifier = ValueNotifier<int>(0);
   bool _ragBannerDismissed = false;
+  bool _aiGuidePromptSeen = true;
+  bool _isInputFocused = false;
   bool _shouldAutoScroll = true;
+  String _currentInputText = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_syncAutoScrollState);
+    _messageFocusNode.addListener(_syncInputFocusState);
+    _loadAiGuidePromptState();
   }
 
   @override
@@ -70,6 +117,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_syncAutoScrollState);
+    _messageFocusNode.removeListener(_syncInputFocusState);
     _messageController.dispose();
     _scrollController.dispose();
     _messageFocusNode.dispose();
@@ -118,10 +166,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref.watch(lastMessageUsedRagProvider) && isResponding;
     final ragResponseMap = ref.watch(ragResponseMapProvider);
     final parsedExpenseMap = ref.watch(parsedExpenseResultMapProvider);
+    final categories = ref.watch(categoryProvider);
+    final recentSuggestionExpenses =
+        ref.watch(chatSuggestionHistoryProvider).valueOrNull ?? const [];
     final usageData = _buildUsageData(
       messages.valueOrNull ?? const [],
       liveRateLimit,
     );
+    final suggestions = _suggestionEngine.build(
+      input: _currentInputText,
+      categoryNames: categories
+          .map((category) => category.name)
+          .toList(growable: false),
+      recentExpenses: recentSuggestionExpenses,
+      ragEnabled: ragEnabled,
+    );
+    final showSuggestions =
+        (_isInputFocused || _currentInputText.trim().isNotEmpty) &&
+        _currentInputText.length <= _maxMessageLength &&
+        !isResponding &&
+        !isRecording &&
+        !isScanning;
 
     return AppPageScaffold(
       titleWidget: Column(
@@ -148,6 +213,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       onManualAdd: () => showManualAddSheet(context),
       useGradientBackground: true,
       actions: [
+        IconButton(
+          onPressed: () => _openAiGuide(),
+          icon: Icon(
+            Icons.help_outline_rounded,
+            color: context.secondaryTextColor,
+          ),
+          tooltip: 'AI গাইড',
+        ),
         IconButton(
           onPressed: isResponding || isRecording || isScanning
               ? null
@@ -217,6 +290,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     ragResponseMap: ragResponseMap,
                     parsedExpenseMap: parsedExpenseMap,
                     scrollController: _scrollController,
+                    showAiGuidePrompt: !_aiGuidePromptSeen,
+                    onOpenAiGuide: () => _openAiGuide(),
+                    onDismissAiGuidePrompt: () => _dismissAiGuidePrompt(),
                   ),
                   loading: () => const Padding(
                     padding: EdgeInsets.fromLTRB(
@@ -242,12 +318,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 isRecording: isRecording,
                 isScanning: isScanning,
                 recordingDuration: recordingDuration,
+                suggestions: suggestions,
+                showSuggestions: showSuggestions,
                 onMessageChanged: (value) {
                   _characterCountNotifier.value = value.length;
+                  setState(() {
+                    _currentInputText = value;
+                  });
                   if (value.isNotEmpty) {
                     _scrollToBottom();
                   }
                 },
+                onSuggestionSelected: _applySuggestion,
                 onSubmitMessage: _submitMessage,
                 onScanFromCamera: () => _startReceiptScan(fromCamera: true),
                 onScanFromGallery: () => _startReceiptScan(fromCamera: false),
@@ -262,6 +344,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _loadAiGuidePromptState() async {
+    final seen = await AppPreferences.isAiGuidePromptSeen();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _aiGuidePromptSeen = seen;
+    });
+  }
+
+  Future<void> _openAiGuide() async {
+    await _markAiGuidePromptSeen();
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(buildAppRoute(const AiGuideScreen()));
+  }
+
+  Future<void> _dismissAiGuidePrompt() async {
+    await _markAiGuidePromptSeen();
+  }
+
+  Future<void> _markAiGuidePromptSeen() async {
+    if (_aiGuidePromptSeen) {
+      return;
+    }
+
+    await AppPreferences.setAiGuidePromptSeen(true);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _aiGuidePromptSeen = true;
+    });
+  }
+
+  void _syncInputFocusState() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isInputFocused = _messageFocusNode.hasFocus;
+    });
+  }
+
+  void _applySuggestion(ChatSuggestion suggestion) {
+    final draft = suggestion.draftText;
+    _messageController.value = TextEditingValue(
+      text: draft,
+      selection: TextSelection.collapsed(offset: draft.length),
+    );
+    _characterCountNotifier.value = draft.length;
+    setState(() {
+      _currentInputText = draft;
+    });
+    _messageFocusNode.requestFocus();
+    _scrollToBottom(force: true);
   }
 
   Future<void> _submitMessage() async {
@@ -283,6 +428,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ref.read(chatProvider.notifier).sendMessage(text);
     _messageController.clear();
     _characterCountNotifier.value = 0;
+    setState(() {
+      _currentInputText = '';
+    });
     _messageFocusNode.requestFocus();
     _scrollToBottom(force: true);
   }
@@ -669,6 +817,9 @@ class _MessageList extends StatefulWidget {
     required this.ragResponseMap,
     required this.parsedExpenseMap,
     required this.scrollController,
+    required this.showAiGuidePrompt,
+    required this.onOpenAiGuide,
+    required this.onDismissAiGuidePrompt,
   });
 
   final List<MessageEntity> messages;
@@ -690,6 +841,9 @@ class _MessageList extends StatefulWidget {
   final Map<String, RagResponseData> ragResponseMap;
   final Map<String, ExpenseResult> parsedExpenseMap;
   final ScrollController scrollController;
+  final bool showAiGuidePrompt;
+  final VoidCallback onOpenAiGuide;
+  final VoidCallback onDismissAiGuidePrompt;
 
   @override
   State<_MessageList> createState() => _MessageListState();
@@ -702,7 +856,11 @@ class _MessageListState extends State<_MessageList> {
   @override
   Widget build(BuildContext context) {
     if (widget.messages.isEmpty && !widget.isResponding) {
-      return const _ChatEmptyState();
+      return _ChatEmptyState(
+        showAiGuidePrompt: widget.showAiGuidePrompt,
+        onOpenAiGuide: widget.onOpenAiGuide,
+        onDismissAiGuidePrompt: widget.onDismissAiGuidePrompt,
+      );
     }
 
     final reversedMessages = widget.messages.reversed.toList(growable: false);
@@ -964,14 +1122,175 @@ class _MessageListState extends State<_MessageList> {
 }
 
 class _ChatEmptyState extends StatelessWidget {
-  const _ChatEmptyState();
+  const _ChatEmptyState({
+    required this.showAiGuidePrompt,
+    required this.onOpenAiGuide,
+    required this.onDismissAiGuidePrompt,
+  });
+
+  final bool showAiGuidePrompt;
+  final VoidCallback onOpenAiGuide;
+  final VoidCallback onDismissAiGuidePrompt;
 
   @override
   Widget build(BuildContext context) {
-    return const AppEmptyState(
-      icon: Icons.chat_bubble_outline_rounded,
-      title: 'চ্যাট শুরু করুন',
-      subtitle: 'আপনার খরচ লিখুন, বলুন বা রিসিট স্ক্যান করুন',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenPadding,
+            AppSpacing.md,
+            AppSpacing.screenPadding,
+            AppSpacing.md,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight > 32
+                  ? constraints.maxHeight - 32
+                  : 0,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const AppEmptyState(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  title: 'চ্যাট শুরু করুন',
+                  subtitle: 'আপনার খরচ লিখুন, বলুন বা রিসিট স্ক্যান করুন',
+                  compact: true,
+                ),
+                if (showAiGuidePrompt) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _AiGuidePromptCard(
+                    onOpenGuide: onOpenAiGuide,
+                    onDismiss: onDismissAiGuidePrompt,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AiGuidePromptCard extends StatelessWidget {
+  const _AiGuidePromptCard({
+    required this.onOpenGuide,
+    required this.onDismiss,
+  });
+
+  final VoidCallback onOpenGuide;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      elevation: 2,
+      borderRadius: const BorderRadius.all(AppRadius.heroCard),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: context.appColors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.school_outlined,
+                  color: context.appColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Guide দেখে শুরু করুন',
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: context.primaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Feature-wise pattern আর copyable examples দেখে দ্রুত শুরু করুন।',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _PromptBullet(text: 'Copy করুন: আজকে খাবারে ২২০ টাকা'),
+          const _PromptBullet(
+            text: 'Pattern দেখুন: expense, income, split, Smart Mode',
+          ),
+          const _PromptBullet(text: 'Receipt/voice ব্যবহার করার checklist আছে'),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: AppActionButton(
+                  label: 'গাইড দেখুন',
+                  icon: Icons.menu_book_outlined,
+                  size: AppActionButtonSize.small,
+                  onPressed: onOpenGuide,
+                  fullWidth: true,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              AppActionButton(
+                label: 'বাদ দিন',
+                variant: AppActionButtonVariant.ghost,
+                size: AppActionButtonSize.small,
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PromptBullet extends StatelessWidget {
+  const _PromptBullet({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.check_circle_rounded,
+            size: 16,
+            color: context.appColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: context.primaryTextColor,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

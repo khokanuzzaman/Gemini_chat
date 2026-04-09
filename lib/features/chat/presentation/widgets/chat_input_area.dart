@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../utils/chat_suggestion_engine.dart';
 import 'recording_indicator.dart';
 
 class ChatInputArea extends StatelessWidget {
@@ -23,6 +24,9 @@ class ChatInputArea extends StatelessWidget {
     required this.onStartRecording,
     required this.onStopRecording,
     required this.onShowUsageDetails,
+    required this.suggestions,
+    required this.showSuggestions,
+    required this.onSuggestionSelected,
   });
 
   final TextEditingController messageController;
@@ -40,6 +44,9 @@ class ChatInputArea extends StatelessWidget {
   final VoidCallback onStartRecording;
   final VoidCallback onStopRecording;
   final VoidCallback onShowUsageDetails;
+  final List<ChatSuggestion> suggestions;
+  final bool showSuggestions;
+  final ValueChanged<ChatSuggestion> onSuggestionSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -65,10 +72,33 @@ class ChatInputArea extends StatelessWidget {
               final isOverLimit = currentCount > maxMessageLength;
               final canSend =
                   !actionDisabled && trimmedText.isNotEmpty && !isOverLimit;
+              final visibleSuggestions =
+                  showSuggestions && !isOverLimit && !actionDisabled
+                  ? suggestions
+                  : const <ChatSuggestion>[];
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  AnimatedSwitcher(
+                    duration: AppMotion.fast,
+                    child: visibleSuggestions.isEmpty
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            key: ValueKey(
+                              visibleSuggestions
+                                  .map((suggestion) => suggestion.id)
+                                  .join('|'),
+                            ),
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
+                            child: _SuggestionTray(
+                              suggestions: visibleSuggestions,
+                              onSelected: onSuggestionSelected,
+                            ),
+                          ),
+                  ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -239,6 +269,116 @@ class ChatInputArea extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SuggestionTray extends StatelessWidget {
+  const _SuggestionTray({required this.suggestions, required this.onSelected});
+
+  final List<ChatSuggestion> suggestions;
+  final ValueChanged<ChatSuggestion> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: suggestions.length,
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          final suggestion = suggestions[index];
+          return _SuggestionCard(
+            suggestion: suggestion,
+            onTap: () => onSelected(suggestion),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SuggestionCard extends StatelessWidget {
+  const _SuggestionCard({required this.suggestion, required this.onTap});
+
+  final ChatSuggestion suggestion;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 218,
+      child: Material(
+        color: context.mutedSurfaceColor,
+        borderRadius: const BorderRadius.all(AppRadius.input),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: const BorderRadius.all(AppRadius.input),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.all(AppRadius.input),
+              border: Border.all(
+                color: context.borderColor.withValues(
+                  alpha: context.isDarkMode ? 0.4 : 0.7,
+                ),
+                width: 0.6,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: context.appColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    suggestion.icon,
+                    size: 17,
+                    color: context.appColors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        suggestion.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.chipLabel.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        suggestion.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  Icons.north_west_rounded,
+                  size: 14,
+                  color: context.secondaryTextColor,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

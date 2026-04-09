@@ -110,6 +110,33 @@ class BudgetSettingsNotifier extends Notifier<BudgetSettings> {
     await _save(updatedSettings);
   }
 
+  /// Remaps a renamed category key in the stored budget limits.
+  Future<void> remapCategory(String oldName, String newName) async {
+    final currentBudgets = Map<String, double>.from(state.categoryBudgets);
+    final oldValue = currentBudgets.remove(oldName);
+    if (oldValue == null) {
+      return;
+    }
+
+    currentBudgets[newName] = oldValue;
+    final updatedSettings = state.copyWith(categoryBudgets: currentBudgets);
+    state = updatedSettings;
+    await _save(updatedSettings);
+  }
+
+  /// Removes a deleted category from stored budget limits.
+  Future<void> removeCategory(String categoryName) async {
+    final currentBudgets = Map<String, double>.from(state.categoryBudgets);
+    final removed = currentBudgets.remove(categoryName);
+    if (removed == null) {
+      return;
+    }
+
+    final updatedSettings = state.copyWith(categoryBudgets: currentBudgets);
+    state = updatedSettings;
+    await _save(updatedSettings);
+  }
+
   Future<void> resetDefaults() async {
     final defaults = BudgetSettings.defaults();
     state = defaults;

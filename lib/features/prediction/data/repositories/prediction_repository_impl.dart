@@ -1,7 +1,7 @@
 // Feature: Prediction
 // Layer: Data
 
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../expense/domain/entities/expense_entity.dart';
 import '../../domain/entities/prediction_entity.dart';

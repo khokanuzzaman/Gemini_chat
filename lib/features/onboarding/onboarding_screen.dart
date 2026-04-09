@@ -22,7 +22,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       emoji: '💰',
       gradient: AppGradients.primary,
       title: 'স্বাগতম!',
-      subtitle: 'PocketPilot AI দিয়ে আপনার খরচ হিসাব রাখুন খুব সহজে',
+      subtitle:
+          'PocketPilot AI দিয়ে খরচ হিসাব রাখুন। Chat help থেকে AI Guide দেখুন',
       bullets: const [
         (emoji: '🤖', text: 'AI দিয়ে খরচ যোগ করুন'),
         (emoji: '🎤', text: 'ভয়েস দিয়ে খরচ যোগ করুন'),

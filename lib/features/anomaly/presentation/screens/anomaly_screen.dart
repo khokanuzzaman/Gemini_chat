@@ -1,11 +1,9 @@
-// Feature: Anomaly
-// Layer: Presentation
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/entities/anomaly_alert.dart';
+import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../providers/anomaly_provider.dart';
 import '../widgets/anomaly_alert_card.dart';
 
@@ -14,8 +12,9 @@ class AnomalyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: _AnomalyAppBar(),
+    return const AppPageScaffold(
+      title: 'অস্বাভাবিক খরচ',
+      showOfflineBanner: false,
       body: AnomalyView(),
     );
   }
@@ -32,19 +31,17 @@ class AnomalyView extends ConsumerWidget {
     final activeAlerts = anomalyState.activeAlerts;
     final dismissedAlerts = anomalyState.dismissedAlerts;
 
-    if (anomalyState.isDetecting && activeAlerts.isEmpty && dismissedAlerts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'বিশ্লেষণ করা হচ্ছে...',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+    if (anomalyState.isDetecting &&
+        activeAlerts.isEmpty &&
+        dismissedAlerts.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.screenPadding,
+          includeTopPadding ? AppSpacing.md : 0,
+          AppSpacing.screenPadding,
+          AppSpacing.xl,
         ),
+        child: const AppLoadingState.list(),
       );
     }
 
@@ -53,53 +50,40 @@ class AnomalyView extends ConsumerWidget {
         !anomalyState.isDetecting) {
       return RefreshIndicator(
         onRefresh: () => ref.read(anomalyProvider.notifier).detect(),
+        color: context.appColors.primary,
+        backgroundColor: context.cardBackgroundColor,
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           padding: EdgeInsets.fromLTRB(
-            24,
-            includeTopPadding ? 20 : 12,
-            24,
-            32,
+            AppSpacing.screenPadding,
+            includeTopPadding ? AppSpacing.md : 0,
+            AppSpacing.screenPadding,
+            AppSpacing.xl,
           ),
           children: [
             if (anomalyState.lastDetected != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: Text(
-                  'সর্বশেষ: ${_formatRelativeTime(anomalyState.lastDetected!)}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  'সর্বশেষ বিশ্লেষণ: ${_formatRelativeTime(anomalyState.lastDetected!)}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
                 ),
               ),
-            const SizedBox(height: 60),
-            Icon(
-              Icons.check_circle_outline_rounded,
-              size: 72,
-              color: AppColors.success.withValues(alpha: 0.7),
+            const AppEmptyState(
+              icon: Icons.check_circle_outline_rounded,
+              title: 'কোনো অস্বাভাবিক খরচ নেই',
+              subtitle: 'আপনার খরচের ধরন স্বাভাবিক আছে',
             ),
-            const SizedBox(height: 16),
-            Text(
-              'সব স্বাভাবিক!',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'গত ৩০ দিনে কোনো অস্বাভাবিক\nখরচ পাওয়া যায়নি।',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.secondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(anomalyProvider.notifier).detect();
-                },
-                icon: const Icon(Icons.search_rounded),
-                label: const Text('আবার check করুন'),
-              ),
+            const SizedBox(height: AppSpacing.md),
+            AppActionButton(
+              label: 'আবার বিশ্লেষণ করুন',
+              icon: Icons.refresh_rounded,
+              fullWidth: true,
+              onPressed: () => ref.read(anomalyProvider.notifier).detect(),
             ),
           ],
         ),
@@ -108,171 +92,187 @@ class AnomalyView extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () => ref.read(anomalyProvider.notifier).detect(),
+      color: context.appColors.primary,
+      backgroundColor: context.cardBackgroundColor,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         padding: EdgeInsets.fromLTRB(
-          16,
-          includeTopPadding ? 12 : 8,
-          16,
-          24,
+          AppSpacing.screenPadding,
+          includeTopPadding ? AppSpacing.md : 0,
+          AppSpacing.screenPadding,
+          AppSpacing.xl,
         ),
         children: [
           if (anomalyState.lastDetected != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+            AppFadeSlideIn(
               child: Text(
-                'সর্বশেষ: ${_formatRelativeTime(anomalyState.lastDetected!)}',
-                style: Theme.of(context).textTheme.bodySmall,
+                'সর্বশেষ বিশ্লেষণ: ${_formatRelativeTime(anomalyState.lastDetected!)}',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.secondaryTextColor,
+                ),
               ),
             ),
+          if (anomalyState.lastDetected != null)
+            const SizedBox(height: AppSpacing.md),
           if (anomalyState.isDetecting)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'বিশ্লেষণ করা হচ্ছে...',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+            AppFadeSlideIn(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: context.mutedSurfaceColor,
+                  borderRadius: AppRadius.cardAll,
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'বিশ্লেষণ আপডেট হচ্ছে...',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          Row(
-            children: [
-              _SeverityChip(
-                count: anomalyState.highSeverityCount,
-                label: 'উচ্চ',
-                color: AnomalySeverity.high.color,
-              ),
-              const SizedBox(width: 8),
-              _SeverityChip(
-                count: anomalyState.mediumSeverityCount,
-                label: 'মধ্যম',
-                color: AnomalySeverity.medium.color,
-              ),
-              const SizedBox(width: 8),
-              _SeverityChip(
-                count: anomalyState.lowSeverityCount,
-                label: 'কম',
-                color: AnomalySeverity.low.color,
-              ),
-            ],
+          if (anomalyState.isDetecting) const SizedBox(height: AppSpacing.md),
+          AppFadeSlideIn(
+            delay: AppMotion.staggerDelay,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SeverityStatCard(
+                    label: 'উচ্চ',
+                    count: anomalyState.highSeverityCount,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _SeverityStatCard(
+                    label: 'মাঝারি',
+                    count: anomalyState.mediumSeverityCount,
+                    color: AppColors.warning,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _SeverityStatCard(
+                    label: 'কম',
+                    count: anomalyState.lowSeverityCount,
+                    color: context.appColors.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          for (final alert in activeAlerts) ...[
-            AnomalyAlertCard(alert: alert),
-            const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.cardGap),
+          AppFadeSlideIn(
+            delay: const Duration(milliseconds: 100),
+            child: AppSectionHeader(
+              title: 'অস্বাভাবিক খরচ সতর্কতা',
+              subtitle: activeAlerts.isEmpty
+                  ? 'কোনো সক্রিয় সতর্কতা নেই'
+                  : '${activeAlerts.length} টি সক্রিয় সতর্কতা',
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var i = 0; i < activeAlerts.length; i++) ...[
+            AppFadeSlideIn(
+              delay: Duration(
+                milliseconds: 120 + (AppMotion.staggerDelay.inMilliseconds * i),
+              ),
+              child: AnomalyAlertCard(alert: activeAlerts[i]),
+            ),
+            if (i != activeAlerts.length - 1)
+              const SizedBox(height: AppSpacing.sm),
           ],
-          if (dismissedAlerts.isNotEmpty)
+          if (dismissedAlerts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
             Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
                 title: Text(
-                  'Dismissed (${dismissedAlerts.length})',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  'বাদ দেওয়া সতর্কতা (${dismissedAlerts.length})',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
                 ),
                 children: [
-                  for (final alert in dismissedAlerts) ...[
-                    AnomalyAlertCard(alert: alert, isDismissed: true),
-                    const SizedBox(height: 10),
+                  const SizedBox(height: AppSpacing.sm),
+                  for (var i = 0; i < dismissedAlerts.length; i++) ...[
+                    AnomalyAlertCard(
+                      alert: dismissedAlerts[i],
+                      isDismissed: true,
+                    ),
+                    if (i != dismissedAlerts.length - 1)
+                      const SizedBox(height: AppSpacing.sm),
                   ],
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _AnomalyAppBar extends ConsumerWidget implements PreferredSizeWidget {
-  const _AnomalyAppBar();
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(anomalyProvider);
-    return AppBar(
-      title: const Text('অস্বাভাবিক খরচ'),
-      actions: [
-        IconButton(
-          onPressed: () => ref.read(anomalyProvider.notifier).detect(),
-          icon: const Icon(Icons.refresh_rounded),
-        ),
-        TextButton(
-          onPressed: state.activeAlerts.isEmpty
-              ? null
-              : () => ref.read(anomalyProvider.notifier).dismissAll(),
-          child: const Text('সব dismiss'),
-        ),
-      ],
-    );
-  }
-}
-
-class _SeverityChip extends StatelessWidget {
-  const _SeverityChip({
-    required this.count,
+class _SeverityStatCard extends StatelessWidget {
+  const _SeverityStatCard({
     required this.label,
+    required this.count,
     required this.color,
   });
 
-  final int count;
   final String label;
+  final int count;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.22)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$count',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+    return AppCard(
+      elevation: 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.statLabel.copyWith(
+              color: context.secondaryTextColor,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: color,
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text('$count', style: AppTextStyles.statValue.copyWith(color: color)),
+        ],
       ),
     );
   }
 }
 
-String _formatRelativeTime(DateTime lastDetected) {
-  final difference = DateTime.now().difference(lastDetected);
-  if (difference.inMinutes < 1) {
-    return 'এইমাত্র';
+String _formatRelativeTime(DateTime dateTime) {
+  final difference = DateTime.now().difference(dateTime);
+  if (difference.inMinutes < 60) {
+    return '${difference.inMinutes <= 0 ? 1 : difference.inMinutes} মিনিট আগে';
   }
-  if (difference.inHours < 1) {
-    return '${difference.inMinutes} মিনিট আগে';
+  if (difference.inHours < 24) {
+    return '${difference.inHours} ঘণ্টা আগে';
   }
-  if (difference.inDays < 1) {
-    return '${difference.inHours} ঘন্টা আগে';
-  }
-  return '${difference.inDays} দিন আগে';
+  return BanglaFormatters.fullDate(dateTime);
 }

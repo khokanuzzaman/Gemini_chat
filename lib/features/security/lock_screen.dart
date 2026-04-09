@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 import '../../core/security/biometric_provider.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/widgets.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key, required this.onUnlocked});
@@ -42,107 +43,106 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 24,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(20),
+        body: Container(
+          decoration: BoxDecoration(gradient: context.primaryGradient),
+          child: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.screenPadding),
+                child: AppFadeSlideIn(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 92,
+                          height: 92,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
-                            child: const Center(
-                              child: Text(
-                                '৳',
-                                style: TextStyle(
-                                  fontSize: 40,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              '৳',
+                              style: TextStyle(
+                                fontSize: 44,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'PocketPilot AI',
-                            style: theme.textTheme.titleLarge,
-                            textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'PocketPilot AI',
+                          style: AppTextStyles.displayMedium.copyWith(
+                            color: Colors.white,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'খুলতে verify করুন',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                            textAlign: TextAlign.center,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'আনলক করতে ফিঙ্গারপ্রিন্ট ব্যবহার করুন',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            color: Colors.white.withValues(alpha: 0.82),
                           ),
-                          const SizedBox(height: 48),
-                          ElevatedButton.icon(
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            _getBiometricIcon(),
+                            size: 42,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppActionButton(
+                            label: _getBiometricLabel(),
+                            icon: _getBiometricIcon(),
+                            fullWidth: true,
+                            isLoading: _isAuthenticating,
                             onPressed: _isAuthenticating ? null : _authenticate,
-                            icon: Icon(_getBiometricIcon()),
-                            label: Text(_getBiometricLabel()),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size(220, 52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
-                              ),
-                            ),
                           ),
-                          const SizedBox(height: 16),
-                          if (_showError)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: Text(
-                                _errorMessage,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.error,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          const SizedBox(height: 24),
+                        ),
+                        if (_showError) ...[
+                          const SizedBox(height: AppSpacing.md),
                           Text(
-                            'PIN দিয়েও unlock করা যাবে',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.4,
-                              ),
+                            _errorMessage,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: Colors.white.withValues(alpha: 0.92),
                             ),
                             textAlign: TextAlign.center,
                           ),
                         ],
-                      ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppActionButton(
+                          label: 'আবার চেষ্টা করুন',
+                          variant: AppActionButtonVariant.ghost,
+                          onPressed: _isAuthenticating ? null : _authenticate,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ),
@@ -163,14 +163,14 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   String _getBiometricLabel() {
     if (_availableBiometrics.contains(BiometricType.face)) {
-      return 'Face ID দিয়ে খুলুন';
+      return 'Face ID দিয়ে আনলক করুন';
     }
     if (_availableBiometrics.contains(BiometricType.fingerprint) ||
         _availableBiometrics.contains(BiometricType.strong) ||
         _availableBiometrics.contains(BiometricType.weak)) {
-      return 'Fingerprint দিয়ে খুলুন';
+      return 'Fingerprint দিয়ে আনলক করুন';
     }
-    return 'Unlock করুন';
+    return 'আনলক করুন';
   }
 
   Future<void> _authenticate() async {
@@ -194,7 +194,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         widget.onUnlocked();
         break;
       case BiometricAuthResult.failed:
-        _setError('Verify করা যায়নি');
+        _setError('ভেরিফাই করা যায়নি');
         break;
       case BiometricAuthResult.notAvailable:
         _setError('Biometric available নেই');
@@ -203,7 +203,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         _setError('Device এ biometric set করুন');
         break;
       case BiometricAuthResult.lockedOut:
-        _setError('অনেকবার fail — পরে চেষ্টা করুন');
+        _setError('অনেকবার fail হয়েছে, পরে চেষ্টা করুন');
         break;
     }
   }

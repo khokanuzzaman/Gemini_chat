@@ -54,6 +54,7 @@ const MessageModelSchema = CollectionSchema(
       type: IsarType.bool,
     ),
   },
+
   estimateSize: _messageModelEstimateSize,
   serialize: _messageModelSerialize,
   deserialize: _messageModelDeserialize,
@@ -76,10 +77,11 @@ const MessageModelSchema = CollectionSchema(
   },
   links: {},
   embeddedSchemas: {},
+
   getId: _messageModelGetId,
   getLinks: _messageModelGetLinks,
   attach: _messageModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _messageModelEstimateSize(

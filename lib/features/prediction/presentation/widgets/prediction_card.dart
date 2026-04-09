@@ -1,14 +1,11 @@
-// Feature: Prediction
-// Layer: Presentation
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/category_icon.dart';
+import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/prediction_entity.dart';
 import '../providers/prediction_provider.dart';
 
@@ -39,46 +36,37 @@ class _PredictionCardState extends ConsumerState<PredictionCard> {
     final state = ref.watch(predictionProvider);
 
     if (state.isLoading) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: const [
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'পূর্বাভাস তৈরি হচ্ছে...',
-                  style: AppTextStyles.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const AppFadeSlideIn(child: AppLoadingState.card(height: 160));
     }
 
     if (state.isStreaming) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+      return AppFadeSlideIn(
+        child: AppCard(
+          elevation: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('📈 পূর্বাভাস', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 8),
+              const AppSectionHeader(
+                title: 'মাসের শেষে পূর্বাভাস',
+                padding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppChip(
+                label: 'রিফ্রেশ হচ্ছে...',
+                color: context.appColors.primary,
+                selected: true,
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(
-                state.streamingText,
+                state.streamingText.isEmpty
+                    ? 'পূর্বাভাস তৈরি হচ্ছে...'
+                    : state.streamingText,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: context.secondaryTextColor,
                 ),
               ),
-              const SizedBox(height: 10),
-              const LinearProgressIndicator(),
+              const SizedBox(height: AppSpacing.md),
+              AppProgressBar(value: 0.6, color: context.appColors.primary),
             ],
           ),
         ),
@@ -87,410 +75,280 @@ class _PredictionCardState extends ConsumerState<PredictionCard> {
 
     final prediction = state.prediction;
     if (prediction == null) {
-      if (state.error != null) {
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.error_outline, color: AppColors.error),
-            title: Text(state.error!, style: AppTextStyles.bodyMedium),
-            trailing: TextButton(
-              onPressed: () => ref
-                  .read(predictionProvider.notifier)
-                  .loadPrediction(forceRefresh: true),
-              child: const Text('আবার চেষ্টা'),
-            ),
-          ),
-        );
+      if (state.error == null) {
+        return const SizedBox.shrink();
       }
-      return const SizedBox.shrink();
+      return AppFadeSlideIn(
+        child: AppErrorState(
+          title: 'পূর্বাভাস লোড হয়নি',
+          message: state.error,
+          onRetry: () => ref
+              .read(predictionProvider.notifier)
+              .loadPrediction(forceRefresh: true),
+        ),
+      );
     }
 
     final progress = prediction.predictedTotal <= 0
         ? 0.0
         : (prediction.currentTotal / prediction.predictedTotal).clamp(0.0, 1.0);
-    final compareColor = _compareColor(
-      prediction.predictedTotal,
-      prediction.lastMonthTotal,
-    );
-    final sortedCategories = prediction.categoryPredictions.entries.toList()
-      ..sort((first, second) => second.value.compareTo(first.value));
+    final isStale = state.fromCache;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.analytics_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'মাস শেষের পূর্বাভাস',
-                  style: AppTextStyles.titleMedium,
-                ),
-                const Spacer(),
-                if (state.fromCache)
-                  Tooltip(
-                    message:
-                        'Cache থেকে — ${_formatTime(prediction.generatedAt)}',
-                    child: Icon(
-                      Icons.history,
-                      size: 14,
-                      color: context.secondaryTextColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-                const SizedBox(width: 4),
-                InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () => ref
-                      .read(predictionProvider.notifier)
-                      .loadPrediction(forceRefresh: true),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.refresh,
-                      size: 16,
-                      color: context.secondaryTextColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (state.error != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  state.error!,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.warning,
-                  ),
+    return AppFadeSlideIn(
+      child: Stack(
+        children: [
+          AppCard(
+            elevation: 2,
+            padding: EdgeInsets.zero,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.appColors.primary.withValues(alpha: 0.08),
+                    context.cardBackgroundColor,
+                    context.cardBackgroundColor,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
-            Center(
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: AppSectionHeader(
+                          title: 'মাসের শেষে পূর্বাভাস',
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                      if (isStale)
+                        AppChip(
+                          label: 'রিফ্রেশ হচ্ছে...',
+                          color: AppColors.warning,
+                          selected: true,
+                          compact: true,
+                        ),
+                      const SizedBox(width: AppSpacing.sm),
+                      IconButton(
+                        onPressed: () => ref
+                            .read(predictionProvider.notifier)
+                            .loadPrediction(forceRefresh: true),
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          color: context.secondaryTextColor,
+                        ),
+                        tooltip: 'রিফ্রেশ',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
-                    '৳ ${_formatAmount(prediction.predictedTotal)}',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                    BanglaFormatters.currency(prediction.predictedTotal),
+                    style: AppTextStyles.heroAmount.copyWith(
+                      color: context.appColors.primary,
+                      fontSize: 28,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'মাস শেষে আনুমানিক মোট',
-                    style: AppTextStyles.bodySmall.copyWith(
+                    'এখন পর্যন্ত: ${BanglaFormatters.currency(prediction.currentTotal)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
                       color: context.secondaryTextColor,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppProgressBar(
+                    value: progress,
+                    color: context.appColors.primary,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Text(
+                        'আত্মবিশ্বাস: ${_confidencePercentage(prediction.confidence)}%',
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'আপডেট: ${_formatRelativeTime(prediction.generatedAt)}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MiniMetric(
+                          label: 'দৈনিক গড়',
+                          value: BanglaFormatters.currency(
+                            prediction.dailyAverage,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _MiniMetric(
+                          label: 'বাকি দিন',
+                          value:
+                              '${BanglaFormatters.count(prediction.daysRemaining)} দিন',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _MiniMetric(
+                          label: 'গত মাস',
+                          value: BanglaFormatters.currency(
+                            prediction.lastMonthTotal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (prediction.lastMonthTotal > 0) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _ComparisonHint(prediction: prediction),
+                  ],
+                  if (prediction.aiInsight.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: context.appColors.primary.withValues(
+                          alpha: 0.06,
+                        ),
+                        borderRadius: AppRadius.cardAll,
+                        border: Border.all(
+                          color: context.appColors.primary.withValues(
+                            alpha: 0.16,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('💡'),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              prediction.aiInsight,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: context.primaryTextColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _Badge(
-                  label: prediction.trend.label,
-                  color: prediction.trend.color,
-                  icon: prediction.trend.icon,
-                ),
-                const SizedBox(width: 8),
-                _Badge(
-                  label: prediction.confidence.label,
-                  color: prediction.confidence.color,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'এখন',
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.secondaryTextColor,
-                      ),
+          ),
+          if (isStale)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: context.isDarkMode ? 0.04 : 0.02,
                     ),
-                    const Spacer(),
-                    Text(
-                      'মাস শেষ',
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.secondaryTextColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final markerFraction = prediction.daysInMonth <= 0
-                        ? 0.0
-                        : (prediction.currentDay / prediction.daysInMonth)
-                              .clamp(0.0, 1.0);
-                    final markerLeft =
-                        (constraints.maxWidth - 2) * markerFraction;
-
-                    return Stack(
-                      children: [
-                        Container(
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: context.borderColor.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        FractionallySizedBox(
-                          widthFactor: progress,
-                          child: Container(
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: markerLeft,
-                          child: Container(
-                            width: 2,
-                            height: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      '৳${_formatAmount(prediction.currentTotal)} (এখন)',
-                      style: AppTextStyles.caption.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '৳${_formatAmount(prediction.predictedTotal)} (পূর্বাভাস)',
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.secondaryTextColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _MiniStat(
-                    label: 'দৈনিক গড়',
-                    value: '৳${prediction.dailyAverage.toStringAsFixed(0)}',
                   ),
-                ),
-                const _VerticalDivider(),
-                Expanded(
-                  child: _MiniStat(
-                    label: 'বাকি দিন',
-                    value: '${prediction.daysRemaining} দিন',
-                  ),
-                ),
-                const _VerticalDivider(),
-                Expanded(
-                  child: _MiniStat(
-                    label: 'গত মাস',
-                    value: '৳${_formatAmount(prediction.lastMonthTotal)}',
-                  ),
-                ),
-              ],
-            ),
-            if (prediction.lastMonthTotal > 0) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: compareColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      prediction.predictedTotal <= prediction.lastMonthTotal
-                          ? Icons.arrow_downward
-                          : Icons.arrow_upward,
-                      size: 14,
-                      color: compareColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'গত মাসের চেয়ে ৳${(prediction.predictedTotal - prediction.lastMonthTotal).abs().toStringAsFixed(0)} ${prediction.predictedTotal <= prediction.lastMonthTotal ? 'কম' : 'বেশি'} হওয়ার সম্ভাবনা',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: compareColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (sortedCategories.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Category পূর্বাভাস',
-                  style: AppTextStyles.titleMedium,
-                ),
-                children: sortedCategories
-                    .take(5)
-                    .map((entry) {
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          CategoryIcon.getIcon(entry.key),
-                          color: CategoryIcon.getColor(entry.key),
-                          size: 18,
-                        ),
-                        title: Text(entry.key, style: AppTextStyles.bodySmall),
-                        trailing: Text(
-                          '৳${entry.value.toStringAsFixed(0)}',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: context.primaryTextColor,
-                          ),
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-            ],
-            if (prediction.aiInsight.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.15),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('💡', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        prediction.aiInsight,
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'আপডেট: ${_formatTime(prediction.generatedAt)}',
-                style: AppTextStyles.caption.copyWith(
-                  color: context.secondaryTextColor,
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
-
-  String _formatAmount(double amount) {
-    if (amount >= 100000) {
-      return '${(amount / 100000).toStringAsFixed(1)}L';
-    }
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
-  }
-
-  Color _compareColor(double predicted, double lastMonth) {
-    return predicted <= lastMonth ? AppColors.success : AppColors.error;
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 60) {
-      return '${math.max(diff.inMinutes, 1)} মিনিট আগে';
-    }
-    if (diff.inHours < 24) {
-      return '${diff.inHours} ঘণ্টা আগে';
-    }
-    return DateFormat('dd MMM, hh:mm a').format(dateTime);
-  }
 }
 
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.color, this.icon});
+class _MiniMetric extends StatelessWidget {
+  const _MiniMetric({required this.label, required this.value});
 
   final String label;
-  final Color color;
-  final IconData? icon;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      decoration: BoxDecoration(
+        color: context.mutedSurfaceColor,
+        borderRadius: AppRadius.cardAll,
+      ),
+      child: Column(
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-          ],
           Text(
             label,
+            style: AppTextStyles.caption.copyWith(
+              color: context.secondaryTextColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            value,
             style: AppTextStyles.bodySmall.copyWith(
-              color: color,
+              color: context.primaryTextColor,
               fontWeight: FontWeight.w700,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComparisonHint extends StatelessWidget {
+  const _ComparisonHint({required this.prediction});
+
+  final PredictionEntity prediction;
+
+  @override
+  Widget build(BuildContext context) {
+    final compareColor = prediction.predictedTotal <= prediction.lastMonthTotal
+        ? AppColors.success
+        : AppColors.error;
+    final difference = (prediction.predictedTotal - prediction.lastMonthTotal)
+        .abs();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: compareColor.withValues(alpha: 0.08),
+        borderRadius: AppRadius.cardAll,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            prediction.predictedTotal <= prediction.lastMonthTotal
+                ? Icons.arrow_downward_rounded
+                : Icons.arrow_upward_rounded,
+            size: 16,
+            color: compareColor,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'গত মাসের তুলনায় ${BanglaFormatters.currency(difference)} ${prediction.predictedTotal <= prediction.lastMonthTotal ? 'কম' : 'বেশি'} হতে পারে',
+              style: AppTextStyles.bodySmall.copyWith(color: compareColor),
             ),
           ),
         ],
@@ -499,48 +357,21 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: context.secondaryTextColor,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppTextStyles.bodySmall.copyWith(
-            fontWeight: FontWeight.w700,
-            color: context.primaryTextColor,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
+int _confidencePercentage(PredictionConfidence confidence) {
+  return switch (confidence) {
+    PredictionConfidence.low => 45,
+    PredictionConfidence.medium => 70,
+    PredictionConfidence.high => 90,
+  };
 }
 
-class _VerticalDivider extends StatelessWidget {
-  const _VerticalDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 32,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: context.borderColor,
-    );
+String _formatRelativeTime(DateTime dateTime) {
+  final diff = DateTime.now().difference(dateTime);
+  if (diff.inMinutes < 60) {
+    return '${math.max(diff.inMinutes, 1)} মিনিট আগে';
   }
+  if (diff.inHours < 24) {
+    return '${diff.inHours} ঘণ্টা আগে';
+  }
+  return BanglaFormatters.fullDate(dateTime);
 }

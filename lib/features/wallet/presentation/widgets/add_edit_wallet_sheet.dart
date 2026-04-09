@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/wallet_entity.dart';
 import '../providers/wallet_provider.dart';
 
@@ -13,11 +14,15 @@ Future<void> showAddEditWalletSheet(
   BuildContext context, {
   WalletEntity? existingWallet,
 }) {
-  return showModalBottomSheet<void>(
+  return AppBottomSheet.show<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => AddEditWalletSheet(existingWallet: existingWallet),
+    title: existingWallet == null
+        ? 'ওয়ালেট যোগ করুন'
+        : 'ওয়ালেট সম্পাদনা করুন',
+    subtitle: existingWallet == null
+        ? 'নতুন ক্যাশ, ব্যাংক বা মোবাইল ওয়ালেট যোগ করুন'
+        : 'ওয়ালেটের তথ্য আপডেট করুন',
+    child: AddEditWalletSheet(existingWallet: existingWallet),
   );
 }
 
@@ -82,206 +87,194 @@ class _AddEditWalletSheetState extends ConsumerState<AddEditWalletSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
-    return SafeArea(
-      top: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: bottomInset + 16,
-        ),
-        child: Material(
-          color: context.cardBackgroundColor,
-          borderRadius: BorderRadius.circular(24),
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.borderColor,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppCard(
+            elevation: 1,
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: context.appColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isEditing ? 'ওয়ালেট সম্পাদনা' : 'নতুন ওয়ালেট',
-                    style: AppTextStyles.titleLarge,
+                  alignment: Alignment.center,
+                  child: Text(
+                    _emojiController.text,
+                    style: const TextStyle(fontSize: 28),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _isEditing
-                        ? 'নাম, ব্যালেন্স ও তথ্য আপডেট করুন'
-                        : 'ক্যাশ, মোবাইল ব্যাংকিং বা ব্যাংক ওয়ালেট যোগ করুন',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: context.secondaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  TextFormField(
-                    controller: _nameController,
-                    maxLength: 30,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'নাম',
-                      hintText: 'যেমন: Cash, bKash Personal',
-                    ),
-                    validator: (value) {
-                      final trimmed = value?.trim() ?? '';
-                      if (trimmed.isEmpty) {
-                        return 'ওয়ালেটের নাম দিন';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<WalletType>(
-                    initialValue: _selectedType,
-                    decoration: const InputDecoration(labelText: 'টাইপ'),
-                    items: WalletType.values
-                        .map(
-                          (type) => DropdownMenuItem<WalletType>(
-                            value: type,
-                            child: Text(type.labelBn),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: _handleTypeChanged,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emojiController,
-                    maxLength: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'ইমোজি',
-                      hintText: 'যেমন: 💵',
-                    ),
-                    onChanged: (value) {
-                      final trimmed = value.trim();
-                      _emojiCustomized =
-                          trimmed.isNotEmpty &&
-                          trimmed != _selectedType.defaultEmoji;
-                    },
-                    validator: (value) {
-                      if ((value?.trim() ?? '').isEmpty) {
-                        return 'ইমোজি দিন';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _initialBalanceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'প্রারম্ভিক ব্যালেন্স',
-                      prefixText: '৳ ',
-                    ),
-                    validator: (value) {
-                      final amount = _parseAmount(value);
-                      if (amount == null || amount < 0) {
-                        return 'সঠিক ব্যালেন্স দিন';
-                      }
-                      return null;
-                    },
-                  ),
-                  if (_isEditing) ...[
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _currentBalanceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'বর্তমান ব্যালেন্স',
-                        prefixText: '৳ ',
-                      ),
-                      validator: (value) {
-                        final amount = _parseAmount(value);
-                        if (amount == null) {
-                          return 'সঠিক বর্তমান ব্যালেন্স দিন';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _accountNumberController,
-                    maxLength: 4,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'একাউন্ট নম্বর (optional)',
-                      helperText: 'শেষ ৪ ডিজিট',
-                    ),
-                    validator: (value) {
-                      final trimmed = value?.trim() ?? '';
-                      if (trimmed.isNotEmpty && trimmed.length > 4) {
-                        return 'শুধু শেষ ৪ ডিজিট দিন';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _noteController,
-                    maxLength: 100,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'নোট (optional)',
-                      hintText: 'যেমন: ব্যক্তিগত খরচ, স্যালারি একাউন্ট',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _isSaving
-                              ? null
-                              : () => Navigator.of(context).pop(),
-                          child: const Text('বাদ দিন'),
+                      Text(
+                        _nameController.text.trim().isEmpty
+                            ? (_isEditing ? 'ওয়ালেট সম্পাদনা' : 'নতুন ওয়ালেট')
+                            : _nameController.text.trim(),
+                        style: AppTextStyles.titleLarge.copyWith(
+                          color: context.primaryTextColor,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _isSaving ? null : _save,
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(_isEditing ? 'Update করুন' : 'Save করুন'),
+                      const SizedBox(height: 4),
+                      Text(
+                        _selectedType.labelBn,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.secondaryTextColor,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.sectionGap),
+          TextFormField(
+            controller: _nameController,
+            maxLength: 30,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'নাম',
+              hintText: 'যেমন: Cash, bKash Personal',
+            ),
+            validator: (value) {
+              final trimmed = value?.trim() ?? '';
+              if (trimmed.isEmpty) {
+                return 'ওয়ালেটের নাম দিন';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<WalletType>(
+            initialValue: _selectedType,
+            decoration: const InputDecoration(labelText: 'টাইপ'),
+            items: WalletType.values
+                .map(
+                  (type) => DropdownMenuItem<WalletType>(
+                    value: type,
+                    child: Text(type.labelBn),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: _handleTypeChanged,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _emojiController,
+            maxLength: 2,
+            decoration: const InputDecoration(
+              labelText: 'ইমোজি',
+              hintText: 'যেমন: 💵',
+            ),
+            onChanged: (value) {
+              final trimmed = value.trim();
+              _emojiCustomized =
+                  trimmed.isNotEmpty && trimmed != _selectedType.defaultEmoji;
+              setState(() {});
+            },
+            validator: (value) {
+              if ((value?.trim() ?? '').isEmpty) {
+                return 'ইমোজি দিন';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _initialBalanceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'প্রারম্ভিক ব্যালেন্স',
+              prefixText: '৳ ',
+            ),
+            validator: (value) {
+              final amount = _parseAmount(value);
+              if (amount == null || amount < 0) {
+                return 'সঠিক ব্যালেন্স দিন';
+              }
+              return null;
+            },
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _currentBalanceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'বর্তমান ব্যালেন্স',
+                prefixText: '৳ ',
+              ),
+              validator: (value) {
+                final amount = _parseAmount(value);
+                if (amount == null) {
+                  return 'সঠিক বর্তমান ব্যালেন্স দিন';
+                }
+                return null;
+              },
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _accountNumberController,
+            maxLength: 4,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'একাউন্ট নম্বর (ঐচ্ছিক)',
+              helperText: 'শেষ ৪ ডিজিট',
+            ),
+            validator: (value) {
+              final trimmed = value?.trim() ?? '';
+              if (trimmed.isNotEmpty && trimmed.length > 4) {
+                return 'শুধু শেষ ৪ ডিজিট দিন';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _noteController,
+            maxLength: 100,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'নোট (ঐচ্ছিক)',
+              hintText: 'যেমন: ব্যক্তিগত খরচ, স্যালারি একাউন্ট',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sectionGap),
+          Row(
+            children: [
+              Expanded(
+                child: AppActionButton(
+                  label: 'বাদ দিন',
+                  variant: AppActionButtonVariant.ghost,
+                  onPressed: _isSaving
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: AppActionButton(
+                  label: _isEditing ? 'আপডেট করুন' : 'সংরক্ষণ করুন',
+                  isLoading: _isSaving,
+                  onPressed: _isSaving ? null : _save,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

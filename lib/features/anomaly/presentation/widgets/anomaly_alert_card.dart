@@ -1,15 +1,9 @@
-// Feature: Anomaly
-// Layer: Presentation
-
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
-import '../../../../core/utils/category_icon.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/anomaly_alert.dart';
 import '../providers/anomaly_provider.dart';
 
@@ -25,131 +19,110 @@ class AnomalyAlertCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final severityColor = alert.severity.color;
-    final textTheme = Theme.of(context).textTheme;
+    final severityColor = _severityColor(context, alert.severity);
 
     return Opacity(
-      opacity: isDismissed ? 0.58 : 1,
-      child: Card(
+      opacity: isDismissed ? 0.55 : 1,
+      child: AppCard(
+        elevation: 2,
+        padding: EdgeInsets.zero,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: severityColor.withValues(alpha: 0.36),
-            ),
+            border: Border(left: BorderSide(color: severityColor, width: 4)),
           ),
+          padding: const EdgeInsets.all(AppSpacing.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.08),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(15),
+              Row(
+                children: [
+                  AppChip(
+                    label: _severityLabel(alert.severity),
+                    color: severityColor,
+                    selected: true,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(alert.severity.icon, color: severityColor, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _typeLabel(alert.type),
-                        style: textTheme.titleSmall?.copyWith(
-                          color: severityColor,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: severityColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _categoryEmoji(alert.category),
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      _typeLabel(alert.type),
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: context.primaryTextColor,
                       ),
                     ),
-                    _SeverityBadge(severity: alert.severity),
-                    const SizedBox(width: 8),
-                    if (!isDismissed)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: () {
-                          ref.read(anomalyProvider.notifier).dismiss(alert.id);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: context.secondaryTextColor,
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                alert.message,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: context.primaryTextColor,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (alert.category != 'সব' || alert.relatedDate != null) ...[
-                      Row(
-                        children: [
-                          if (alert.category != 'সব')
-                            _CategoryBadge(category: alert.category),
-                          const Spacer(),
-                          if (alert.relatedDate != null)
-                            Text(
-                              DateFormat('dd MMM', 'bn').format(
-                                alert.relatedDate!,
-                              ),
-                              style: textTheme.bodySmall,
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    Text(alert.message, style: textTheme.bodyMedium),
-                    const SizedBox(height: 14),
-                    _ComparisonBar(
-                      current: alert.currentAmount,
-                      normal: alert.normalAmount,
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ComparisonMetric(
+                      label: 'স্বাভাবিক',
+                      amount: alert.normalAmount,
+                      color: context.secondaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _ComparisonMetric(
+                      label: 'এই মাসে',
+                      amount: alert.currentAmount,
                       color: severityColor,
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _AmountMetric(
-                          label: 'স্বাভাবিক',
-                          value: BanglaFormatters.currency(alert.normalAmount),
-                        ),
-                        const SizedBox(width: 24),
-                        _AmountMetric(
-                          label: 'এখন',
-                          value: BanglaFormatters.currency(alert.currentAmount),
-                          valueColor: severityColor,
-                          emphasize: true,
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: severityColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '+${((alert.ratio - 1) * 100).toStringAsFixed(0)}%',
-                            style: textTheme.titleSmall?.copyWith(
-                              color: severityColor,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppProgressBar(
+                value: (alert.ratio / mathMax(alert.ratio, 2)).clamp(0.0, 1.0),
+                color: severityColor,
+                showLabel: true,
+                label:
+                    'পরিবর্তন ${(alert.ratio - 1) * 100 >= 0 ? '+' : ''}${((alert.ratio - 1) * 100).toStringAsFixed(0)}%',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      alert.relatedDate == null
+                          ? _categoryDisplayName(alert.category)
+                          : '${_categoryDisplayName(alert.category)} · ${BanglaFormatters.dayMonth(alert.relatedDate!)}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  if (!isDismissed)
+                    AppActionButton(
+                      label: 'বাদ দিন',
+                      variant: AppActionButtonVariant.ghost,
+                      size: AppActionButtonSize.small,
+                      onPressed: () =>
+                          ref.read(anomalyProvider.notifier).dismiss(alert.id),
+                    ),
+                ],
               ),
             ],
           ),
@@ -157,149 +130,109 @@ class AnomalyAlertCard extends ConsumerWidget {
       ),
     );
   }
-
-  String _typeLabel(AnomalyType type) {
-    return switch (type) {
-      AnomalyType.categorySpike => 'Category তে বেশি খরচ',
-      AnomalyType.largeTransaction => 'বড় transaction',
-      AnomalyType.dailySpike => 'একদিনে বেশি খরচ',
-      AnomalyType.frequencyIncrease => 'বেশি transaction',
-    };
-  }
 }
 
-class _SeverityBadge extends StatelessWidget {
-  const _SeverityBadge({required this.severity});
-
-  final AnomalySeverity severity;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = severity.color;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        severity.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryBadge extends StatelessWidget {
-  const _CategoryBadge({required this.category});
-
-  final String category;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = CategoryIcon.getColor(category);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CategoryIcon.getIcon(category), size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            category,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AmountMetric extends StatelessWidget {
-  const _AmountMetric({
+class _ComparisonMetric extends StatelessWidget {
+  const _ComparisonMetric({
     required this.label,
-    required this.value,
-    this.valueColor,
-    this.emphasize = false,
-  });
-
-  final String label;
-  final String value;
-  final Color? valueColor;
-  final bool emphasize;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: (emphasize ? textTheme.titleMedium : textTheme.bodyMedium)
-              ?.copyWith(
-                color: valueColor,
-                fontWeight: emphasize ? FontWeight.w700 : null,
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ComparisonBar extends StatelessWidget {
-  const _ComparisonBar({
-    required this.current,
-    required this.normal,
+    required this.amount,
     required this.color,
   });
 
-  final double current;
-  final double normal;
+  final String label;
+  final double amount;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = max(current, normal);
-    final progress = maxValue <= 0 ? 0.0 : (current / maxValue).clamp(0.0, 1.0);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: 1,
-            minHeight: 10,
-            backgroundColor: context.borderColor.withValues(alpha: 0.35),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              context.borderColor.withValues(alpha: 0.6),
-            ),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: context.secondaryTextColor,
           ),
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 10,
-            backgroundColor: Colors.transparent,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          BanglaFormatters.currency(amount),
+          style: AppTextStyles.titleMedium.copyWith(color: color),
         ),
       ],
     );
+  }
+}
+
+Color _severityColor(BuildContext context, AnomalySeverity severity) {
+  return switch (severity) {
+    AnomalySeverity.high => AppColors.error,
+    AnomalySeverity.medium => AppColors.warning,
+    AnomalySeverity.low => context.appColors.primary,
+  };
+}
+
+String _severityLabel(AnomalySeverity severity) {
+  return switch (severity) {
+    AnomalySeverity.high => 'উচ্চ',
+    AnomalySeverity.medium => 'মাঝারি',
+    AnomalySeverity.low => 'কম',
+  };
+}
+
+String _typeLabel(AnomalyType type) {
+  return switch (type) {
+    AnomalyType.categorySpike => 'ক্যাটাগরি স্পাইক',
+    AnomalyType.largeTransaction => 'বড় লেনদেন',
+    AnomalyType.dailySpike => 'দৈনিক স্পাইক',
+    AnomalyType.frequencyIncrease => 'লেনদেন বেড়েছে',
+  };
+}
+
+double mathMax(double first, double second) => first > second ? first : second;
+
+String _categoryEmoji(String category) {
+  switch (category.trim().toLowerCase()) {
+    case 'food':
+    case 'খাবার':
+      return '🍽️';
+    case 'transport':
+    case 'যাতায়াত':
+      return '🛺';
+    case 'shopping':
+    case 'কেনাকাটা':
+      return '🛍️';
+    case 'healthcare':
+    case 'স্বাস্থ্য':
+      return '🩺';
+    case 'bill':
+    case 'bills':
+    case 'বিল':
+      return '💡';
+    case 'entertainment':
+    case 'বিনোদন':
+      return '🎬';
+    default:
+      return '💸';
+  }
+}
+
+String _categoryDisplayName(String category) {
+  switch (category.trim().toLowerCase()) {
+    case 'food':
+      return 'খাবার';
+    case 'transport':
+      return 'যাতায়াত';
+    case 'shopping':
+      return 'কেনাকাটা';
+    case 'healthcare':
+      return 'স্বাস্থ্য';
+    case 'bill':
+    case 'bills':
+      return 'বিল';
+    case 'entertainment':
+      return 'বিনোদন';
+    default:
+      return category;
   }
 }

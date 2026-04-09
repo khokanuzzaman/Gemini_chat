@@ -9,6 +9,7 @@ class AppPreferences {
   static const defaultCategoryKey = 'default_category';
   static const currencySymbolKey = 'currency_symbol';
   static const dateFormatKey = 'date_format';
+  static const aiGuidePromptSeenKey = 'ai_guide_prompt_seen';
   static const _activeWalletIdKey = 'active_wallet_id';
 
   static Future<SharedPreferences> get _prefs async =>
@@ -60,6 +61,14 @@ class AppPreferences {
 
   static Future<void> setDateFormat(String value) async {
     await (await _prefs).setString(dateFormatKey, value);
+  }
+
+  static Future<bool> isAiGuidePromptSeen() async {
+    return (await _prefs).getBool(aiGuidePromptSeenKey) ?? false;
+  }
+
+  static Future<void> setAiGuidePromptSeen(bool value) async {
+    await (await _prefs).setBool(aiGuidePromptSeenKey, value);
   }
 
   static Future<int?> activeWalletId() async {

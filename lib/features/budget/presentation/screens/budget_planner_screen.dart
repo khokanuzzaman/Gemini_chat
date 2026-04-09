@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/budget_plan_entity.dart';
 import '../providers/budget_provider.dart';
 import '../widgets/budget_dashboard.dart';
@@ -34,44 +35,47 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
     _syncIncomeInput(budgetState);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Budget Planner'),
-        actions: [
-          if (activeBudget != null && !budgetState.isGenerating)
-            IconButton(
-              onPressed: budgetState.allBudgets.isEmpty
-                  ? null
-                  : () => _showHistorySheet(context, budgetState),
-              icon: const Icon(Icons.history),
-              tooltip: 'Budget history',
-            ),
-          if (activeBudget != null && !budgetState.isGenerating)
-            IconButton(
-              onPressed: () {
-                ref
-                    .read(budgetProvider.notifier)
-                    .setIncome(activeBudget.monthlyIncome);
-                ref
-                    .read(budgetProvider.notifier)
-                    .setRule(activeBudget.budgetRule);
-                setState(() {
-                  _incomeController.text = activeBudget.monthlyIncome
-                      .toStringAsFixed(0);
-                  _showGenerationForm = true;
-                });
-              },
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Re-generate',
-            ),
-        ],
-      ),
+    return AppPageScaffold(
+      title: 'বাজেট প্ল্যানার',
+      actions: [
+        if (activeBudget != null && !budgetState.isGenerating)
+          IconButton(
+            onPressed: budgetState.allBudgets.isEmpty
+                ? null
+                : () => _showHistorySheet(context, budgetState),
+            icon: const Icon(Icons.history_rounded),
+            tooltip: 'বাজেট ইতিহাস',
+          ),
+        if (activeBudget != null && !budgetState.isGenerating)
+          IconButton(
+            onPressed: () {
+              ref
+                  .read(budgetProvider.notifier)
+                  .setIncome(activeBudget.monthlyIncome);
+              ref
+                  .read(budgetProvider.notifier)
+                  .setRule(activeBudget.budgetRule);
+              setState(() {
+                _incomeController.text = activeBudget.monthlyIncome
+                    .toStringAsFixed(0);
+                _showGenerationForm = true;
+              });
+            },
+            icon: const Icon(Icons.auto_awesome_rounded),
+            tooltip: 'নতুন প্ল্যান',
+          ),
+      ],
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
+        duration: AppMotion.fast,
         child: budgetState.isGenerating
             ? _GeneratingView(streamingText: budgetState.streamingText)
             : budgetState.isLoading && activeBudget == null && !showForm
-            ? const Center(child: CircularProgressIndicator())
+            ? const SingleChildScrollView(
+                key: ValueKey('budget-loading'),
+                physics: AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(AppSpacing.screenPadding),
+                child: AppLoadingState.card(height: 240),
+              )
             : showForm
             ? _BudgetSetupForm(
                 key: const ValueKey('budget_form'),
@@ -160,105 +164,53 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     BuildContext context,
     BudgetState budgetState,
   ) async {
-    await showModalBottomSheet<void>(
+    await AppBottomSheet.show<void>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Budget ইতিহাস',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: budgetState.allBudgets.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final budget = budgetState.allBudgets[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: budget.isActive
-                              ? Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.12)
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.outline.withValues(alpha: 0.18),
-                          child: Icon(
-                            Icons.account_balance_wallet_outlined,
-                            color: budget.isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : context.secondaryTextColor,
-                            size: 18,
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${BanglaFormatters.currency(budget.monthlyIncome)} আয়',
-                              ),
-                            ),
-                            if (budget.isActive)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  'চলমান',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          '${budget.budgetRule.label} · ${DateFormat('dd MMM yyyy').format(budget.createdAt)}',
-                        ),
-                        trailing: budget.isActive
-                            ? null
-                            : TextButton(
-                                onPressed: () async {
-                                  await ref
-                                      .read(budgetProvider.notifier)
-                                      .restoreBudget(budget.id);
-                                  if (!sheetContext.mounted) {
-                                    return;
-                                  }
-                                  Navigator.of(sheetContext).pop();
-                                },
-                                child: const Text('পুনরায় চালু'),
-                              ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+      title: 'বাজেট ইতিহাস',
+      child: Column(
+        children: [
+          for (
+            var index = 0;
+            index < budgetState.allBudgets.length;
+            index++
+          ) ...[
+            AppCard(
+              elevation: 1,
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: EdgeInsets.zero,
+              child: AppListTile(
+                leadingIcon: Icons.account_balance_wallet_outlined,
+                leadingColor: budgetState.allBudgets[index].isActive
+                    ? context.appColors.primary
+                    : context.secondaryTextColor,
+                title:
+                    '${budgetState.allBudgets[index].budgetRule.label} · ${DateFormat('dd MMM yyyy').format(budgetState.allBudgets[index].createdAt)}',
+                subtitle:
+                    '${BanglaFormatters.currency(budgetState.allBudgets[index].monthlyIncome)} আয়',
+                trailing: budgetState.allBudgets[index].isActive
+                    ? AppChip(
+                        label: 'চলমান',
+                        color: context.appColors.primary,
+                        compact: true,
+                      )
+                    : AppActionButton(
+                        label: 'চালু করুন',
+                        size: AppActionButtonSize.small,
+                        onPressed: () async {
+                          await ref
+                              .read(budgetProvider.notifier)
+                              .restoreBudget(budgetState.allBudgets[index].id);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                        },
+                      ),
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ],
+      ),
     );
   }
 
@@ -267,18 +219,19 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('নতুন Budget তৈরি করবেন?'),
+          title: const Text('নতুন বাজেট তৈরি করবেন?'),
           content: const Text(
-            'নতুন AI budget তৈরি হলে আগের plan history-তে থাকবে, কিন্তু active plan বদলে যাবে।',
+            'নতুন AI বাজেট তৈরি হলে আগের প্ল্যান history-তে থাকবে, কিন্তু active plan বদলে যাবে।',
           ),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'বাদ দিন',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('বাদ দিন'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'চালিয়ে যান',
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('চালিয়ে যান'),
             ),
           ],
         );
@@ -319,184 +272,133 @@ class _BudgetSetupForm extends StatelessWidget {
 
     return SingleChildScrollView(
       key: const ValueKey('budget_setup_form'),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
+      child: AppStaggeredList(
         children: [
-          Center(
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+          AppHeroCard(
+            label: 'AI বাজেট প্ল্যানার',
+            amount: incomeInput != null && incomeInput! > 0
+                ? '৳ ${incomeInput!.toStringAsFixed(0)}'
+                : '৳ ০',
+            subtitle: 'আয় দিন, নিয়ম বেছে নিন, তারপর AI বাজেট বানান',
+            icon: Icons.auto_awesome_rounded,
+            gradient: AppGradients.primary,
+          ),
+          AppCard(
+            elevation: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppSectionHeader(
+                  padding: EdgeInsets.zero,
+                  title: 'মাসিক আয়',
+                  subtitle: 'আপনার মাসিক ইনকাম লিখুন',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: incomeController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.heroAmount.copyWith(
+                    color: context.primaryTextColor,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '৳ ৩০,০০০',
+                    prefixText: '৳ ',
+                    filled: true,
+                    fillColor: context.mutedSurfaceColor,
+                    border: OutlineInputBorder(
+                      borderRadius: const BorderRadius.all(AppRadius.input),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: onIncomeChanged,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: presets
+                      .map(
+                        (amount) => AppChip(
+                          label: '৳${(amount / 1000).toStringAsFixed(0)}K',
+                          selected: incomeInput == amount,
+                          onTap: () => onSelectPreset(amount.toDouble()),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'AI Budget Planner',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'আপনার আয় দিন, AI আপনার খরচের ধরন\nবিশ্লেষণ করে সেরা budget বানাবে।',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
-          ),
-          const SizedBox(height: 32),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'আপনার মাসিক আয়',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: incomeController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'আয়ের পরিমাণ',
-                      prefixText: '৳ ',
-                    ),
-                    onChanged: onIncomeChanged,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: presets
-                        .map(
-                          (amount) => OutlinedButton(
-                            onPressed: () => onSelectPreset(amount.toDouble()),
-                            child: Text('৳${amount ~/ 1000}K'),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Budget নিয়ম',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 12),
-                  ...BudgetRule.values.map(
-                    (rule) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: InkWell(
-                        onTap: () => onSelectRule(rule),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Ink(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: selectedRule == rule
-                                  ? Theme.of(context).colorScheme.primary
-                                  : context.borderColor,
+          AppCard(
+            elevation: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppSectionHeader(
+                  padding: EdgeInsets.zero,
+                  title: 'বাজেট নিয়ম',
+                  subtitle: 'কোন rule দিয়ে ভাগ করবেন তা বেছে নিন',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Column(
+                  children: BudgetRule.values
+                      .map(
+                        (rule) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: AppCard(
+                            elevation: 1,
+                            padding: EdgeInsets.zero,
+                            child: AppListTile(
+                              leadingIcon: selectedRule == rule
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              leadingColor: selectedRule == rule
+                                  ? context.appColors.primary
+                                  : context.secondaryTextColor,
+                              title: rule.label,
+                              subtitle: rule.description,
+                              trailing: selectedRule == rule
+                                  ? AppChip(
+                                      label: 'নির্বাচিত',
+                                      color: context.appColors.primary,
+                                      compact: true,
+                                    )
+                                  : null,
+                              onTap: () => onSelectRule(rule),
                             ),
-                            color: selectedRule == rule
-                                ? Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.06)
-                                : Colors.transparent,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                selectedRule == rule
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_off,
-                                color: selectedRule == rule
-                                    ? Theme.of(context).colorScheme.primary
-                                    : context.secondaryTextColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(rule.label),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      rule.description,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: context.secondaryTextColor,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
+          if (error != null)
+            AppErrorState(
+              title: 'বাজেট তৈরি করা যাচ্ছে না',
+              message: error,
+              compact: true,
+            ),
+          AppActionButton(
+            label: 'বাজেট সেভ করুন',
+            icon: Icons.auto_awesome_rounded,
+            fullWidth: true,
             onPressed: incomeInput != null && incomeInput! > 0
                 ? onGenerate
                 : null,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('AI দিয়ে Budget বানান'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
           ),
-          if (hasExistingBudget && onCancel != null) ...[
-            const SizedBox(height: 10),
-            OutlinedButton(
+          if (hasExistingBudget && onCancel != null)
+            AppActionButton(
+              label: 'চলমান বাজেটে ফিরে যান',
+              variant: AppActionButtonVariant.ghost,
+              fullWidth: true,
               onPressed: onCancel,
-              child: const Text('চলমান Budget এ ফিরে যান'),
             ),
-          ],
-          if (error != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -514,46 +416,73 @@ class _GeneratingView extends StatelessWidget {
         ? '${streamingText.substring(0, 220)}...'
         : streamingText;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 24),
-            Text(
-              'AI বিশ্লেষণ করছে...',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'আপনার খরচের ধরন দেখে\nসেরা budget তৈরি হচ্ছে',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.secondaryTextColor,
-              ),
-            ),
-            if (preview.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.borderColor),
+    return SingleChildScrollView(
+      key: const ValueKey('budget-generating'),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
+      child: Column(
+        children: [
+          AppCard(
+            elevation: 2,
+            child: Column(
+              children: [
+                AppPulse(
+                  minScale: 0.9,
+                  maxScale: 1.05,
+                  duration: const Duration(milliseconds: 900),
+                  child: const AppLoadingState.card(height: 180),
                 ),
-                child: Text(
-                  preview,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'AI বাজেট তৈরি করছে...',
+                  style: AppTextStyles.titleLarge.copyWith(
+                    color: context.primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'আপনার খরচের ধরন বিশ্লেষণ করে প্ল্যান বানানো হচ্ছে',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMedium.copyWith(
                     color: context.secondaryTextColor,
                   ),
                 ),
+              ],
+            ),
+          ),
+          if (preview.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sectionGap),
+            AppCard(
+              elevation: 1,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: context.appColors.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 18,
+                      color: context.appColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      preview,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

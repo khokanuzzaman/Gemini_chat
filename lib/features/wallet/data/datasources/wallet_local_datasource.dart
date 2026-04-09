@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/wallet_model.dart';
 import '../../domain/entities/wallet_defaults.dart';

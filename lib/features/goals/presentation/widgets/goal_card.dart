@@ -1,10 +1,8 @@
-// Feature: Goals
-// Layer: Presentation
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/goal_entity.dart';
 
 class GoalCard extends StatelessWidget {
@@ -31,231 +29,196 @@ class GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor = goal.isOnTrack ? AppColors.success : AppColors.warning;
-    final badgeLabel = goal.isOnTrack ? '✓ ঠিকঠাক' : '⚠ পিছিয়ে';
+    final statusColor = cancelled
+        ? context.secondaryTextColor
+        : achieved
+        ? AppColors.success
+        : context.appColors.primary;
+    final statusLabel = cancelled
+        ? 'বাতিল'
+        : achieved
+        ? 'সম্পন্ন'
+        : 'চলমান';
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    return AppCard(
+      elevation: 2,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(goal.emoji, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(goal.title, style: AppTextStyles.titleMedium),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 12,
-                              color: context.secondaryTextColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${goal.daysRemaining} দিন বাকি',
-                              style: AppTextStyles.caption.copyWith(
-                                color: goal.daysRemaining < 30
-                                    ? AppColors.warning
-                                    : context.secondaryTextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!achieved && !cancelled)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        badgeLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: badgeColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  if (cancelled)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.borderColor.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'বাতিল',
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.secondaryTextColor,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'সংরক্ষিত',
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.secondaryTextColor,
-                        ),
-                      ),
-                      Text(
-                        BanglaFormatters.currency(goal.savedAmount),
-                        style: AppTextStyles.titleLarge.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'লক্ষ্যমাত্রা',
-                        style: AppTextStyles.caption.copyWith(
-                          color: context.secondaryTextColor,
-                        ),
-                      ),
-                      Text(
-                        BanglaFormatters.currency(goal.targetAmount),
-                        style: AppTextStyles.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: goal.progressPercentage / 100,
-                  backgroundColor: context.borderColor.withValues(alpha: 0.3),
-                  color: goal.statusColor,
-                  minHeight: 8,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
                 ),
+                alignment: Alignment.center,
+                child: Text(goal.emoji, style: const TextStyle(fontSize: 24)),
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    '${goal.progressPercentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: goal.statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'মাসে ৳${goal.requiredMonthlySaving.toStringAsFixed(0)} দরকার',
-                    style: AppTextStyles.caption.copyWith(
-                      color: context.secondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (!achieved && !cancelled)
-                Row(
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onAddSaving,
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('টাকা যোগ করুন'),
+                    Text(
+                      goal.title,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: context.primaryTextColor,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      style: IconButton.styleFrom(
-                        side: BorderSide(color: context.borderColor),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${BanglaFormatters.count(goal.daysRemaining)} দিন বাকি',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: goal.daysRemaining < 30
+                            ? AppColors.warning
+                            : context.secondaryTextColor,
                       ),
-                    ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'cancel') {
-                          onCancel?.call();
-                        } else if (value == 'delete') {
-                          onDelete?.call();
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        if (onCancel != null)
-                          const PopupMenuItem(
-                            value: 'cancel',
-                            child: Text('লক্ষ্য বাতিল করুন'),
-                          ),
-                        if (onDelete != null)
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Text('মুছুন'),
-                          ),
-                      ],
                     ),
                   ],
                 ),
-              if (achieved)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '🎉 লক্ষ্য পূরণ হয়েছে!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.success,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              if (cancelled)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('মুছুন'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                    ),
-                  ),
-                ),
+              ),
+              AppChip(label: statusLabel, color: statusColor, compact: true),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.md),
+          AppProgressBar(
+            value: goal.progressPercentage / 100,
+            color: statusColor,
+            showLabel: true,
+            label: 'অগ্রগতি',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: BanglaFormatters.currency(goal.savedAmount),
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                      TextSpan(
+                        text:
+                            ' / ${BanglaFormatters.currency(goal.targetAmount)}',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Text(
+                'মাসে ${BanglaFormatters.currency(goal.requiredMonthlySaving)}',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+              ),
+            ],
+          ),
+          if (!achieved && !cancelled) ...[
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: AppActionButton(
+                    label: 'সঞ্চয় যোগ',
+                    icon: Icons.add_rounded,
+                    variant: AppActionButtonVariant.secondary,
+                    onPressed: onAddSaving,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppActionButton(
+                    label: 'সম্পাদনা',
+                    icon: Icons.edit_outlined,
+                    variant: AppActionButtonVariant.ghost,
+                    onPressed: onEdit,
+                  ),
+                ),
+                if (onCancel != null || onDelete != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'cancel') {
+                        onCancel?.call();
+                      }
+                      if (value == 'delete') {
+                        onDelete?.call();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (onCancel != null)
+                        const PopupMenuItem<String>(
+                          value: 'cancel',
+                          child: Text('লক্ষ্য বাতিল করুন'),
+                        ),
+                      if (onDelete != null)
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          child: Text('মুছুন'),
+                        ),
+                    ],
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: context.mutedSurfaceColor,
+                        borderRadius: AppRadius.buttonAll,
+                        border: Border.all(color: context.borderColor),
+                      ),
+                      child: Icon(
+                        Icons.more_horiz_rounded,
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          if (achieved) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: AppRadius.cardAll,
+              ),
+              child: Text(
+                'লক্ষ্য পূরণ হয়েছে',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          if (cancelled && onDelete != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppActionButton(
+                label: 'মুছুন',
+                icon: Icons.delete_outline_rounded,
+                size: AppActionButtonSize.small,
+                variant: AppActionButtonVariant.danger,
+                onPressed: onDelete,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

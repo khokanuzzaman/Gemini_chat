@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/budget_plan_model.dart';
 import '../../domain/entities/budget_plan_entity.dart';

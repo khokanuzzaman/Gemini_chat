@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/income_record_model.dart';
 
@@ -13,10 +13,7 @@ class IncomeLocalDataSource {
 
   Future<List<IncomeRecordModel>> getThisMonthIncome() {
     final now = DateTime.now();
-    return _getIncomeInRange(
-      DateTime(now.year, now.month, 1),
-      _endOfDay(now),
-    );
+    return _getIncomeInRange(DateTime(now.year, now.month, 1), _endOfDay(now));
   }
 
   Future<List<IncomeRecordModel>> getLastMonthIncome() {
@@ -101,15 +98,9 @@ class IncomeLocalDataSource {
     return true;
   }
 
-  Future<double> getTotalIncomeForRange(
-    DateTime start,
-    DateTime end,
-  ) async {
+  Future<double> getTotalIncomeForRange(DateTime start, DateTime end) async {
     final income = await getIncomeByDateRange(start, end);
-    return income.fold<double>(
-      0,
-      (sum, entry) => sum + entry.amount,
-    );
+    return income.fold<double>(0, (sum, entry) => sum + entry.amount);
   }
 
   Future<Map<String, double>> getIncomeBySourceTotals(

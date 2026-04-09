@@ -3,7 +3,7 @@
 
 import 'dart:convert';
 
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../features/split/domain/entities/split_bill_entity.dart';
 

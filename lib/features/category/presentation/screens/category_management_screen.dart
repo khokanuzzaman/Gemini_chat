@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/category_icon.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/category_entity.dart';
 import '../providers/category_provider.dart';
 import '../widgets/add_edit_category_sheet.dart';
@@ -22,27 +23,22 @@ class CategoryManagementScreen extends ConsumerWidget {
         if (!category.isDefault) category,
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-        actions: [
-          IconButton(
-            onPressed: () => showAddEditCategorySheet(context),
-            icon: const Icon(Icons.add_rounded),
-          ),
-        ],
-      ),
+    return AppPageScaffold(
+      title: 'ক্যাটাগরি',
+      actions: [
+        IconButton(
+          onPressed: () => showAddEditCategorySheet(context),
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ],
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
-          Text(
-            'Default categories',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: context.secondaryTextColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
+          const AppSectionHeader(title: 'ডিফল্ট ক্যাটাগরি'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            elevation: 1,
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 for (var index = 0; index < defaultItems.length; index++) ...[
@@ -50,7 +46,7 @@ class CategoryManagementScreen extends ConsumerWidget {
                     category: defaultItems[index],
                     trailing: Icon(
                       Icons.lock_outline_rounded,
-                      size: 16,
+                      size: 18,
                       color: context.secondaryTextColor,
                     ),
                   ),
@@ -60,16 +56,16 @@ class CategoryManagementScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          Text(
-            'আপনার categories',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: context.secondaryTextColor,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sectionGap),
+          const AppSectionHeader(title: 'আপনার ক্যাটাগরি'),
+          const SizedBox(height: AppSpacing.sm),
           if (customItems.isEmpty)
-            const _EmptyCustomCategories()
+            const AppEmptyState(
+              icon: Icons.category_outlined,
+              title: 'কোনো কাস্টম ক্যাটাগরি নেই',
+              subtitle: 'নতুন ক্যাটাগরি যোগ করতে উপরের + বাটন ব্যবহার করুন',
+              compact: true,
+            )
           else
             ReorderableListView.builder(
               shrinkWrap: true,
@@ -85,7 +81,7 @@ class CategoryManagementScreen extends ConsumerWidget {
                 final category = customItems[index];
                 return Container(
                   key: ValueKey('custom-category-${category.id}'),
-                  margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: Dismissible(
                     key: ValueKey('dismiss-category-${category.id}'),
                     direction: DismissDirection.endToStart,
@@ -94,7 +90,7 @@ class CategoryManagementScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       decoration: BoxDecoration(
                         color: AppColors.error,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: AppRadius.cardAll,
                       ),
                       child: const Icon(
                         Icons.delete_outline_rounded,
@@ -103,7 +99,9 @@ class CategoryManagementScreen extends ConsumerWidget {
                     ),
                     confirmDismiss: (_) =>
                         _confirmDelete(context, ref, category),
-                    child: Card(
+                    child: AppCard(
+                      elevation: 1,
+                      padding: EdgeInsets.zero,
                       child: _CategoryTile(
                         category: category,
                         trailing: Row(
@@ -148,19 +146,20 @@ class CategoryManagementScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Category মুছবেন?'),
+          title: const Text('ক্যাটাগরি মুছবেন?'),
           content: Text(
-            '"${category.name}" মুছে গেলে এই category র সব expense "Other" এ চলে যাবে।',
+            '"${category.name}" মুছে গেলে এই ক্যাটাগরির সব expense "Other" এ চলে যাবে।',
           ),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'বাদ দিন',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('বাদ দিন'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'মুছুন',
+              variant: AppActionButtonVariant.danger,
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('মুছুন'),
             ),
           ],
         );
@@ -175,7 +174,7 @@ class CategoryManagementScreen extends ConsumerWidget {
       await ref.read(categoryProvider.notifier).deleteCategory(category.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category মুছে ফেলা হয়েছে')),
+          const SnackBar(content: Text('ক্যাটাগরি মুছে ফেলা হয়েছে')),
         );
       }
       return true;
@@ -189,7 +188,7 @@ class CategoryManagementScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category delete করা যায়নি')),
+          const SnackBar(content: Text('ক্যাটাগরি delete করা যায়নি')),
         );
       }
       return false;
@@ -205,48 +204,23 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: category.color.withValues(alpha: 0.15),
+    return AppListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: category.color.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
         child: Icon(
           CategoryIcon.getIconData(category.icon),
           color: category.color,
           size: 20,
         ),
       ),
-      title: Text(category.name),
+      title: category.name,
+      subtitle: category.isDefault ? 'ডিফল্ট ক্যাটাগরি' : 'কাস্টম ক্যাটাগরি',
       trailing: trailing,
-    );
-  }
-}
-
-class _EmptyCustomCategories extends StatelessWidget {
-  const _EmptyCustomCategories();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          children: [
-            Icon(
-              Icons.add_circle_outline_rounded,
-              size: 48,
-              color: Theme.of(context).disabledColor,
-            ),
-            const SizedBox(height: 10),
-            const Text('কোনো custom category নেই'),
-            const SizedBox(height: 4),
-            Text(
-              '+ বাটন দিয়ে নতুন বানান',
-              style: AppTextStyles.caption.copyWith(
-                color: context.secondaryTextColor,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

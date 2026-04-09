@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
@@ -126,7 +127,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
   BudgetState build() {
     if (!_loadScheduled) {
       _loadScheduled = true;
-      Future<void>.microtask(_loadActiveBudget);
+      Future<void>.microtask(_initialize);
     }
     return const BudgetState();
   }
@@ -259,6 +260,59 @@ class BudgetNotifier extends Notifier<BudgetState> {
     await _loadActiveBudget();
   }
 
+  Future<void> remapCategoryInBudget(String oldName, String newName) async {
+    final activeBudget = _getActiveBudget();
+    if (activeBudget == null) {
+      return;
+    }
+
+    final updatedBudgets = Map<String, double>.from(
+      activeBudget.categoryBudgets,
+    );
+    final oldValue = updatedBudgets.remove(oldName);
+    if (oldValue == null) {
+      return;
+    }
+
+    updatedBudgets[newName] = oldValue;
+    final updatedPlan = _copyWithCategoryBudgets(activeBudget, updatedBudgets);
+
+    try {
+      await ref.read(updateBudgetUseCaseProvider).call(updatedPlan);
+      await _updateNotificationBudgets(updatedPlan);
+      _replaceActiveBudgetInState(updatedPlan);
+    } catch (error) {
+      debugPrint('[BudgetNotifier] Failed to remap category in budget: $error');
+    }
+  }
+
+  Future<void> removeCategoryFromBudget(String categoryName) async {
+    final activeBudget = _getActiveBudget();
+    if (activeBudget == null) {
+      return;
+    }
+
+    final updatedBudgets = Map<String, double>.from(
+      activeBudget.categoryBudgets,
+    );
+    final removed = updatedBudgets.remove(categoryName);
+    if (removed == null) {
+      return;
+    }
+
+    final updatedPlan = _copyWithCategoryBudgets(activeBudget, updatedBudgets);
+
+    try {
+      await ref.read(updateBudgetUseCaseProvider).call(updatedPlan);
+      await _updateNotificationBudgets(updatedPlan);
+      _replaceActiveBudgetInState(updatedPlan);
+    } catch (error) {
+      debugPrint(
+        '[BudgetNotifier] Failed to remove category from budget: $error',
+      );
+    }
+  }
+
   Future<void> _loadActiveBudget() async {
     state = state.copyWith(isLoading: true);
     final activeBudget = await ref.read(getActiveBudgetUseCaseProvider).call();
@@ -268,6 +322,51 @@ class BudgetNotifier extends Notifier<BudgetState> {
       allBudgets: allBudgets,
       isLoading: false,
       clearError: true,
+    );
+  }
+
+  Future<void> _initialize() async {
+    await _removeLegacyCategoryBudgetsKey();
+    await _loadActiveBudget();
+  }
+
+  BudgetPlanEntity? _getActiveBudget() {
+    return state.activeBudget;
+  }
+
+  void _replaceActiveBudgetInState(BudgetPlanEntity updatedPlan) {
+    final updatedAllBudgets = [
+      for (final budget in state.allBudgets)
+        if (budget.id == updatedPlan.id) updatedPlan else budget,
+    ];
+
+    state = state.copyWith(
+      activeBudget: updatedPlan,
+      allBudgets: updatedAllBudgets,
+    );
+  }
+
+  BudgetPlanEntity _copyWithCategoryBudgets(
+    BudgetPlanEntity budget,
+    Map<String, double> categoryBudgets,
+  ) {
+    final totalBudgeted = categoryBudgets.values.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
+    final savingsAmount = (budget.monthlyIncome - totalBudgeted)
+        .clamp(0.0, budget.monthlyIncome)
+        .toDouble();
+    final savingsPercentage = budget.monthlyIncome <= 0
+        ? 0.0
+        : (savingsAmount / budget.monthlyIncome) * 100;
+
+    return budget.copyWith(
+      categoryBudgets: categoryBudgets,
+      totalBudgeted: totalBudgeted,
+      savingsAmount: savingsAmount,
+      savingsPercentage: savingsPercentage,
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -446,8 +545,16 @@ class BudgetNotifier extends Notifier<BudgetState> {
     await ref
         .read(budgetSettingsProvider.notifier)
         .saveBudgets(plan.categoryBudgets);
-    final prefs = ref.read(sharedPreferencesProvider);
-    await prefs.setString('category_budgets', jsonEncode(plan.categoryBudgets));
+    await _removeLegacyCategoryBudgetsKey();
+  }
+
+  Future<void> _removeLegacyCategoryBudgetsKey() async {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (prefs.containsKey('category_budgets')) {
+        await prefs.remove('category_budgets');
+      }
+    } catch (_) {}
   }
 }
 

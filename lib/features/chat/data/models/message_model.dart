@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/ai/rag_response_parser.dart';
 import '../../domain/entities/message_entity.dart';

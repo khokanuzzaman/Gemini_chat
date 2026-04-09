@@ -3,6 +3,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../core/utils/category_icon.dart';
 import '../../domain/entities/category_entity.dart';
 import '../providers/category_provider.dart';
@@ -11,14 +12,13 @@ Future<void> showAddEditCategorySheet(
   BuildContext context, {
   CategoryEntity? category,
 }) {
-  return showModalBottomSheet<void>(
+  return AppBottomSheet.show<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (_) => _AddEditCategorySheet(category: category),
+    title: category == null ? 'ক্যাটাগরি যোগ করুন' : 'ক্যাটাগরি সম্পাদনা করুন',
+    subtitle: category == null
+        ? 'নতুন কাস্টম ক্যাটাগরি বানান'
+        : 'নাম, রং ও icon পরিবর্তন করুন',
+    child: _AddEditCategorySheet(category: category),
   );
 }
 
@@ -106,175 +106,134 @@ class _AddEditCategorySheetState extends ConsumerState<_AddEditCategorySheet> {
   Widget build(BuildContext context) {
     final previewName = _nameController.text.trim();
 
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 14,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: context.borderColor,
-                  borderRadius: BorderRadius.circular(999),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: _selectedColor.withValues(alpha: 0.15),
+                child: Icon(
+                  CategoryIcon.getIconData(_selectedIcon),
+                  color: _selectedColor,
+                  size: 28,
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              _isEditing ? 'Category সম্পাদনা' : 'নতুন category',
-              style: AppTextStyles.displayMedium,
-            ),
-            const SizedBox(height: 18),
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: _selectedColor.withValues(alpha: 0.15),
+              const SizedBox(height: 10),
+              Text(
+                previewName.isEmpty ? 'Preview' : previewName,
+                style: AppTextStyles.titleLarge,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        TextField(
+          controller: _nameController,
+          maxLength: 20,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Category নাম',
+            hintText: 'যেমন: Education, Gym, Pet...',
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text('রং বেছে নিন', style: AppTextStyles.titleMedium),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _presetColors
+              .map(
+                (color) => GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedColor = color;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _selectedColor == color
+                            ? Colors.white
+                            : Colors.transparent,
+                        width: 3,
+                      ),
+                      boxShadow: _selectedColor == color
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : const [],
+                    ),
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: _showFullColorPicker,
+          icon: const Icon(Icons.palette_outlined),
+          label: const Text('আরও রং'),
+        ),
+        const SizedBox(height: 8),
+        const Text('Icon বেছে নিন', style: AppTextStyles.titleMedium),
+        const SizedBox(height: 10),
+        GridView.count(
+          crossAxisCount: 6,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: _availableIcons
+              .map(
+                (iconName) => GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedIcon = iconName;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    decoration: BoxDecoration(
+                      color: _selectedIcon == iconName
+                          ? _selectedColor.withValues(alpha: 0.14)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: _selectedIcon == iconName
+                          ? Border.all(color: _selectedColor)
+                          : Border.all(color: context.borderColor),
+                    ),
                     child: Icon(
-                      CategoryIcon.getIconData(_selectedIcon),
-                      color: _selectedColor,
-                      size: 28,
+                      CategoryIcon.getIconData(iconName),
+                      color: _selectedIcon == iconName
+                          ? _selectedColor
+                          : context.secondaryTextColor,
+                      size: 24,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    previewName.isEmpty ? 'Preview' : previewName,
-                    style: AppTextStyles.titleLarge,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _nameController,
-              maxLength: 20,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Category নাম',
-                hintText: 'যেমন: Education, Gym, Pet...',
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text('রং বেছে নিন', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: _presetColors
-                  .map(
-                    (color) => GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedColor = color;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _selectedColor == color
-                                ? Colors.white
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                          boxShadow: _selectedColor == color
-                              ? [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.35),
-                                    blurRadius: 10,
-                                  ),
-                                ]
-                              : const [],
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: _showFullColorPicker,
-              icon: const Icon(Icons.palette_outlined),
-              label: const Text('আরও রং'),
-            ),
-            const SizedBox(height: 8),
-            const Text('Icon বেছে নিন', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 6,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: _availableIcons
-                  .map(
-                    (iconName) => GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedIcon = iconName;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        decoration: BoxDecoration(
-                          color: _selectedIcon == iconName
-                              ? _selectedColor.withValues(alpha: 0.14)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: _selectedIcon == iconName
-                              ? Border.all(color: _selectedColor)
-                              : Border.all(color: context.borderColor),
-                        ),
-                        child: Icon(
-                          CategoryIcon.getIconData(iconName),
-                          color: _selectedIcon == iconName
-                              ? _selectedColor
-                              : context.secondaryTextColor,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _isSaving ? null : _save,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isEditing ? 'Update করুন' : 'Add করুন'),
-              ),
-            ),
-          ],
+              )
+              .toList(growable: false),
         ),
-      ),
+        const SizedBox(height: 24),
+        AppActionButton(
+          label: _isEditing ? 'আপডেট করুন' : 'যোগ করুন',
+          fullWidth: true,
+          isLoading: _isSaving,
+          onPressed: _isSaving ? null : _save,
+        ),
+      ],
     );
   }
 
@@ -295,18 +254,19 @@ class _AddEditCategorySheetState extends ConsumerState<_AddEditCategorySheet> {
             ),
           ),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'বাদ দিন',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('বাদ দিন'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'ঠিক আছে',
               onPressed: () {
                 setState(() {
                   _selectedColor = draftColor;
                 });
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('ঠিক আছে'),
             ),
           ],
         );

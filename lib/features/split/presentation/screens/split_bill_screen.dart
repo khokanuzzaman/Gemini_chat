@@ -1,12 +1,10 @@
-// Feature: Split
-// Layer: Presentation
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/split_bill_entity.dart';
 import '../providers/split_bill_provider.dart';
 import 'add_edit_split_screen.dart';
@@ -19,100 +17,100 @@ class SplitBillScreen extends ConsumerStatefulWidget {
   ConsumerState<SplitBillScreen> createState() => _SplitBillScreenState();
 }
 
-class _SplitBillScreenState extends ConsumerState<SplitBillScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _SplitBillScreenState extends ConsumerState<SplitBillScreen> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
     final splits = ref.watch(splitBillProvider);
     final ready = ref.watch(splitBillReadyProvider);
-    final activeSplits = splits
-        .where((split) => !split.isSettled)
-        .toList(growable: false)
-      ..sort((first, second) => second.date.compareTo(first.date));
-    final settledSplits = splits
-        .where((split) => split.isSettled)
-        .toList(growable: false)
-      ..sort((first, second) => second.date.compareTo(first.date));
+    final activeSplits =
+        splits.where((split) => !split.isSettled).toList(growable: false)
+          ..sort((first, second) => second.date.compareTo(first.date));
+    final settledSplits =
+        splits.where((split) => split.isSettled).toList(growable: false)
+          ..sort((first, second) => second.date.compareTo(first.date));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bill ভাগ'),
-        actions: [
-          IconButton(
-            onPressed: () => _openSplitEditor(context),
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'নতুন split',
+    return AppPageScaffold(
+      title: 'স্প্লিট বিল',
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openSplitEditor(context),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.md,
+              AppSpacing.screenPadding,
+              0,
+            ),
+            child: AppSegmentedTabs(
+              tabs: const ['সক্রিয়', 'সম্পন্ন'],
+              selectedIndex: _selectedIndex,
+              onChanged: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: !ready
+                ? const SingleChildScrollView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(AppSpacing.screenPadding),
+                    child: AppLoadingState.list(),
+                  )
+                : AnimatedSwitcher(
+                    duration: AppMotion.fast,
+                    child: _SplitListTab(
+                      key: ValueKey('split-tab-$_selectedIndex'),
+                      splits: _selectedIndex == 0
+                          ? activeSplits
+                          : settledSplits,
+                      emptyIcon: _selectedIndex == 0
+                          ? Icons.call_split_rounded
+                          : Icons.check_circle_outline_rounded,
+                      emptyTitle: _selectedIndex == 0
+                          ? 'কোনো সক্রিয় স্প্লিট নেই'
+                          : 'কোনো সম্পন্ন স্প্লিট নেই',
+                      emptySubtitle: _selectedIndex == 0
+                          ? 'বন্ধুদের সাথে খরচ ভাগ করলে এখানে দেখাবে'
+                          : 'settled হয়ে যাওয়া split এখানে থাকবে',
+                      emptyButtonLabel: 'নতুন স্প্লিট',
+                      onEmptyAction: () => _openSplitEditor(context),
+                      itemBuilder: (split) => _SplitSummaryCard(
+                        split: split,
+                        onTap: () => _openSplitDetails(context, split.id),
+                        onMarkSettled: split.isSettled
+                            ? null
+                            : () => _confirmSettle(context, split.id),
+                        onEdit: split.isSettled
+                            ? null
+                            : () => _openSplitEditor(context, split: split),
+                        onDelete: () => _confirmDelete(context, split),
+                      ),
+                    ),
+                  ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(key: Key('split-tab-active'), text: 'চলমান'),
-            Tab(key: Key('split-tab-settled'), text: 'সম্পন্ন'),
-          ],
-        ),
       ),
-      body: !ready
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _SplitListTab(
-                  splits: activeSplits,
-                  emptyIcon: Icons.call_split_rounded,
-                  emptyTitle: 'কোনো bill ভাগ নেই',
-                  emptySubtitle: 'বন্ধুদের সাথে খরচ ভাগ করুন',
-                  emptyButtonLabel: 'নতুন split',
-                  onEmptyAction: () => _openSplitEditor(context),
-                  itemBuilder: (split) => _SplitSummaryCard(
-                    split: split,
-                    onTap: () => _openSplitDetails(context, split.id),
-                    onMarkSettled: () => _confirmSettle(context, split.id),
-                    onEdit: () => _openSplitEditor(context, split: split),
-                    onDelete: () => _confirmDelete(context, split),
-                  ),
-                ),
-                _SplitListTab(
-                  splits: settledSplits,
-                  emptyIcon: Icons.check_circle_outline_rounded,
-                  emptyTitle: 'কোনো সম্পন্ন split নেই',
-                  emptySubtitle: 'যেগুলো settle করবেন, এখানে দেখা যাবে',
-                  emptyButtonLabel: 'নতুন split',
-                  onEmptyAction: () => _openSplitEditor(context),
-                  itemBuilder: (split) => _SplitSummaryCard(
-                    split: split,
-                    onTap: () => _openSplitDetails(context, split.id),
-                    onDelete: () => _confirmDelete(context, split),
-                  ),
-                ),
-              ],
-            ),
     );
   }
 
   void _openSplitEditor(BuildContext context, {SplitBillEntity? split}) {
-    Navigator.of(context).push(buildAppRoute(AddEditSplitScreen(split: split)));
+    Navigator.of(
+      context,
+    ).push(AppSlideRoute(builder: (_) => AddEditSplitScreen(split: split)));
   }
 
   void _openSplitDetails(BuildContext context, int splitId) {
     Navigator.of(
       context,
-    ).push(buildAppRoute(SplitDetailScreen(splitId: splitId)));
+    ).push(AppSlideRoute(builder: (_) => SplitDetailScreen(splitId: splitId)));
   }
 
   Future<void> _confirmSettle(BuildContext context, int splitId) async {
@@ -122,16 +120,18 @@ class _SplitBillScreenState extends ConsumerState<SplitBillScreen>
         return AlertDialog(
           title: const Text('সম্পন্ন করবেন?'),
           content: const Text(
-            'সব পরিশোধ হয়ে গেলে এটা সম্পন্ন tab-এ চলে যাবে।',
+            'সব পরিশোধ হয়ে গেলে এটি সম্পন্ন তালিকায় চলে যাবে।',
           ),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'না',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('না'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'সম্পন্ন',
+              variant: AppActionButtonVariant.success,
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('সম্পন্ন'),
             ),
           ],
         );
@@ -146,28 +146,34 @@ class _SplitBillScreenState extends ConsumerState<SplitBillScreen>
     if (!context.mounted) {
       return;
     }
-    _tabController.animateTo(1);
+    setState(() {
+      _selectedIndex = 1;
+    });
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Split সম্পন্ন হয়েছে')));
+    ).showSnackBar(const SnackBar(content: Text('স্প্লিট সম্পন্ন হয়েছে')));
   }
 
-  Future<void> _confirmDelete(BuildContext context, SplitBillEntity split) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    SplitBillEntity split,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Split মুছবেন?'),
-          content: Text('“${split.title}” permanently মুছে যাবে।'),
+          title: const Text('স্প্লিট মুছবেন?'),
+          content: Text('“${split.title}” স্থায়ীভাবে মুছে যাবে।'),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'না',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('না'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'মুছুন',
+              variant: AppActionButtonVariant.danger,
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('মুছুন'),
             ),
           ],
         );
@@ -184,12 +190,13 @@ class _SplitBillScreenState extends ConsumerState<SplitBillScreen>
     }
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Split মুছে গেছে')));
+    ).showSnackBar(const SnackBar(content: Text('স্প্লিট মুছে গেছে')));
   }
 }
 
 class _SplitListTab extends StatelessWidget {
   const _SplitListTab({
+    super.key,
     required this.splits,
     required this.emptyIcon,
     required this.emptyTitle,
@@ -210,38 +217,24 @@ class _SplitListTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (splits.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(emptyIcon, size: 64, color: context.secondaryTextColor),
-              const SizedBox(height: AppSpacing.md),
-              Text(emptyTitle, style: AppTextStyles.titleLarge),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                emptySubtitle,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: context.secondaryTextColor,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              OutlinedButton(
-                onPressed: onEmptyAction,
-                child: Text(emptyButtonLabel),
-              ),
-            ],
-          ),
-        ),
+      return AppEmptyState(
+        icon: emptyIcon,
+        title: emptyTitle,
+        subtitle: emptySubtitle,
+        actionLabel: emptyButtonLabel,
+        onAction: onEmptyAction,
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenPadding,
+        AppSpacing.sm,
+        AppSpacing.screenPadding,
+        100,
+      ),
       itemCount: splits.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) => itemBuilder(splits[index]),
     );
   }
@@ -265,15 +258,13 @@ class _SplitSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settlements = split.settlements;
-    final amountColor = split.isSettled
-        ? context.secondaryTextColor
-        : context.appColors.primary;
+    final statusColor = split.isSettled ? AppColors.success : AppColors.warning;
 
-    final content = InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Opacity(
+      opacity: split.isSettled ? 0.82 : 1,
+      child: AppCard(
+        elevation: 1,
+        onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -284,7 +275,12 @@ class _SplitSummaryCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(split.title, style: AppTextStyles.titleMedium),
+                      Text(
+                        split.title,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         BanglaFormatters.fullDate(split.date),
@@ -295,76 +291,69 @@ class _SplitSummaryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       BanglaFormatters.preciseCurrency(split.totalAmount),
                       style: AppTextStyles.titleLarge.copyWith(
-                        color: amountColor,
+                        color: split.isSettled
+                            ? context.secondaryTextColor
+                            : context.primaryTextColor,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       '${BanglaFormatters.count(split.persons.length)} জন',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: context.secondaryTextColor,
                       ),
                     ),
-                    if (split.isSettled) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '✅ সম্পন্ন',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 6),
+                    AppChip(
+                      label: split.isSettled ? 'সম্পন্ন' : 'সক্রিয়',
+                      color: statusColor,
+                      compact: true,
+                    ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final person in split.persons) ...[
-                    _BalanceChip(person: person),
-                    const SizedBox(width: 8),
-                  ],
-                ],
-              ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final person in split.persons)
+                  _BalanceChip(person: person),
+              ],
             ),
             if (settlements.isNotEmpty && !split.isSettled) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: AppSpacing.md),
+              AppCard(
+                elevation: 1,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.warning.withValues(alpha: 0.16),
+                    AppColors.warning.withValues(alpha: 0.08),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'সেটেলমেন্ট সাজেশন',
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: context.primaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     for (final settlement in settlements.take(2))
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: Text(
-                          '• ${settlement.from} → ${settlement.to}: ${BanglaFormatters.preciseCurrency(settlement.amount)}',
+                          '${settlement.from} → ${settlement.to}: ${BanglaFormatters.preciseCurrency(settlement.amount)}',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: const Color(0xFF8B5A00),
                             fontWeight: FontWeight.w600,
@@ -372,53 +361,58 @@ class _SplitSummaryCard extends StatelessWidget {
                         ),
                       ),
                     if (settlements.length > 2)
-                      Text(
-                        '...আরো ${BanglaFormatters.count(settlements.length - 2)}টি',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: context.secondaryTextColor,
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          'আরো ${BanglaFormatters.count(settlements.length - 2)}টি বাকি',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 if (!split.isSettled && onMarkSettled != null)
-                  TextButton.icon(
-                    key: Key('split-action-settle-${split.id}'),
-                    onPressed: onMarkSettled,
-                    icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: const Text('সম্পন্ন'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.success,
+                  Expanded(
+                    child: AppActionButton(
+                      label: 'সম্পন্ন',
+                      icon: Icons.check_circle_outline_rounded,
+                      size: AppActionButtonSize.small,
+                      variant: AppActionButtonVariant.success,
+                      onPressed: onMarkSettled,
                     ),
                   ),
-                if (!split.isSettled) const Spacer(),
                 if (!split.isSettled && onEdit != null)
-                  TextButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('সম্পাদনা'),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      left: onMarkSettled != null ? AppSpacing.sm : 0,
+                    ),
+                    child: AppActionButton(
+                      label: 'সম্পাদনা',
+                      icon: Icons.edit_outlined,
+                      size: AppActionButtonSize.small,
+                      variant: AppActionButtonVariant.ghost,
+                      onPressed: onEdit,
+                    ),
                   ),
-                if (split.isSettled) const Spacer(),
-                TextButton.icon(
+                const Spacer(),
+                AppActionButton(
+                  label: 'মুছুন',
+                  icon: Icons.delete_outline_rounded,
+                  size: AppActionButtonSize.small,
+                  variant: AppActionButtonVariant.danger,
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('মুছুন'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 ),
               ],
             ),
           ],
         ),
       ),
-    );
-
-    return Opacity(
-      opacity: split.isSettled ? 0.78 : 1,
-      child: Card(child: content),
     );
   }
 }
@@ -438,8 +432,8 @@ class _BalanceChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tint.withValues(alpha: 0.4), width: 0.8),
+        borderRadius: const BorderRadius.all(AppRadius.chip),
+        border: Border.all(color: tint.withValues(alpha: 0.3)),
       ),
       child: Text(
         '${person.name}: $prefix${BanglaFormatters.preciseCurrency(person.balance.abs())}',

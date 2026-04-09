@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../category/domain/entities/category_entity.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/split_bill_entity.dart';
@@ -115,26 +116,31 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
     final canSave = _canSave(customSharesMatch: customSharesMatch);
     final currentStep = _currentStep;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_editing ? 'Split সম্পাদনা' : 'নতুন Bill Split'),
-        actions: [
-          TextButton(
-            onPressed: canSave && !_saving ? _save : null,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    return AppPageScaffold(
+      title: _editing ? 'স্প্লিট সম্পাদনা' : 'নতুন স্প্লিট',
+      actions: [
+        IconButton(
+          onPressed: canSave && !_saving ? _save : null,
+          icon: const Icon(Icons.check_rounded),
+          tooltip: 'সংরক্ষণ',
+        ),
+      ],
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenPadding,
+          AppSpacing.md,
+          AppSpacing.screenPadding,
+          AppSpacing.xl,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _StepIndicator(currentStep: currentStep),
             const SizedBox(height: AppSpacing.lg),
-            Card(
+            AppCard(
+              elevation: 1,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -222,23 +228,11 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                       runSpacing: 8,
                       children: [
                         for (final category in categories)
-                          FilterChip(
+                          AppChip(
+                            label: category.name,
+                            color: category.color,
                             selected: _selectedCategory == category.name,
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  category.name == _selectedCategory
-                                      ? Icons.check_circle_rounded
-                                      : Icons.circle_outlined,
-                                  size: 16,
-                                  color: category.color,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(category.name),
-                              ],
-                            ),
-                            onSelected: (_) {
+                            onTap: () {
                               setState(() {
                                 _selectedCategory = category.name;
                               });
@@ -259,9 +253,10 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Card(
+            AppCard(
+              elevation: 1,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -292,19 +287,14 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                       spacing: 8,
                       children: [
                         for (var count = 2; count <= 8; count++)
-                          OutlinedButton(
-                            onPressed: () {
+                          AppChip(
+                            label: '$count জন',
+                            selected: _nameControllers.length == count,
+                            onTap: () {
                               setState(() {
                                 _setPersonCount(count);
                               });
                             },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                            ),
-                            child: Text('$count জন'),
                           ),
                       ],
                     ),
@@ -379,7 +369,10 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                           ),
                         ),
                       ),
-                    TextButton.icon(
+                    AppActionButton(
+                      label: 'আরো যোগ করুন',
+                      icon: Icons.person_add_alt_1_rounded,
+                      variant: AppActionButtonVariant.ghost,
                       onPressed: () {
                         setState(() {
                           _addPerson();
@@ -388,11 +381,6 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                           }
                         });
                       },
-                      icon: const Icon(
-                        Icons.person_add_alt_1_rounded,
-                        size: 18,
-                      ),
-                      label: const Text('আরেকজন যোগ করুন'),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -400,23 +388,14 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                     const SizedBox(height: 6),
-                    SegmentedButton<SplitMode>(
-                      segments: const [
-                        ButtonSegment<SplitMode>(
-                          value: SplitMode.equal,
-                          icon: Icon(Icons.balance_rounded, size: 16),
-                          label: Text('সমান'),
-                        ),
-                        ButtonSegment<SplitMode>(
-                          value: SplitMode.custom,
-                          icon: Icon(Icons.tune_rounded, size: 16),
-                          label: Text('Custom'),
-                        ),
-                      ],
-                      selected: {_splitMode},
-                      onSelectionChanged: (selection) {
+                    AppSegmentedTabs(
+                      tabs: const ['সমান', 'Custom'],
+                      selectedIndex: _splitMode == SplitMode.equal ? 0 : 1,
+                      onChanged: (index) {
                         setState(() {
-                          _splitMode = selection.first;
+                          _splitMode = index == 0
+                              ? SplitMode.equal
+                              : SplitMode.custom;
                           if (_splitMode == SplitMode.equal) {
                             _applyEqualSharesToControllers();
                           } else {
@@ -500,10 +479,16 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Card(
-              color: context.appColors.primary.withValues(alpha: 0.08),
+            AppCard(
+              elevation: 1,
+              gradient: LinearGradient(
+                colors: [
+                  context.appColors.primary.withValues(alpha: 0.12),
+                  context.appColors.primary.withValues(alpha: 0.04),
+                ],
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -570,21 +555,12 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: canSave && !_saving ? _save : null,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save করুন'),
-              ),
+            AppActionButton(
+              label: 'সংরক্ষণ করুন',
+              icon: Icons.check_rounded,
+              fullWidth: true,
+              isLoading: _saving,
+              onPressed: canSave && !_saving ? _save : null,
             ),
           ],
         ),

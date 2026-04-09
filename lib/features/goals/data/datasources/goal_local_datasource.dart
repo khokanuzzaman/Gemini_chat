@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/goal_model.dart';
 import '../../../../core/database/models/goal_saving_model.dart';

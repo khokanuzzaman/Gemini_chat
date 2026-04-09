@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../../domain/entities/income_entity.dart';
 import '../../domain/entities/income_source.dart';
 import '../providers/income_providers.dart';
+
+Future<bool?> showAddEditIncomeSheet(
+  BuildContext context, {
+  IncomeEntity? existingIncome,
+}) {
+  final isEditing = existingIncome != null;
+
+  return AppBottomSheet.show<bool>(
+    context: context,
+    title: isEditing ? 'আয় সম্পাদনা করুন' : 'আয় যোগ করুন',
+    scrollable: true,
+    maxHeightFactor: 0.92,
+    child: AddEditIncomeSheet(existingIncome: existingIncome),
+  );
+}
 
 class AddEditIncomeSheet extends ConsumerStatefulWidget {
   const AddEditIncomeSheet({super.key, this.existingIncome});
@@ -23,6 +38,7 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _noteController = TextEditingController();
+
   DateTime _selectedDate = DateTime.now();
   String? _selectedSource;
   int? _selectedWalletId;
@@ -59,192 +75,105 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
     final selectedSource = _selectedSource;
     final sources = defaultIncomeSources;
 
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 14,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: context.borderColor,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.existingIncome == null ? 'নতুন আয়' : 'আয় সম্পাদনা',
-                    style: AppTextStyles.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _amountController,
-              autofocus: widget.existingIncome == null,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              style: const TextStyle(
-                color: AppColors.success,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-              decoration: InputDecoration(
-                labelText: 'পরিমাণ (টাকা)',
-                prefixText: '৳ ',
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.success),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('উৎস নির্বাচন করুন', style: AppTextStyles.bodyMedium),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
+    return AppStaggeredList(
+      children: [
+        _IncomeAmountFieldCard(controller: _amountController),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _FormSection(
+          title: 'আয়ের উৎস',
+          child: SizedBox(
+            height: 44,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: sources.map((source) {
-                  final selected = source.name == selectedSource;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text('${source.emoji} ${source.banglaLabel}'),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() {
-                          _selectedSource = source.name;
-                        });
-                      },
-                      selectedColor: AppColors.success.withValues(alpha: 0.16),
-                      labelStyle: TextStyle(
-                        color:
-                            selected ? AppColors.success : AppColors.grey600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      side: BorderSide(
-                        color: selected
-                            ? AppColors.success
-                            : context.borderColor,
-                      ),
-                    ),
-                  );
-                }).toList(growable: false),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              maxLength: 100,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'বিবরণ (optional)',
-                hintText: 'যেমন: মাসিক বেতন, ক্লায়েন্ট পেমেন্ট',
-              ),
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: _pickDate,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: context.borderColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today_rounded, size: 18),
-                    const SizedBox(width: 8),
-                    Text(BanglaFormatters.fullDate(_selectedDate)),
-                    const Spacer(),
-                    Text(
-                      'পরিবর্তন করুন',
-                      style: TextStyle(
-                        color: context.appColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            WalletSelectorWidget(
-              selectedWalletId: effectiveWalletId,
-              onChanged: (walletId) {
-                setState(() {
-                  _selectedWalletId = walletId;
-                });
+              itemCount: sources.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final source = sources[index];
+                final selected = source.name == selectedSource;
+                return AppChip(
+                  label: source.banglaLabel,
+                  emoji: source.emoji,
+                  color: AppColors.success,
+                  selected: selected,
+                  onTap: () {
+                    setState(() {
+                      _selectedSource = source.name;
+                    });
+                  },
+                );
               },
             ),
-            const SizedBox(height: 12),
-            SwitchListTile.adaptive(
-              value: _isRecurring,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('নিয়মিত আয়'),
-              subtitle: const Text('মাসিক বেতন বা রেগুলার ইনকাম হলে'),
-              onChanged: (value) {
-                setState(() {
-                  _isRecurring = value;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _noteController,
-              maxLength: 200,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'নোট (optional)',
-                hintText: 'অতিরিক্ত কিছু যোগ করতে পারেন',
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('সংরক্ষণ করুন'),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _FormSection(
+          title: 'বিবরণ',
+          child: TextField(
+            controller: _descriptionController,
+            maxLength: 100,
+            maxLines: 3,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: context.primaryTextColor,
+            ),
+            decoration: _inputDecoration(
+              context,
+              hintText: 'যেমন: মাসিক বেতন, ক্লায়েন্ট পেমেন্ট',
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _FormSection(
+          title: 'তারিখ',
+          child: _DateSelectorRow(date: _selectedDate, onTap: _pickDate),
+        ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _FormSection(
+          title: 'ওয়ালেট',
+          child: WalletSelectorWidget(
+            selectedWalletId: effectiveWalletId,
+            onChanged: (walletId) {
+              setState(() {
+                _selectedWalletId = walletId;
+              });
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _RecurringToggleCard(
+          value: _isRecurring,
+          onChanged: (value) {
+            setState(() {
+              _isRecurring = value;
+            });
+          },
+        ),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _FormSection(
+          title: 'নোট',
+          child: TextField(
+            controller: _noteController,
+            maxLength: 200,
+            minLines: 2,
+            maxLines: 4,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: context.primaryTextColor,
+            ),
+            decoration: _inputDecoration(
+              context,
+              hintText: 'অতিরিক্ত কিছু যোগ করতে পারেন',
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        AppActionButton(
+          label: 'সংরক্ষণ করুন',
+          icon: Icons.check_rounded,
+          variant: AppActionButtonVariant.success,
+          onPressed: _isSaving ? null : _save,
+          isLoading: _isSaving,
+          fullWidth: true,
+        ),
+      ],
     );
   }
 
@@ -329,7 +258,7 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
     });
 
     if (error != null) {
-      _showMessage(_messageForError(error));
+      _showMessage(error);
       return;
     }
 
@@ -340,13 +269,6 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  String _messageForError(Object error) {
-    if (error is Failure) {
-      return error.message;
-    }
-    return error.toString();
   }
 
   String _formatNumber(double amount) {
@@ -381,4 +303,224 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
     final cleaned = normalized.replaceAll(RegExp(r'[^0-9.\-]'), '');
     return double.tryParse(cleaned);
   }
+}
+
+class _FormSection extends StatelessWidget {
+  const _FormSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppTextStyles.titleMedium.copyWith(
+            color: context.primaryTextColor,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        child,
+      ],
+    );
+  }
+}
+
+class _IncomeAmountFieldCard extends StatelessWidget {
+  const _IncomeAmountFieldCard({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.08),
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'পরিমাণ',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: context.secondaryTextColor,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '৳',
+                style: AppTextStyles.heroAmount.copyWith(
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.heroAmount.copyWith(
+                    color: AppColors.success,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '0',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    counterText: '',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DateSelectorRow extends StatelessWidget {
+  const _DateSelectorRow({required this.date, required this.onTap});
+
+  final DateTime date;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.cardAll,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: context.cardBackgroundColor,
+          borderRadius: AppRadius.cardAll,
+          border: Border.all(color: context.borderColor),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 18,
+              color: AppColors.success,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                BanglaFormatters.fullDate(date),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: context.primaryTextColor,
+                ),
+              ),
+            ),
+            Text(
+              'পরিবর্তন করুন',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringToggleCard extends StatelessWidget {
+  const _RecurringToggleCard({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: context.cardBackgroundColor,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'নিয়মিত আয়',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: context.primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'মাসিক বেতন বা নিয়মিত ইনকাম হলে চালু রাখুন',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeTrackColor: AppColors.success.withValues(alpha: 0.4),
+            activeThumbColor: AppColors.success,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration(
+  BuildContext context, {
+  required String hintText,
+}) {
+  return InputDecoration(
+    hintText: hintText,
+    hintStyle: AppTextStyles.bodyLarge.copyWith(color: context.hintTextColor),
+    filled: true,
+    fillColor: context.mutedSurfaceColor,
+    border: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(AppRadius.input),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(AppRadius.input),
+      borderSide: BorderSide.none,
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(AppRadius.input),
+      borderSide: BorderSide(color: AppColors.success),
+    ),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.md,
+      vertical: 14,
+    ),
+  );
 }

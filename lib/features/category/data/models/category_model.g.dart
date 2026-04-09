@@ -40,6 +40,7 @@ const CategoryModelSchema = CollectionSchema(
       type: IsarType.long,
     ),
   },
+
   estimateSize: _categoryModelEstimateSize,
   serialize: _categoryModelSerialize,
   deserialize: _categoryModelDeserialize,
@@ -62,10 +63,11 @@ const CategoryModelSchema = CollectionSchema(
   },
   links: {},
   embeddedSchemas: {},
+
   getId: _categoryModelGetId,
   getLinks: _categoryModelGetLinks,
   attach: _categoryModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _categoryModelEstimateSize(

@@ -122,8 +122,11 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
 
   final now = DateTime.now();
   final thisMonthStart = DateTime(now.year, now.month, 1);
-  final thisMonthEnd = DateTime(now.year, now.month + 1, 1)
-      .subtract(const Duration(milliseconds: 1));
+  final thisMonthEnd = DateTime(
+    now.year,
+    now.month + 1,
+    1,
+  ).subtract(const Duration(milliseconds: 1));
   final lastMonthStart = now.month == 1
       ? DateTime(now.year - 1, 12, 1)
       : DateTime(now.year, now.month - 1, 1);
@@ -132,10 +135,14 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
   final expenseRepo = ref.read(expenseRepositoryProvider);
   final incomeUseCase = ref.read(getIncomeTotalsUseCaseProvider);
 
-  final thisMonthExpenses =
-      await expenseRepo.getExpensesByDateRange(thisMonthStart, thisMonthEnd);
-  final lastMonthExpenses =
-      await expenseRepo.getExpensesByDateRange(lastMonthStart, lastMonthEnd);
+  final thisMonthExpenses = await expenseRepo.getExpensesByDateRange(
+    thisMonthStart,
+    thisMonthEnd,
+  );
+  final lastMonthExpenses = await expenseRepo.getExpensesByDateRange(
+    lastMonthStart,
+    lastMonthEnd,
+  );
   final thisMonthIncome = await incomeUseCase.forRange(
     thisMonthStart,
     thisMonthEnd,
@@ -149,7 +156,10 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
     income: thisMonthIncome,
     expense: thisMonthExpenses.fold<double>(0, (sum, e) => sum + e.amount),
     lastMonthIncome: lastMonthIncome,
-    lastMonthExpense: lastMonthExpenses.fold<double>(0, (sum, e) => sum + e.amount),
+    lastMonthExpense: lastMonthExpenses.fold<double>(
+      0,
+      (sum, e) => sum + e.amount,
+    ),
   );
 });
 
@@ -299,6 +309,10 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
         updatedExpense: expense,
       );
       await ref.read(anomalyProvider.notifier).reDetect();
+      await _checkBudgetAlertsAfterUpdate(
+        previousExpense: previousExpense,
+        updatedExpense: expense,
+      );
       ref.invalidate(dashboardControllerProvider);
       ref.invalidate(analyticsControllerProvider);
       state = AsyncData(await _loadState());
@@ -382,6 +396,29 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     if (shouldRefreshWallets) {
       ref.invalidate(walletProvider);
     }
+  }
+
+  Future<void> _checkBudgetAlertsAfterUpdate({
+    required ExpenseEntity? previousExpense,
+    required ExpenseEntity updatedExpense,
+  }) async {
+    try {
+      await ref
+          .read(notificationProvider.notifier)
+          .checkBudgetAlert(updatedExpense.category);
+    } catch (_) {}
+
+    final previousCategory = previousExpense?.category;
+    if (previousCategory == null ||
+        previousCategory == updatedExpense.category) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(notificationProvider.notifier)
+          .checkBudgetAlert(previousCategory);
+    } catch (_) {}
   }
 
   Future<void> _adjustWalletBalance({

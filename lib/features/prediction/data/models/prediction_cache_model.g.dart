@@ -78,12 +78,9 @@ const PredictionCacheModelSchema = CollectionSchema(
       name: r'projectedDailyAverage',
       type: IsarType.double,
     ),
-    r'trend': PropertySchema(
-      id: 12,
-      name: r'trend',
-      type: IsarType.string,
-    )
+    r'trend': PropertySchema(id: 12, name: r'trend', type: IsarType.string),
   },
+
   estimateSize: _predictionCacheModelEstimateSize,
   serialize: _predictionCacheModelSerialize,
   deserialize: _predictionCacheModelDeserialize,
@@ -92,10 +89,11 @@ const PredictionCacheModelSchema = CollectionSchema(
   indexes: {},
   links: {},
   embeddedSchemas: {},
+
   getId: _predictionCacheModelGetId,
   getLinks: _predictionCacheModelGetLinks,
   attach: _predictionCacheModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _predictionCacheModelEstimateSize(
@@ -199,19 +197,23 @@ Id _predictionCacheModelGetId(PredictionCacheModel object) {
 }
 
 List<IsarLinkBase<dynamic>> _predictionCacheModelGetLinks(
-    PredictionCacheModel object) {
+  PredictionCacheModel object,
+) {
   return [];
 }
 
 void _predictionCacheModelAttach(
-    IsarCollection<dynamic> col, Id id, PredictionCacheModel object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  PredictionCacheModel object,
+) {
   object.id = id;
 }
 
 extension PredictionCacheModelQueryWhereSort
     on QueryBuilder<PredictionCacheModel, PredictionCacheModel, QWhere> {
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhere>
-      anyId() {
+  anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
     });
@@ -221,17 +223,14 @@ extension PredictionCacheModelQueryWhereSort
 extension PredictionCacheModelQueryWhere
     on QueryBuilder<PredictionCacheModel, PredictionCacheModel, QWhereClause> {
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhereClause>
-      idEqualTo(Id id) {
+  idEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhereClause>
-      idNotEqualTo(Id id) {
+  idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -254,7 +253,7 @@ extension PredictionCacheModelQueryWhere
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhereClause>
-      idGreaterThan(Id id, {bool include = false}) {
+  idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -263,7 +262,7 @@ extension PredictionCacheModelQueryWhere
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhereClause>
-      idLessThan(Id id, {bool include = false}) {
+  idLessThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -272,73 +271,99 @@ extension PredictionCacheModelQueryWhere
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterWhereClause>
-      idBetween(
+  idBetween(
     Id lowerId,
     Id upperId, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
 
-extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
-    PredictionCacheModel, QFilterCondition> {
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+extension PredictionCacheModelQueryFilter
+    on
+        QueryBuilder<
+          PredictionCacheModel,
+          PredictionCacheModel,
+          QFilterCondition
+        > {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -346,137 +371,180 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'aiInsight',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'aiInsight',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      aiInsightContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'aiInsight',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'aiInsight',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      aiInsightMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'aiInsight',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'aiInsight',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightIsEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'aiInsight',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'aiInsight', value: ''),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> aiInsightIsNotEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  aiInsightIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'aiInsight',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'aiInsight', value: ''),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonGreaterThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -484,139 +552,186 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'categoryPredictionsJson',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'categoryPredictionsJson',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      categoryPredictionsJsonContains(String value,
-          {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'categoryPredictionsJson',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'categoryPredictionsJson',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      categoryPredictionsJsonMatches(String pattern,
-          {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'categoryPredictionsJson',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'categoryPredictionsJson',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonIsEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'categoryPredictionsJson',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'categoryPredictionsJson',
+          value: '',
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> categoryPredictionsJsonIsNotEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  categoryPredictionsJsonIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'categoryPredictionsJson',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          property: r'categoryPredictionsJson',
+          value: '',
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceGreaterThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -624,193 +739,254 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'confidence',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'confidence',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      confidenceContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'confidence',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'confidence',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      confidenceMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'confidence',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'confidence',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceIsEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'confidence',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'confidence', value: ''),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> confidenceIsNotEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  confidenceIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'confidence',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'confidence', value: ''),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentDayEqualTo(int value) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentDayEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'currentDay',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'currentDay', value: value),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentDayGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentDayGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'currentDay',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'currentDay',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentDayLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentDayLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'currentDay',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'currentDay',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentDayBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentDayBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'currentDay',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'currentDay',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentTotalEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentTotalEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'currentTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'currentTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentTotalGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'currentTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentTotalLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentTotalGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'currentTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'currentTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> currentTotalBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentTotalLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'currentTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  currentTotalBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -818,65 +994,90 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'currentTotal',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'currentTotal',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> dailyAverageEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  dailyAverageEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'dailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'dailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> dailyAverageGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'dailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> dailyAverageLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  dailyAverageGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'dailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'dailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> dailyAverageBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  dailyAverageLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'dailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  dailyAverageBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -884,289 +1085,374 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'dailyAverage',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'dailyAverage',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysInMonthEqualTo(int value) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysInMonthEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'daysInMonth',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'daysInMonth', value: value),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysInMonthGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysInMonthGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'daysInMonth',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'daysInMonth',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysInMonthLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysInMonthLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'daysInMonth',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'daysInMonth',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysInMonthBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysInMonthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'daysInMonth',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'daysInMonth',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysRemainingEqualTo(int value) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysRemainingEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'daysRemaining',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'daysRemaining', value: value),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysRemainingGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysRemainingGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'daysRemaining',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'daysRemaining',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysRemainingLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysRemainingLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'daysRemaining',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'daysRemaining',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> daysRemainingBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  daysRemainingBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'daysRemaining',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'daysRemaining',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> generatedAtEqualTo(DateTime value) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  generatedAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'generatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'generatedAt', value: value),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> generatedAtGreaterThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  generatedAtGreaterThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'generatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'generatedAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> generatedAtLessThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  generatedAtLessThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'generatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'generatedAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> generatedAtBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  generatedAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'generatedAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'generatedAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> idEqualTo(Id value) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> idGreaterThan(
-    Id value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  idGreaterThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> idLessThan(
-    Id value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  idLessThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> idBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  idBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> lastMonthTotalEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  lastMonthTotalEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'lastMonthTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'lastMonthTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> lastMonthTotalGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'lastMonthTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> lastMonthTotalLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  lastMonthTotalGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'lastMonthTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'lastMonthTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> lastMonthTotalBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  lastMonthTotalLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'lastMonthTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  lastMonthTotalBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -1174,65 +1460,90 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'lastMonthTotal',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'lastMonthTotal',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> predictedTotalEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  predictedTotalEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'predictedTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'predictedTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> predictedTotalGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'predictedTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> predictedTotalLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  predictedTotalGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'predictedTotal',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'predictedTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> predictedTotalBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  predictedTotalLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'predictedTotal',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  predictedTotalBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -1240,65 +1551,90 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'predictedTotal',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'predictedTotal',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> projectedDailyAverageEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  projectedDailyAverageEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'projectedDailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'projectedDailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> projectedDailyAverageGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'projectedDailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> projectedDailyAverageLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  projectedDailyAverageGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'projectedDailyAverage',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'projectedDailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> projectedDailyAverageBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  projectedDailyAverageLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'projectedDailyAverage',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  projectedDailyAverageBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -1306,65 +1642,87 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'projectedDailyAverage',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'projectedDailyAverage',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendLessThan(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendBetween(
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1372,275 +1730,309 @@ extension PredictionCacheModelQueryFilter on QueryBuilder<PredictionCacheModel,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'trend',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'trend',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      trendContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'trend',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'trend',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-          QAfterFilterCondition>
-      trendMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'trend',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'trend',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendIsEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'trend',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'trend', value: ''),
+      );
     });
   }
 
-  QueryBuilder<PredictionCacheModel, PredictionCacheModel,
-      QAfterFilterCondition> trendIsNotEmpty() {
+  QueryBuilder<
+    PredictionCacheModel,
+    PredictionCacheModel,
+    QAfterFilterCondition
+  >
+  trendIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'trend',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'trend', value: ''),
+      );
     });
   }
 }
 
-extension PredictionCacheModelQueryObject on QueryBuilder<PredictionCacheModel,
-    PredictionCacheModel, QFilterCondition> {}
+extension PredictionCacheModelQueryObject
+    on
+        QueryBuilder<
+          PredictionCacheModel,
+          PredictionCacheModel,
+          QFilterCondition
+        > {}
 
-extension PredictionCacheModelQueryLinks on QueryBuilder<PredictionCacheModel,
-    PredictionCacheModel, QFilterCondition> {}
+extension PredictionCacheModelQueryLinks
+    on
+        QueryBuilder<
+          PredictionCacheModel,
+          PredictionCacheModel,
+          QFilterCondition
+        > {}
 
 extension PredictionCacheModelQuerySortBy
     on QueryBuilder<PredictionCacheModel, PredictionCacheModel, QSortBy> {
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByAiInsight() {
+  sortByAiInsight() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'aiInsight', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByAiInsightDesc() {
+  sortByAiInsightDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'aiInsight', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCategoryPredictionsJson() {
+  sortByCategoryPredictionsJson() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryPredictionsJson', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCategoryPredictionsJsonDesc() {
+  sortByCategoryPredictionsJsonDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryPredictionsJson', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByConfidence() {
+  sortByConfidence() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'confidence', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByConfidenceDesc() {
+  sortByConfidenceDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'confidence', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCurrentDay() {
+  sortByCurrentDay() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentDay', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCurrentDayDesc() {
+  sortByCurrentDayDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentDay', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCurrentTotal() {
+  sortByCurrentTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByCurrentTotalDesc() {
+  sortByCurrentTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDailyAverage() {
+  sortByDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dailyAverage', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDailyAverageDesc() {
+  sortByDailyAverageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dailyAverage', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDaysInMonth() {
+  sortByDaysInMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysInMonth', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDaysInMonthDesc() {
+  sortByDaysInMonthDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysInMonth', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDaysRemaining() {
+  sortByDaysRemaining() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysRemaining', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByDaysRemainingDesc() {
+  sortByDaysRemainingDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysRemaining', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByGeneratedAt() {
+  sortByGeneratedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'generatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByGeneratedAtDesc() {
+  sortByGeneratedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'generatedAt', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByLastMonthTotal() {
+  sortByLastMonthTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastMonthTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByLastMonthTotalDesc() {
+  sortByLastMonthTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastMonthTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByPredictedTotal() {
+  sortByPredictedTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByPredictedTotalDesc() {
+  sortByPredictedTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByProjectedDailyAverage() {
+  sortByProjectedDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'projectedDailyAverage', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByProjectedDailyAverageDesc() {
+  sortByProjectedDailyAverageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'projectedDailyAverage', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByTrend() {
+  sortByTrend() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'trend', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      sortByTrendDesc() {
+  sortByTrendDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'trend', Sort.desc);
     });
@@ -1650,196 +2042,196 @@ extension PredictionCacheModelQuerySortBy
 extension PredictionCacheModelQuerySortThenBy
     on QueryBuilder<PredictionCacheModel, PredictionCacheModel, QSortThenBy> {
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByAiInsight() {
+  thenByAiInsight() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'aiInsight', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByAiInsightDesc() {
+  thenByAiInsightDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'aiInsight', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCategoryPredictionsJson() {
+  thenByCategoryPredictionsJson() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryPredictionsJson', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCategoryPredictionsJsonDesc() {
+  thenByCategoryPredictionsJsonDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryPredictionsJson', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByConfidence() {
+  thenByConfidence() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'confidence', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByConfidenceDesc() {
+  thenByConfidenceDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'confidence', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCurrentDay() {
+  thenByCurrentDay() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentDay', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCurrentDayDesc() {
+  thenByCurrentDayDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentDay', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCurrentTotal() {
+  thenByCurrentTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByCurrentTotalDesc() {
+  thenByCurrentTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'currentTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDailyAverage() {
+  thenByDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dailyAverage', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDailyAverageDesc() {
+  thenByDailyAverageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dailyAverage', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDaysInMonth() {
+  thenByDaysInMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysInMonth', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDaysInMonthDesc() {
+  thenByDaysInMonthDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysInMonth', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDaysRemaining() {
+  thenByDaysRemaining() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysRemaining', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByDaysRemainingDesc() {
+  thenByDaysRemainingDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'daysRemaining', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByGeneratedAt() {
+  thenByGeneratedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'generatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByGeneratedAtDesc() {
+  thenByGeneratedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'generatedAt', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenById() {
+  thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByIdDesc() {
+  thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByLastMonthTotal() {
+  thenByLastMonthTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastMonthTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByLastMonthTotalDesc() {
+  thenByLastMonthTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastMonthTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByPredictedTotal() {
+  thenByPredictedTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedTotal', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByPredictedTotalDesc() {
+  thenByPredictedTotalDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'predictedTotal', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByProjectedDailyAverage() {
+  thenByProjectedDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'projectedDailyAverage', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByProjectedDailyAverageDesc() {
+  thenByProjectedDailyAverageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'projectedDailyAverage', Sort.desc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByTrend() {
+  thenByTrend() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'trend', Sort.asc);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QAfterSortBy>
-      thenByTrendDesc() {
+  thenByTrendDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'trend', Sort.desc);
     });
@@ -1849,100 +2241,107 @@ extension PredictionCacheModelQuerySortThenBy
 extension PredictionCacheModelQueryWhereDistinct
     on QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct> {
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByAiInsight({bool caseSensitive = true}) {
+  distinctByAiInsight({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'aiInsight', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByCategoryPredictionsJson({bool caseSensitive = true}) {
+  distinctByCategoryPredictionsJson({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'categoryPredictionsJson',
-          caseSensitive: caseSensitive);
+      return query.addDistinctBy(
+        r'categoryPredictionsJson',
+        caseSensitive: caseSensitive,
+      );
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByConfidence({bool caseSensitive = true}) {
+  distinctByConfidence({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'confidence', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByCurrentDay() {
+  distinctByCurrentDay() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'currentDay');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByCurrentTotal() {
+  distinctByCurrentTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'currentTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByDailyAverage() {
+  distinctByDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dailyAverage');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByDaysInMonth() {
+  distinctByDaysInMonth() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'daysInMonth');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByDaysRemaining() {
+  distinctByDaysRemaining() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'daysRemaining');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByGeneratedAt() {
+  distinctByGeneratedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'generatedAt');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByLastMonthTotal() {
+  distinctByLastMonthTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastMonthTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByPredictedTotal() {
+  distinctByPredictedTotal() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'predictedTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByProjectedDailyAverage() {
+  distinctByProjectedDailyAverage() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'projectedDailyAverage');
     });
   }
 
   QueryBuilder<PredictionCacheModel, PredictionCacheModel, QDistinct>
-      distinctByTrend({bool caseSensitive = true}) {
+  distinctByTrend({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'trend', caseSensitive: caseSensitive);
     });
   }
 }
 
-extension PredictionCacheModelQueryProperty on QueryBuilder<
-    PredictionCacheModel, PredictionCacheModel, QQueryProperty> {
+extension PredictionCacheModelQueryProperty
+    on
+        QueryBuilder<
+          PredictionCacheModel,
+          PredictionCacheModel,
+          QQueryProperty
+        > {
   QueryBuilder<PredictionCacheModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
@@ -1950,84 +2349,84 @@ extension PredictionCacheModelQueryProperty on QueryBuilder<
   }
 
   QueryBuilder<PredictionCacheModel, String, QQueryOperations>
-      aiInsightProperty() {
+  aiInsightProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'aiInsight');
     });
   }
 
   QueryBuilder<PredictionCacheModel, String, QQueryOperations>
-      categoryPredictionsJsonProperty() {
+  categoryPredictionsJsonProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'categoryPredictionsJson');
     });
   }
 
   QueryBuilder<PredictionCacheModel, String, QQueryOperations>
-      confidenceProperty() {
+  confidenceProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'confidence');
     });
   }
 
   QueryBuilder<PredictionCacheModel, int, QQueryOperations>
-      currentDayProperty() {
+  currentDayProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'currentDay');
     });
   }
 
   QueryBuilder<PredictionCacheModel, double, QQueryOperations>
-      currentTotalProperty() {
+  currentTotalProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'currentTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, double, QQueryOperations>
-      dailyAverageProperty() {
+  dailyAverageProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'dailyAverage');
     });
   }
 
   QueryBuilder<PredictionCacheModel, int, QQueryOperations>
-      daysInMonthProperty() {
+  daysInMonthProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'daysInMonth');
     });
   }
 
   QueryBuilder<PredictionCacheModel, int, QQueryOperations>
-      daysRemainingProperty() {
+  daysRemainingProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'daysRemaining');
     });
   }
 
   QueryBuilder<PredictionCacheModel, DateTime, QQueryOperations>
-      generatedAtProperty() {
+  generatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'generatedAt');
     });
   }
 
   QueryBuilder<PredictionCacheModel, double, QQueryOperations>
-      lastMonthTotalProperty() {
+  lastMonthTotalProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastMonthTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, double, QQueryOperations>
-      predictedTotalProperty() {
+  predictedTotalProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'predictedTotal');
     });
   }
 
   QueryBuilder<PredictionCacheModel, double, QQueryOperations>
-      projectedDailyAverageProperty() {
+  projectedDailyAverageProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'projectedDailyAverage');
     });

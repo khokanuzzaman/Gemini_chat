@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/expense_record_model.dart';
+import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../budget/presentation/providers/budget_provider.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/datasources/category_local_datasource.dart';
 import '../../data/models/category_model.dart';
@@ -91,13 +93,17 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
     final normalizedName = _normalizeName(category.name);
     _ensureUniqueName(normalizedName, excludingId: category.id);
     final updatedCategory = category.copyWith(name: normalizedName);
+    final wasRenamed = existing.name != normalizedName;
 
-    if (existing.name != normalizedName) {
+    if (wasRenamed) {
       await _replaceExpenseCategory(existing.name, normalizedName);
     }
 
     await ref.read(updateCategoryUseCaseProvider).call(updatedCategory);
     await _loadSafely();
+    if (wasRenamed) {
+      await _remapBudgetCategory(existing.name, normalizedName);
+    }
     _notifyExpenseChanged();
   }
 
@@ -113,6 +119,7 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
     await _replaceExpenseCategory(category.name, 'Other');
     await ref.read(deleteCategoryUseCaseProvider).call(id);
     await _loadSafely();
+    await _removeBudgetCategory(category.name);
     _notifyExpenseChanged();
   }
 
@@ -266,5 +273,41 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
 
   void _notifyExpenseChanged() {
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+  }
+
+  Future<void> _remapBudgetCategory(String oldName, String newName) async {
+    try {
+      await ref
+          .read(budgetSettingsProvider.notifier)
+          .remapCategory(oldName, newName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Budget settings remap failed: $error');
+    }
+
+    try {
+      await ref
+          .read(budgetProvider.notifier)
+          .remapCategoryInBudget(oldName, newName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Active budget remap failed: $error');
+    }
+  }
+
+  Future<void> _removeBudgetCategory(String categoryName) async {
+    try {
+      await ref
+          .read(budgetSettingsProvider.notifier)
+          .removeCategory(categoryName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Budget settings cleanup failed: $error');
+    }
+
+    try {
+      await ref
+          .read(budgetProvider.notifier)
+          .removeCategoryFromBudget(categoryName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Active budget cleanup failed: $error');
+    }
   }
 }

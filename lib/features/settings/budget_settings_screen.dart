@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/notifications/budget_settings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/bangla_formatters.dart';
+import '../../core/widgets/widgets.dart';
 import '../category/presentation/providers/category_provider.dart';
 import '../expense/presentation/utils/expense_category_meta.dart';
 
@@ -49,100 +50,68 @@ class _BudgetSettingsScreenState extends ConsumerState<BudgetSettingsScreen> {
       (sum, category) => sum + (_draftBudgets[category] ?? 0),
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Category Budget')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: categories
-                    .map((category) {
-                      final meta = resolveExpenseCategory(category);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: meta.color.withValues(
-                                alpha: 0.12,
-                              ),
-                              child: Icon(meta.icon, color: meta.color),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                category,
-                                style: AppTextStyles.titleMedium,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 130,
-                              child: TextField(
-                                controller: _controllers[category],
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: const InputDecoration(
-                                  prefixText: '৳ ',
-                                  isDense: true,
-                                ),
-                                onChanged: (value) =>
-                                    _handleBudgetChange(category, value),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
+    return AppPageScaffold(
+      title: 'বাজেট সেটিংস',
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.screenPadding),
+        child: AppStaggeredList(
+          children: [
+            AppHeroCard(
+              label: 'মাসিক মোট বাজেট',
+              amount: BanglaFormatters.currency(totalBudget),
+              subtitle: '${categories.length.toString()}টি ক্যাটাগরি সীমা',
+              icon: Icons.savings_outlined,
+              gradient: AppGradients.primary,
             ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
+            AppCard(
+              elevation: 1,
+              child: Column(
                 children: [
-                  const Icon(Icons.account_balance_wallet_outlined),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'মাসিক মোট বাজেট: ${BanglaFormatters.currency(totalBudget)}',
-                      style: AppTextStyles.titleMedium,
-                    ),
+                  const AppSectionHeader(
+                    padding: EdgeInsets.zero,
+                    title: 'ক্যাটাগরি অনুযায়ী সীমা',
+                    subtitle: 'প্রতি ক্যাটাগরির জন্য মাসিক বাজেট ঠিক করুন',
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  for (var index = 0; index < categories.length; index++) ...[
+                    _BudgetLimitRow(
+                      category: categories[index],
+                      controller: _controllers[categories[index]]!,
+                      onChanged: (value) =>
+                          _handleBudgetChange(categories[index], value),
+                    ),
+                    if (index != categories.length - 1)
+                      Divider(
+                        height: AppSpacing.lg,
+                        color: context.borderColor.withValues(alpha: 0.3),
+                      ),
+                  ],
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final budgetsToSave = <String, double>{
-                for (final category in categories)
-                  category: _draftBudgets[category] ?? 0,
-              };
-              await ref
-                  .read(budgetSettingsProvider.notifier)
-                  .saveBudgets(budgetsToSave);
-              if (!mounted) {
-                return;
-              }
-              messenger.showSnackBar(
-                const SnackBar(content: Text('Budget save হয়েছে')),
-              );
-            },
-            child: const Text('Save budget'),
-          ),
-        ],
+            AppActionButton(
+              label: 'সংরক্ষণ করুন',
+              icon: Icons.check_rounded,
+              fullWidth: true,
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final budgetsToSave = <String, double>{
+                  for (final category in categories)
+                    category: _draftBudgets[category] ?? 0,
+                };
+                await ref
+                    .read(budgetSettingsProvider.notifier)
+                    .saveBudgets(budgetsToSave);
+                if (!mounted) {
+                  return;
+                }
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('বাজেট সংরক্ষণ হয়েছে')),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -178,5 +147,56 @@ class _BudgetSettingsScreenState extends ConsumerState<BudgetSettingsScreen> {
       _controllers.remove(category)?.dispose();
       _draftBudgets.remove(category);
     }
+  }
+}
+
+class _BudgetLimitRow extends StatelessWidget {
+  const _BudgetLimitRow({
+    required this.category,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final String category;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = resolveExpenseCategory(category);
+
+    return AppListTile(
+      leadingIcon: meta.icon,
+      leadingColor: meta.color,
+      title: category,
+      subtitle: 'মাসিক সীমা নির্ধারণ করুন',
+      trailing: SizedBox(
+        width: 124,
+        child: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textAlign: TextAlign.right,
+          decoration: InputDecoration(
+            isDense: true,
+            prefixText: '৳ ',
+            filled: true,
+            fillColor: context.mutedSurfaceColor,
+            border: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(AppRadius.input),
+              borderSide: BorderSide(color: context.borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(AppRadius.input),
+              borderSide: BorderSide(color: context.borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: const BorderRadius.all(AppRadius.input),
+              borderSide: BorderSide(color: meta.color),
+            ),
+          ),
+          onChanged: onChanged,
+        ),
+      ),
+    );
   }
 }

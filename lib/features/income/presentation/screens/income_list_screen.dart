@@ -3,70 +3,159 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
-import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/widgets/widgets.dart';
+import '../../../wallet/domain/entities/wallet_entity.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/income_entity.dart';
 import '../../domain/entities/income_source.dart';
 import '../providers/income_providers.dart';
 import '../widgets/add_edit_income_sheet.dart';
 
-class IncomeListScreen extends ConsumerWidget {
+class IncomeListScreen extends ConsumerStatefulWidget {
   const IncomeListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(incomeListControllerProvider);
-    final monthIncome = ref.watch(thisMonthIncomeProvider);
+  ConsumerState<IncomeListScreen> createState() => _IncomeListScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('আয়'),
-        actions: [
-          IconButton(
-            onPressed: null,
-            icon: const Icon(Icons.filter_list_rounded),
-            tooltip: 'Filter',
-          ),
-        ],
-      ),
+class _IncomeListScreenState extends ConsumerState<IncomeListScreen> {
+  int? _selectedWalletId;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(incomeListControllerProvider);
+
+    return AppPageScaffold(
+      title: 'আয়ের তালিকা',
+      showOfflineBanner: false,
+      actions: [
+        IconButton(
+          onPressed: () => _openFilterSheet(),
+          icon: const Icon(Icons.filter_alt_outlined),
+          tooltip: 'ফিল্টার',
+        ),
+      ],
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddSheet(context),
+        backgroundColor: AppColors.success,
+        onPressed: _openAddSheet,
         child: const Icon(Icons.add_rounded),
       ),
       body: state.when(
-        data: (income) {
-          final grouped = _groupByDate(income);
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(incomeListControllerProvider.notifier).refresh(),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _IncomeSummaryCard(value: monthIncome),
-                const SizedBox(height: 16),
-                if (income.isEmpty)
-                  const _IncomeEmptyState()
-                else
-                  ...grouped.entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: _IncomeDateSection(
-                        date: entry.key,
-                        entries: entry.value,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-        loading: () => const _IncomeLoadingState(),
-        error: (error, _) => _IncomeErrorState(
-          message: 'আয়ের তালিকা লোড করা যায়নি\n$error',
+        data: (income) => _buildDataState(context, income),
+        loading: () => Padding(
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
+          child: AppStaggeredList(
+            children: const [
+              _IncomeTopPanelLoading(),
+              SizedBox(height: AppSpacing.md),
+              _IncomeSummaryLoading(),
+              SizedBox(height: AppSpacing.md),
+              AppLoadingState.list(),
+            ],
+          ),
+        ),
+        error: (error, _) => AppErrorState(
+          message: error.toString(),
           onRetry: () =>
               ref.read(incomeListControllerProvider.notifier).refresh(),
         ),
       ),
+    );
+  }
+
+  Widget _buildDataState(BuildContext context, List<IncomeEntity> income) {
+    final visibleIncome = _selectedWalletId == null
+        ? income
+        : income
+              .where((entry) => entry.walletId == _selectedWalletId)
+              .toList(growable: false);
+    final grouped = _groupByDate(visibleIncome);
+    final totalAmount = visibleIncome.fold<double>(
+      0,
+      (sum, entry) => sum + entry.amount,
+    );
+
+    return Column(
+      children: [
+        AppFadeSlideIn(
+          duration: AppMotion.fast,
+          child: _IncomeTopPanel(
+            selectedWalletId: _selectedWalletId,
+            onWalletChanged: (walletId) {
+              setState(() {
+                _selectedWalletId = walletId;
+              });
+            },
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () =>
+                ref.read(incomeListControllerProvider.notifier).refresh(),
+            color: AppColors.success,
+            backgroundColor: context.cardBackgroundColor,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenPadding,
+                AppSpacing.md,
+                AppSpacing.screenPadding,
+                AppSpacing.xl,
+              ),
+              children: [
+                AppFadeSlideIn(
+                  delay: AppMotion.staggerDelay,
+                  duration: AppMotion.fast,
+                  child: _IncomeSummaryStrip(
+                    totalAmount: totalAmount,
+                    count: visibleIncome.length,
+                    onFilterTap: _openFilterSheet,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (visibleIncome.isEmpty)
+                  AppFadeSlideIn(
+                    delay: AppMotion.fast,
+                    child: AppEmptyState(
+                      icon: Icons.trending_up_rounded,
+                      title: 'কোনো আয় নেই',
+                      subtitle: 'আয় যোগ করতে + বাটনে ট্যাপ করুন',
+                      actionLabel: 'আয় যোগ করুন',
+                      onAction: _openAddSheet,
+                    ),
+                  )
+                else ...[
+                  for (var i = 0; i < grouped.entries.length; i++) ...[
+                    AppFadeSlideIn(
+                      key: ValueKey(
+                        'income-group-${grouped.entries.elementAt(i).key}',
+                      ),
+                      delay: Duration(
+                        milliseconds:
+                            AppMotion.staggerDelay.inMilliseconds * (i + 2),
+                      ),
+                      duration: AppMotion.fast,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          bottom: i == grouped.length - 1 ? 0 : AppSpacing.lg,
+                        ),
+                        child: _IncomeDateSection(
+                          date: grouped.entries.elementAt(i).key,
+                          entries: grouped.entries.elementAt(i).value,
+                          onEdit: _openEditSheet,
+                          onDelete: _confirmDeleteIncome,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -83,140 +172,374 @@ class IncomeListScreen extends ConsumerWidget {
     return grouped;
   }
 
-  void _openAddSheet(BuildContext context) {
-    showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.cardBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const AddEditIncomeSheet(),
-    );
+  Future<void> _openAddSheet() async {
+    final saved = await showAddEditIncomeSheet(context);
+    if (saved != true || !mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('আয় সংরক্ষণ হয়েছে'),
+          backgroundColor: AppColors.success,
+        ),
+      );
   }
-}
 
-class _IncomeSummaryCard extends StatelessWidget {
-  const _IncomeSummaryCard({required this.value});
+  Future<void> _openEditSheet(IncomeEntity entry) async {
+    final updated = await showAddEditIncomeSheet(
+      context,
+      existingIncome: entry,
+    );
 
-  final AsyncValue<double> value;
+    if (updated != true || !mounted) {
+      return;
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'এই মাসে মোট আয়',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: context.secondaryTextColor,
-              ),
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('আয় আপডেট হয়েছে'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+  }
+
+  Future<void> _confirmDeleteIncome(IncomeEntity entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('আয় মুছে ফেলবেন?'),
+          content: Text(
+            '${entry.description.trim().isEmpty ? (findIncomeSourceByName(entry.source)?.banglaLabel ?? entry.source) : entry.description}\n${BanglaFormatters.currency(entry.amount)}',
+          ),
+          actions: [
+            AppActionButton(
+              label: 'বাতিল',
+              variant: AppActionButtonVariant.ghost,
+              size: AppActionButtonSize.small,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
             ),
-            const SizedBox(height: 8),
-            value.when(
-              data: (amount) => Text(
-                BanglaFormatters.currency(amount),
-                style: AppTextStyles.titleLarge.copyWith(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              loading: () => const ShimmerBox(height: 18, width: 140, radius: 8),
-              error: (error, _) => Text(
-                'লোড হচ্ছে না',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: context.secondaryTextColor,
-                ),
-              ),
+            AppActionButton(
+              label: 'মুছুন',
+              variant: AppActionButtonVariant.danger,
+              size: AppActionButtonSize.small,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
             ),
           ],
-        ),
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final error = await ref
+        .read(incomeListControllerProvider.notifier)
+        .deleteIncome(entry);
+
+    if (!mounted || error == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error)));
+  }
+
+  Future<void> _openFilterSheet() async {
+    final wallets =
+        ref.read(walletProvider).valueOrNull ?? const <WalletEntity>[];
+
+    await AppBottomSheet.show<void>(
+      context: context,
+      title: 'ফিল্টার',
+      subtitle: 'ওয়ালেট অনুযায়ী আয়ের তালিকা দেখুন',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ওয়ালেট',
+            style: AppTextStyles.titleMedium.copyWith(
+              color: context.primaryTextColor,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              AppChip(
+                label: 'সব ওয়ালেট',
+                selected: _selectedWalletId == null,
+                onTap: () {
+                  setState(() {
+                    _selectedWalletId = null;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              for (final wallet in wallets)
+                AppChip(
+                  label: wallet.name,
+                  emoji: wallet.emoji,
+                  selected: _selectedWalletId == wallet.id,
+                  onTap: () {
+                    setState(() {
+                      _selectedWalletId = wallet.id;
+                    });
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'উৎস',
+            style: AppTextStyles.titleMedium.copyWith(
+              color: context.primaryTextColor,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              const AppChip(label: 'সব উৎস', selected: true),
+              for (final source in defaultIncomeSources)
+                AppChip(
+                  label: source.banglaLabel,
+                  emoji: source.emoji,
+                  color: AppColors.success,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'উৎস ফিল্টার এখন শুধু visual guide হিসেবে দেখানো হচ্ছে।',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: context.secondaryTextColor,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _IncomeDateSection extends ConsumerWidget {
-  const _IncomeDateSection({required this.date, required this.entries});
+class _IncomeTopPanel extends ConsumerWidget {
+  const _IncomeTopPanel({
+    required this.selectedWalletId,
+    required this.onWalletChanged,
+  });
 
-  final DateTime date;
-  final List<IncomeEntity> entries;
+  final int? selectedWalletId;
+  final ValueChanged<int?> onWalletChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final walletsAsync = ref.watch(walletProvider);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenPadding,
+        AppSpacing.md,
+        AppSpacing.screenPadding,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: context.mutedSurfaceColor,
+        border: Border(bottom: BorderSide(color: context.borderColor)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 40,
+            child: walletsAsync.when(
+              data: (wallets) => ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: wallets.length + 1,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppSpacing.sm),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return AppChip(
+                      label: 'সব ওয়ালেট',
+                      selected: selectedWalletId == null,
+                      onTap: () => onWalletChanged(null),
+                    );
+                  }
+
+                  final wallet = wallets[index - 1];
+                  return AppChip(
+                    label: wallet.name,
+                    emoji: wallet.emoji,
+                    selected: selectedWalletId == wallet.id,
+                    onTap: () => onWalletChanged(wallet.id),
+                  );
+                },
+              ),
+              loading: () => const _InlineChipLoading(),
+              error: (_, _) => const SizedBox.shrink(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: defaultIncomeSources.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return const AppChip(label: 'সব উৎস', selected: true);
+                }
+
+                final source = defaultIncomeSources[index - 1];
+                return AppChip(
+                  label: source.banglaLabel,
+                  emoji: source.emoji,
+                  color: AppColors.success,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeSummaryStrip extends StatelessWidget {
+  const _IncomeSummaryStrip({
+    required this.totalAmount,
+    required this.count,
+    required this.onFilterTap,
+  });
+
+  final double totalAmount;
+  final int count;
+  final VoidCallback onFilterTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: context.cardBackgroundColor,
+        borderRadius: AppRadius.cardAll,
+        boxShadow: context.elevationLevel(1),
+        border: Border.all(
+          color: context.borderColor.withValues(alpha: 0.6),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${BanglaFormatters.currency(totalAmount)} মোট · ${BanglaFormatters.count(count)}টি লেনদেন',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.secondaryTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: onFilterTap,
+            borderRadius: AppRadius.buttonAll,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.mutedSurfaceColor,
+                borderRadius: AppRadius.buttonAll,
+                border: Border.all(color: context.borderColor),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.filter_list_rounded,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'ফিল্টার',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.primaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeDateSection extends StatelessWidget {
+  const _IncomeDateSection({
+    required this.date,
+    required this.entries,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final DateTime date;
+  final List<IncomeEntity> entries;
+  final Future<void> Function(IncomeEntity entry) onEdit;
+  final Future<void> Function(IncomeEntity entry) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = entries.fold<double>(0, (sum, entry) => sum + entry.amount);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          BanglaFormatters.fullDate(date),
-          style: AppTextStyles.bodySmall.copyWith(
-            color: context.secondaryTextColor,
-          ),
+        AppSectionHeader(
+          title: BanglaFormatters.relativeDay(date),
+          subtitle:
+              '${BanglaFormatters.fullDate(date)} · ${BanglaFormatters.currency(total)}',
+          padding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 8),
-        ...entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Dismissible(
-              key: ValueKey('income-${entry.id}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
-              ),
-              confirmDismiss: (_) async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Text('আয় মুছবেন?'),
-                    content: Text(
-                      '${BanglaFormatters.currency(entry.amount)} আয়টি মুছে যাবে।',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(false),
-                        child: const Text('বাদ দিন'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(true),
-                        child: const Text('মুছুন'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed != true) {
-                  return false;
-                }
-                final error = await ref
-                    .read(incomeListControllerProvider.notifier)
-                    .deleteIncome(entry);
-                if (context.mounted && error != null) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error)));
-                }
-                return error == null;
-              },
-              child: _IncomeCard(entry: entry),
-            ),
-          );
-        }),
+        const SizedBox(height: AppSpacing.sm),
+        for (var i = 0; i < entries.length; i++) ...[
+          _IncomeCard(
+            entry: entries[i],
+            onTap: () => onEdit(entries[i]),
+            onLongPress: () => onDelete(entries[i]),
+          ),
+          if (i != entries.length - 1) const SizedBox(height: AppSpacing.sm),
+        ],
       ],
     );
   }
 }
 
 class _IncomeCard extends ConsumerWidget {
-  const _IncomeCard({required this.entry});
+  const _IncomeCard({
+    required this.entry,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   final IncomeEntity entry;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,260 +549,96 @@ class _IncomeCard extends ConsumerWidget {
     final wallet = entry.walletId == null
         ? null
         : ref.watch(walletByIdProvider(entry.walletId!));
+    final title = entry.description.trim().isEmpty ? label : entry.description;
+    final subtitleParts = <String>[
+      label,
+      BanglaFormatters.fullDate(entry.date),
+      if (wallet != null) '${wallet.emoji} ${wallet.name}',
+    ];
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () async {
-        final updated = await showModalBottomSheet<bool>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: context.cardBackgroundColor,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          builder: (_) => AddEditIncomeSheet(existingIncome: entry),
-        );
-        if (updated == true && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('আয় আপডেট হয়েছে')),
-          );
-        }
-      },
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.success.withValues(alpha: 0.12),
-                child: Text(emoji, style: const TextStyle(fontSize: 18)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: AppTextStyles.titleMedium),
-                    if (entry.description.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        entry.description,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: context.secondaryTextColor,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        if (wallet != null)
-                          _WalletMetaPill(
-                            emoji: wallet.emoji,
-                            label: wallet.name,
-                          ),
-                        if (entry.isRecurring)
-                          const _IncomeMetaPill(
-                            label: 'নিয়মিত',
-                            icon: Icons.repeat_rounded,
-                            color: AppColors.success,
-                          ),
-                        if (entry.isManual)
-                          const _IncomeMetaPill(
-                            label: 'Manual',
-                            icon: Icons.edit_note_rounded,
-                            color: AppColors.grey600,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      BanglaFormatters.time(entry.date),
-                      style: AppTextStyles.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                BanglaFormatters.currency(entry.amount),
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return AppCard(
+      elevation: 1,
+      padding: EdgeInsets.zero,
+      child: AppListTile(
+        leadingEmoji: emoji,
+        leadingColor: AppColors.success,
+        title: title,
+        subtitle: subtitleParts.join(' · '),
+        trailingAmount: entry.amount,
+        trailingAmountIsIncome: true,
+        trailingSubtitle: BanglaFormatters.time(entry.date),
+        onTap: onTap,
+        onLongPress: onLongPress,
       ),
     );
   }
 }
 
-class _WalletMetaPill extends StatelessWidget {
-  const _WalletMetaPill({required this.emoji, required this.label});
+class _InlineChipLoading extends StatelessWidget {
+  const _InlineChipLoading();
 
-  final String emoji;
-  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      children: const [
+        _ChipPlaceholder(width: 110),
+        SizedBox(width: AppSpacing.sm),
+        _ChipPlaceholder(width: 92),
+        SizedBox(width: AppSpacing.sm),
+        _ChipPlaceholder(width: 104),
+      ],
+    );
+  }
+}
+
+class _ChipPlaceholder extends StatelessWidget {
+  const _ChipPlaceholder({required this.width});
+
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      width: width,
       decoration: BoxDecoration(
-        color: context.mutedSurfaceColor,
-        borderRadius: BorderRadius.circular(999),
+        color: context.cardBackgroundColor,
+        borderRadius: AppRadius.buttonAll,
         border: Border.all(color: context.borderColor),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 12)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: context.secondaryTextColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _IncomeMetaPill extends StatelessWidget {
-  const _IncomeMetaPill({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
+class _IncomeTopPanelLoading extends StatelessWidget {
+  const _IncomeTopPanelLoading();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: context.mutedSurfaceColor,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: context.borderColor),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          SizedBox(height: 40, child: _InlineChipLoading()),
+          SizedBox(height: AppSpacing.sm),
+          SizedBox(height: 40, child: _InlineChipLoading()),
         ],
       ),
     );
   }
 }
 
-class _IncomeLoadingState extends StatelessWidget {
-  const _IncomeLoadingState();
+class _IncomeSummaryLoading extends StatelessWidget {
+  const _IncomeSummaryLoading();
 
   @override
   Widget build(BuildContext context) {
-    return AppShimmer(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: const [
-          ShimmerBox(height: 90, radius: 16),
-          SizedBox(height: 16),
-          ShimmerBox(height: 84, radius: 16),
-          SizedBox(height: 12),
-          ShimmerBox(height: 84, radius: 16),
-          SizedBox(height: 12),
-          ShimmerBox(height: 84, radius: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _IncomeEmptyState extends StatelessWidget {
-  const _IncomeEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.trending_up_rounded,
-              size: 48,
-              color: context.secondaryTextColor,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'এখনো কোনো আয় যোগ করেননি',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'নতুন আয় যোগ করতে + চাপুন',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: context.secondaryTextColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _IncomeErrorState extends StatelessWidget {
-  const _IncomeErrorState({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 44,
-              color: context.secondaryTextColor,
-            ),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('আবার চেষ্টা করুন'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const AppLoadingState.card(height: 72);
   }
 }

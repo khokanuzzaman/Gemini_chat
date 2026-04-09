@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
-import '../../../../core/widgets/app_shimmer.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/wallet_entity.dart';
 import '../providers/wallet_provider.dart';
 import '../widgets/add_edit_wallet_sheet.dart';
@@ -24,33 +24,52 @@ class _WalletManagementScreenState
     final walletsAsync = ref.watch(walletProvider);
     final totalBalance = ref.watch(totalBalanceProvider);
 
-    return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('ওয়ালেট')),
+    return AppPageScaffold(
+      title: 'ওয়ালেট',
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddEditWalletSheet(context),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
       body: walletsAsync.when(
-        loading: () => const _WalletLoadingState(),
-        error: (error, _) => _WalletErrorState(
+        loading: () => const SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(AppSpacing.screenPadding),
+          child: AppLoadingState.list(),
+        ),
+        error: (error, _) => AppErrorState(
           message: _messageForError(error),
           onRetry: () => ref.read(walletProvider.notifier).refresh(),
         ),
         data: (wallets) {
           if (wallets.isEmpty) {
-            return _WalletEmptyState(
-              onAdd: () => showAddEditWalletSheet(context),
+            return AppEmptyState(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'কোনো ওয়ালেট নেই',
+              subtitle: 'নতুন ওয়ালেট যোগ করে ব্যালেন্স ট্র্যাক করুন',
+              actionLabel: 'ওয়ালেট যোগ করুন',
+              onAction: () => showAddEditWalletSheet(context),
             );
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.md,
+              AppSpacing.screenPadding,
+              100,
+            ),
             children: [
-              _WalletSummaryCard(totalBalance: totalBalance),
-              const SizedBox(height: 16),
+              AppHeroCard(
+                label: 'মোট ব্যালেন্স',
+                amount: BanglaFormatters.currency(totalBalance),
+                subtitle: '${wallets.length.toString()}টি সক্রিয় ওয়ালেট',
+                icon: Icons.account_balance_wallet_outlined,
+                gradient: AppGradients.primary,
+              ),
+              const SizedBox(height: AppSpacing.sectionGap),
               ...wallets.map(
                 (wallet) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: _WalletCard(
                     wallet: wallet,
                     walletCount: wallets.length,
@@ -76,9 +95,9 @@ class _WalletManagementScreenState
             title: const Text('শেষ ওয়ালেট'),
             content: const Text('কমপক্ষে একটি সক্রিয় ওয়ালেট রাখতে হবে।'),
             actions: [
-              FilledButton(
+              AppActionButton(
+                label: 'ঠিক আছে',
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('ঠিক আছে'),
               ),
             ],
           );
@@ -94,13 +113,15 @@ class _WalletManagementScreenState
           title: const Text('ওয়ালেট archive করবেন?'),
           content: Text('"${wallet.displayName}" আপাতত লুকিয়ে রাখা হবে।'),
           actions: [
-            TextButton(
+            AppActionButton(
+              label: 'বাদ দিন',
+              variant: AppActionButtonVariant.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('বাদ দিন'),
             ),
-            FilledButton(
+            AppActionButton(
+              label: 'Archive করুন',
+              variant: AppActionButtonVariant.danger,
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Archive করুন'),
             ),
           ],
         );
@@ -131,7 +152,7 @@ class _WalletManagementScreenState
     }
   }
 
-  String _messageForError(Object error) {
+  static String _messageForError(Object error) {
     if (error is Failure) {
       return error.message;
     }
@@ -139,47 +160,6 @@ class _WalletManagementScreenState
       return error.message.toString();
     }
     return 'ওয়ালেট load করা যায়নি';
-  }
-}
-
-class _WalletSummaryCard extends StatelessWidget {
-  const _WalletSummaryCard({required this.totalBalance});
-
-  final double totalBalance;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [context.appColors.primary, AppColors.primaryDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'মোট ব্যালেন্স',
-              style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              BanglaFormatters.currency(totalBalance),
-              style: AppTextStyles.displayMedium.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -206,170 +186,98 @@ class _WalletCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: AppColors.warning,
-          borderRadius: BorderRadius.circular(20),
+          gradient: AppGradients.warning,
+          borderRadius: AppRadius.cardAll,
         ),
         child: const Icon(Icons.archive_outlined, color: Colors.white),
       ),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(wallet.emoji, style: const TextStyle(fontSize: 30)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${wallet.name} — ${wallet.type.categoryLabelBn}',
-                        style: AppTextStyles.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      if ((wallet.accountNumber ?? '').isNotEmpty)
-                        Text(
-                          'শেষ ৪ ডিজিট: ${wallet.accountNumber}',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: context.secondaryTextColor,
-                          ),
-                        ),
-                      if ((wallet.note ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          wallet.note!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: context.secondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      BanglaFormatters.currency(wallet.currentBalance),
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: context.appColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+      child: AppCard(
+        elevation: 2,
+        gradient: _gradientForWalletType(wallet.type),
+        onTap: onTap,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(wallet.emoji, style: const TextStyle(fontSize: 24)),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    wallet.name,
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    wallet.type.categoryLabelBn,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.white.withValues(alpha: 0.82),
+                    ),
+                  ),
+                  if ((wallet.accountNumber ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      wallet.type.labelBn,
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.secondaryTextColor,
+                      'শেষ ৪ ডিজিট: ${wallet.accountNumber}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white.withValues(alpha: 0.72),
                       ),
                     ),
                   ],
+                  if ((wallet.note ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      wallet.note!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  BanglaFormatters.currency(wallet.currentBalance),
+                  style: AppTextStyles.titleLarge.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  wallet.type.labelBn,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                  ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WalletLoadingState extends StatelessWidget {
-  const _WalletLoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShimmer(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: const [
-          ShimmerBox(height: 110, radius: 16),
-          SizedBox(height: 16),
-          ShimmerBox(height: 86, radius: 16),
-          SizedBox(height: 12),
-          ShimmerBox(height: 86, radius: 16),
-          SizedBox(height: 12),
-          ShimmerBox(height: 86, radius: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _WalletErrorState extends StatelessWidget {
-  const _WalletErrorState({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 44,
-              color: context.secondaryTextColor,
-            ),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('আবার চেষ্টা করুন'),
-            ),
           ],
         ),
       ),
     );
   }
-}
 
-class _WalletEmptyState extends StatelessWidget {
-  const _WalletEmptyState({required this.onAdd});
-
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 52,
-              color: context.secondaryTextColor,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'কোনো ওয়ালেট নেই। নতুন ওয়ালেট যোগ করুন।',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLarge,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('ওয়ালেট যোগ করুন'),
-            ),
-          ],
-        ),
-      ),
-    );
+  Gradient _gradientForWalletType(WalletType type) {
+    return switch (type) {
+      WalletType.cash => AppGradients.walletOrange,
+      WalletType.bkash || WalletType.bank => AppGradients.walletBlue,
+      WalletType.nagad || WalletType.card => AppGradients.walletPurple,
+      WalletType.rocket || WalletType.other => AppGradients.walletTeal,
+    };
   }
 }
