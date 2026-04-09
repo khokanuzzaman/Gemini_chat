@@ -1,4 +1,4 @@
-package com.example.gemini_chat
+package com.troubleshootbangla.pocketpilotai
 
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -11,7 +11,7 @@ class MainActivity : FlutterFragmentActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "smartspend/security",
+            "pocketpilot_ai/security",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "setSecureEnabled" -> {

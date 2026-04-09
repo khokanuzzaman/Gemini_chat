@@ -59,8 +59,8 @@ class CsvExportService {
     final start = formatter.format(startDate);
     final end = formatter.format(endDate);
     if (start == end) {
-      return 'SmartSpend_$start';
+      return 'PocketPilot_AI_$start';
     }
-    return 'SmartSpend_${start}_to_$end';
+    return 'PocketPilot_AI_${start}_to_$end';
   }
 }

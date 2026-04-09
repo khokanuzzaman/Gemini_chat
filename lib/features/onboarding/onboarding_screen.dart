@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/preferences/app_preferences.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/widgets.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onComplete});
@@ -14,26 +15,41 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
-  int _pageIndex = 0;
+  int _currentPage = 0;
 
-  final _pages = const [
+  final _pages = [
     _OnboardingData(
-      icon: Icons.chat_bubble_rounded,
-      accent: AppColors.primary,
-      title: 'কথা বলুন, খরচ ট্র্যাক করুন',
-      body: 'বাংলায় বলুন বা লিখুন —\nAI নিজেই বুঝে নেবে',
+      emoji: '💰',
+      gradient: AppGradients.primary,
+      title: 'স্বাগতম!',
+      subtitle: 'PocketPilot AI দিয়ে আপনার খরচ হিসাব রাখুন খুব সহজে',
+      bullets: const [
+        (emoji: '🤖', text: 'AI দিয়ে খরচ যোগ করুন'),
+        (emoji: '🎤', text: 'ভয়েস দিয়ে খরচ যোগ করুন'),
+        (emoji: '📸', text: 'রিসিট স্ক্যান করে খরচ যোগ করুন'),
+      ],
     ),
     _OnboardingData(
-      icon: Icons.receipt_long_rounded,
-      accent: AppColors.success,
-      title: 'Receipt scan করুন',
-      body: 'Camera দিয়ে receipt তুলুন,\nAI সব তথ্য বের করবে',
+      emoji: '📊',
+      gradient: AppGradients.success,
+      title: 'স্মার্ট ইনসাইট',
+      subtitle: 'আপনার খরচের প্যাটার্ন বুঝে সিদ্ধান্ত নিন',
+      bullets: const [
+        (emoji: '📈', text: 'মাসিক বিশ্লেষণ দেখুন'),
+        (emoji: '🎯', text: 'লক্ষ্য নির্ধারণ করুন'),
+        (emoji: '⚠️', text: 'অস্বাভাবিক খরচ সনাক্ত করুন'),
+      ],
     ),
     _OnboardingData(
-      icon: Icons.insights_rounded,
-      accent: AppColors.shopping,
-      title: 'Smart insights পান',
-      body: 'আপনার খরচের pattern বুঝুন,\nসঞ্চয় করুন',
+      emoji: '🔒',
+      gradient: AppGradients.walletTeal,
+      title: 'আপনার ডেটা, আপনার নিয়ন্ত্রণে',
+      subtitle: 'সব ডেটা আপনার ফোনে সুরক্ষিত থাকে',
+      bullets: const [
+        (emoji: '🔐', text: 'লোকাল স্টোরেজ'),
+        (emoji: '👆', text: 'বায়োমেট্রিক লক'),
+        (emoji: '📤', text: 'যেকোনো সময় এক্সপোর্ট করুন'),
+      ],
     ),
   ];
 
@@ -45,78 +61,88 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLastPage = _pageIndex == _pages.length - 1;
+    final isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: AnimatedOpacity(
-                      opacity: isLastPage ? 0 : 1,
-                      duration: const Duration(milliseconds: 200),
-                      child: IgnorePointer(
-                        ignoring: isLastPage,
-                        child: TextButton(
-                          onPressed: _complete,
-                          child: const Text('Skip'),
-                        ),
+      body: Container(
+        decoration: BoxDecoration(gradient: context.surfaceGradient),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: _pages.length,
+                        onPageChanged: (value) {
+                          setState(() {
+                            _currentPage = value;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final page = _pages[index];
+                          return _OnboardingPage(
+                            data: page,
+                            isActive: index == _currentPage,
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: _pages.length,
-                      onPageChanged: (value) {
-                        setState(() {
-                          _pageIndex = value;
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final page = _pages[index];
-                        return _OnboardingPage(data: page);
-                      },
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_pages.length, (index) {
+                        final active = index == _currentPage;
+                        return AnimatedContainer(
+                          duration: AppMotion.fast,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: active ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? context.appColors.primary
+                                : context.borderColor,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        );
+                      }),
                     ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_pages.length, (index) {
-                      final active = index == _pageIndex;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: active ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? Theme.of(context).colorScheme.primary
-                              : context.borderColor,
-                          borderRadius: BorderRadius.circular(999),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        AnimatedOpacity(
+                          opacity: isLastPage ? 0 : 1,
+                          duration: AppMotion.fast,
+                          child: IgnorePointer(
+                            ignoring: isLastPage,
+                            child: TextButton(
+                              onPressed: _complete,
+                              child: const Text('এড়িয়ে যান'),
+                            ),
+                          ),
                         ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  SizedBox(
-                    width: 220,
-                    child: FilledButton(
-                      onPressed: isLastPage ? _complete : _nextPage,
-                      child: Text(isLastPage ? 'শুরু করি' : 'পরবর্তী'),
+                        const Spacer(),
+                        AppActionButton(
+                          label: isLastPage ? 'শুরু করুন' : 'পরবর্তী',
+                          icon: isLastPage
+                              ? Icons.check_rounded
+                              : Icons.arrow_forward_rounded,
+                          onPressed: isLastPage ? _complete : _nextPage,
+                          variant: AppActionButtonVariant.primary,
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -135,85 +161,125 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _nextPage() async {
     await _pageController.nextPage(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.normal,
+      curve: AppMotion.standard,
     );
   }
 }
 
 class _OnboardingPage extends StatelessWidget {
-  const _OnboardingPage({required this.data});
+  const _OnboardingPage({required this.data, required this.isActive});
 
   final _OnboardingData data;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = context.cardBackgroundColor;
-    final shadowColor = context.isDarkMode
-        ? AppColors.darkBackground.withValues(alpha: 0.3)
-        : AppColors.lightText.withValues(alpha: 0.08);
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 180,
-          height: 180,
-          decoration: BoxDecoration(
-            color: data.accent.withValues(alpha: 0.08),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Container(
-              width: 118,
-              height: 118,
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(36),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 22,
-                    offset: Offset(0, 10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: AnimatedSwitcher(
+        duration: AppMotion.fast,
+        child: AppStaggeredList(
+          key: ValueKey('${data.title}_$isActive'),
+          initialDelay: const Duration(milliseconds: 50),
+          children: [
+            AppFadeSlideIn(
+              offset: const Offset(0, 0.12),
+              child: Center(
+                child: Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    gradient: data.gradient,
+                    shape: BoxShape.circle,
+                    boxShadow: context.elevationLevel(3),
                   ),
-                ],
+                  child: Center(
+                    child: Text(
+                      data.emoji,
+                      style: const TextStyle(fontSize: 64),
+                    ),
+                  ),
+                ),
               ),
-              child: Icon(data.icon, size: 56, color: data.accent),
             ),
-          ),
+            const SizedBox(height: AppSpacing.lg),
+            AppFadeSlideIn(
+              offset: const Offset(0, 0.12),
+              child: Text(
+                data.title,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.heroAmount.copyWith(
+                  color: context.primaryTextColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppFadeSlideIn(
+              offset: const Offset(0, 0.12),
+              child: Text(
+                data.subtitle,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.sectionSubtitle.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppStaggeredList(
+              initialDelay: const Duration(milliseconds: 100),
+              staggerDelay: const Duration(milliseconds: 80),
+              children: [
+                for (final bullet in data.bullets)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: context.appColors.primary.withValues(
+                              alpha: context.isDarkMode ? 0.18 : 0.1,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(bullet.emoji),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            bullet.text,
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              color: context.primaryTextColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.xl),
-        Text(
-          data.title,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.displayMedium.copyWith(
-            fontSize: 26,
-            color: context.primaryTextColor,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          data.body,
-          textAlign: TextAlign.center,
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: context.secondaryTextColor,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
 class _OnboardingData {
   const _OnboardingData({
-    required this.icon,
-    required this.accent,
     required this.title,
-    required this.body,
+    required this.subtitle,
+    required this.emoji,
+    required this.gradient,
+    required this.bullets,
   });
 
-  final IconData icon;
-  final Color accent;
   final String title;
-  final String body;
+  final String subtitle;
+  final String emoji;
+  final LinearGradient gradient;
+  final List<({String emoji, String text})> bullets;
 }

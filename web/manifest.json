@@ -1,11 +1,11 @@
 {
-    "name": "gemini_chat",
-    "short_name": "gemini_chat",
+    "name": "PocketPilot AI",
+    "short_name": "PocketPilot",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "AI দিয়ে খরচ ট্র্যাক করুন",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

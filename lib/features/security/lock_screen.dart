@@ -86,7 +86,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            'SmartSpend',
+                            'PocketPilot AI',
                             style: theme.textTheme.titleLarge,
                             textAlign: TextAlign.center,
                           ),

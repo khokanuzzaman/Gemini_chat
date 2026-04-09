@@ -12,7 +12,9 @@ void main() {
 
   setUp(() {
     originalPathProvider = PathProviderPlatform.instance;
-    tempDirectory = Directory.systemTemp.createTempSync('smartspend_csv_test_');
+    tempDirectory = Directory.systemTemp.createTempSync(
+      'pocketpilot_ai_csv_test_',
+    );
     PathProviderPlatform.instance = _FakePathProviderPlatform(
       temporaryPath: tempDirectory.path,
     );
@@ -34,7 +36,7 @@ void main() {
         endDate: DateTime(2026, 3, 28),
       );
 
-      expect(fileName, 'SmartSpend_Mar_2026');
+      expect(fileName, 'PocketPilot_AI_Mar_2026');
     });
 
     test('returns month span file name when range crosses months', () {
@@ -43,14 +45,14 @@ void main() {
         endDate: DateTime(2026, 3, 31),
       );
 
-      expect(fileName, 'SmartSpend_Jan_2026_to_Mar_2026');
+      expect(fileName, 'PocketPilot_AI_Jan_2026_to_Mar_2026');
     });
   });
 
   test('exportToCSV writes headers, rows, and summary', () async {
     const service = CsvExportService();
     final file = await service.exportToCSV(
-      fileName: 'SmartSpend_Test',
+      fileName: 'PocketPilot_AI_Test',
       expenses: [
         ExpenseEntity(
           id: 1,

@@ -33,13 +33,13 @@ class AppStrings {
   static const recordingFileMissing = 'Recording file পাওয়া যায়নি।';
   static const openAiEmptyResponse = 'OpenAI returned an empty response.';
 
-  static const appName = 'SmartSpend';
-  static const tagline = 'AI দিয়ে খরচ ট্র্যাক করুন';
+  static const String appName = 'PocketPilot AI';
+  static const tagline = 'আপনার আর্থিক বন্ধু';
   static const poweredBy = 'Powered by OpenAI';
   static const saveButton = 'Save করুন';
   static const cancelButton = 'বাদ দিন';
   static const chatHint = 'খরচ লিখুন বা বলুন...';
-  static const welcomeTitle = 'SmartSpend এ স্বাগতম';
+  static const welcomeTitle = 'PocketPilot AI এ স্বাগতম';
   static const welcomeSubtitle = 'খরচ লিখুন বা বলুন';
   static const expenseLabel = 'খরচ';
   static const voiceMessage = '🎤 ভয়েস মেসেজ';
@@ -53,7 +53,7 @@ class AppStrings {
   static const receiptDetected = 'Receipt detected';
   static const exportError = 'Export করতে সমস্যা হয়েছে';
   static const exportNoExpenses = 'এই সময়ে কোনো expense নেই';
-  static const exportShareSubject = 'SmartSpend Expense Report';
+  static const exportShareSubject = 'PocketPilot AI Expense Report';
   static const exportSuccess = 'CSV export তৈরি হয়েছে';
 
   static const expenseSaved = 'Expense save হয়েছে!';

@@ -29,7 +29,7 @@ void main() {
         },
       );
       final tempDir = await Directory.systemTemp.createTemp(
-        'smartspend-dashboard-',
+        'pocketpilot-ai-dashboard-',
       );
       final isar = await Isar.open(
         [ExpenseRecordModelSchema, WalletModelSchema],

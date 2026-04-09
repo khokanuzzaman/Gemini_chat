@@ -1,4 +1,4 @@
-# SmartSpend — AI Expense Tracker
+# PocketPilot AI — AI Expense Tracker
 
 > বাংলায় কথা বলুন, খরচ ট্র্যাক করুন। Powered by OpenAI.
 

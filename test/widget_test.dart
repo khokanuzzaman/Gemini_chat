@@ -278,10 +278,8 @@ void main() {
     );
     await _pumpChatFrames(tester);
 
-    expect(find.text('ভয়েস রেকর্ড হচ্ছে'), findsOneWidget);
-    expect(find.text('0:09'), findsOneWidget);
-    expect(find.text('শেষ হলে পাশের বাটনে চাপুন'), findsOneWidget);
-    expect(find.text('পাঠান'), findsOneWidget);
+    expect(find.text('ভয়েস রেকর্ড হচ্ছে 0:09'), findsOneWidget);
+    expect(find.byIcon(Icons.stop_rounded), findsOneWidget);
   });
 
   testWidgets('voice bubble shows transcript with voice label', (tester) async {

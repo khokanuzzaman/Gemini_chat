@@ -1,7 +1,7 @@
 # Project Context
 
 ## Overview
-`gemini_chat` is a Flutter expense tracker for Bangladesh, branded in the UI as `SmartSpend`.
+`gemini_chat` is a Flutter expense tracker for Bangladesh, branded in the UI as `PocketPilot AI`.
 
 Core direction:
 - Bengali-first UX

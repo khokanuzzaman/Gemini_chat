@@ -16,7 +16,7 @@ class BiometricService {
   BiometricService({LocalAuthentication? auth, MethodChannel? securityChannel})
     : _auth = auth ?? LocalAuthentication(),
       _securityChannel =
-          securityChannel ?? const MethodChannel('smartspend/security');
+          securityChannel ?? const MethodChannel('pocketpilot_ai/security');
 
   final LocalAuthentication _auth;
   final MethodChannel _securityChannel;
@@ -45,7 +45,7 @@ class BiometricService {
       }
 
       final authenticated = await _auth.authenticate(
-        localizedReason: 'SmartSpend খুলতে verify করুন',
+        localizedReason: 'PocketPilot AI খুলতে verify করুন',
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: false,

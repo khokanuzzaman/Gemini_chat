@@ -171,7 +171,7 @@ void main() {
         },
       );
       final tempDir = await Directory.systemTemp.createTemp(
-        'smartspend-wallet-refresh-',
+        'pocketpilot-ai-wallet-refresh-',
       );
       final isar = await Isar.open(
         [WalletModelSchema],

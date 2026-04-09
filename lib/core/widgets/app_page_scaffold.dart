@@ -40,6 +40,8 @@ class AppPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasAppBar = title != null || titleWidget != null || actions != null;
+
     Widget content = padding != null
         ? Padding(padding: padding!, child: body)
         : body;
@@ -62,8 +64,12 @@ class AppPageScaffold extends StatelessWidget {
       );
     }
 
+    if (!hasAppBar) {
+      content = SafeArea(bottom: false, child: content);
+    }
+
     final scaffold = Scaffold(
-      appBar: (title != null || titleWidget != null || actions != null)
+      appBar: hasAppBar
           ? AppBar(
               title: titleWidget ??
                   (title != null

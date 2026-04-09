@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_theme.dart';
 
-class SmartSpendLogo extends StatelessWidget {
-  const SmartSpendLogo({
+class PocketPilotLogo extends StatelessWidget {
+  const PocketPilotLogo({
     super.key,
     this.size = 44,
     this.showShadow = false,
@@ -56,8 +56,8 @@ class SmartSpendLogo extends StatelessWidget {
   }
 }
 
-class SmartSpendWordmark extends StatelessWidget {
-  const SmartSpendWordmark({super.key, this.compact = false});
+class PocketPilotWordmark extends StatelessWidget {
+  const PocketPilotWordmark({super.key, this.compact = false});
 
   final bool compact;
 
@@ -66,7 +66,7 @@ class SmartSpendWordmark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SmartSpendLogo(size: compact ? 28 : 36, showShadow: !compact),
+        PocketPilotLogo(size: compact ? 28 : 36, showShadow: !compact),
         SizedBox(width: compact ? 8 : 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,4 @@
-# Contributing to SmartSpend
+# Contributing to PocketPilot AI
 
 ## Workflow
 1. Fork the repository.

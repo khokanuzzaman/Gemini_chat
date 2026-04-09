@@ -2,19 +2,99 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
-class TypingIndicatorWidget extends StatefulWidget {
+class TypingIndicatorWidget extends StatelessWidget {
   const TypingIndicatorWidget({super.key});
 
   @override
-  State<TypingIndicatorWidget> createState() => _TypingIndicatorWidgetState();
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: context.appColors.primary.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            size: 16,
+            color: context.appColors.primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: context.aiBubbleColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: AppRadius.lg,
+              topRight: AppRadius.lg,
+              bottomLeft: AppRadius.sm,
+              bottomRight: AppRadius.lg,
+            ),
+            border: Border.all(
+              color: context.borderColor.withValues(alpha: 0.4),
+              width: 0.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'PocketPilot AI লিখছে',
+                style: AppTextStyles.caption.copyWith(
+                  color: context.secondaryTextColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TypingDot(delay: Duration.zero),
+                  SizedBox(width: 4),
+                  _TypingDot(delay: Duration(milliseconds: 200)),
+                  SizedBox(width: 4),
+                  _TypingDot(delay: Duration(milliseconds: 400)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
+class _TypingDot extends StatefulWidget {
+  const _TypingDot({required this.delay});
+
+  final Duration delay;
+
+  @override
+  State<_TypingDot> createState() => _TypingDotState();
+}
+
+class _TypingDotState extends State<_TypingDot>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 600),
-  )..repeat();
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    Future.delayed(widget.delay, () {
+      if (mounted) {
+        _controller.repeat(reverse: true);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -24,50 +104,14 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = context.aiBubbleColor;
-    final dotColor = context.secondaryTextColor;
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(3, (index) {
-                    final offset = (_controller.value - (index * 0.18) + 1) % 1;
-                    final opacity =
-                        0.25 + (1 - (offset - 0.5).abs() * 2) * 0.75;
-
-                    return Padding(
-                      padding: EdgeInsets.only(right: index == 2 ? 0 : 6),
-                      child: Opacity(
-                        opacity: opacity.clamp(0.25, 1.0),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: dotColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const SizedBox(height: 8, width: 8),
-                        ),
-                      ),
-                    );
-                  }),
-                );
-              },
-            ),
-          ),
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.3, end: 1.0).animate(_controller),
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: context.appColors.primary,
+          shape: BoxShape.circle,
         ),
       ),
     );

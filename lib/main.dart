@@ -110,7 +110,7 @@ Future<ThemeMode> _loadSavedThemeMode() async {
 }
 
 Future<Isar> _openIsar() async {
-  const instanceName = 'gemini_chat';
+  const instanceName = 'pocketpilot_ai';
   final existingInstance = Isar.getInstance(instanceName);
   if (existingInstance != null) {
     return existingInstance;

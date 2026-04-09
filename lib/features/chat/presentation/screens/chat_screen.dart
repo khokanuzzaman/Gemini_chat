@@ -10,14 +10,12 @@ import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/ai/token_usage.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/assets/app_icon.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
-import '../../../../core/widgets/global_settings_button.dart';
-import '../../../../core/widgets/offline_banner.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
@@ -29,11 +27,11 @@ import '../../../split/presentation/widgets/split_suggestion_widget.dart';
 import '../providers/chat_provider.dart';
 import '../utils/message_key.dart';
 import '../widgets/expense_confirmation_widget.dart';
+import '../widgets/chat_input_area.dart';
 import '../widgets/income_confirmation_widget.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/multiple_income_confirmation_widget.dart';
 import '../widgets/multiple_expense_confirmation_widget.dart';
-import '../widgets/pulsing_recording_widget.dart';
 import '../widgets/receipt_confirmation_widget.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/usage_details_sheet.dart';
@@ -54,11 +52,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final FocusNode _messageFocusNode = FocusNode();
   final ValueNotifier<int> _characterCountNotifier = ValueNotifier<int>(0);
   bool _ragBannerDismissed = false;
+  bool _shouldAutoScroll = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_syncAutoScrollState);
   }
 
   @override
@@ -69,6 +69,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_syncAutoScrollState);
     _messageController.dispose();
     _scrollController.dispose();
     _messageFocusNode.dispose();
@@ -110,7 +111,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final isRecording = ref.watch(isRecordingProvider);
     final isScanning = ref.watch(isScanningProvider);
     final recordingDuration = ref.watch(recordingDurationProvider) ?? '0:00';
-    final latestStreamText = ref.watch(chatStreamingTextProvider) ?? '';
+    final latestStreamText = ref.watch(chatStreamingTextProvider);
     final liveRateLimit = ref.watch(openAiRateLimitSnapshotProvider);
     final ragEnabled = ref.watch(ragEnabledProvider);
     final lastMessageUsedRag =
@@ -122,200 +123,140 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       liveRateLimit,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const SmartSpendWordmark(compact: true),
-        actions: [
-          IconButton(
-            onPressed: isResponding || isRecording || isScanning
-                ? null
-                : () async {
-                    ref.read(chatProvider.notifier).toggleRag();
-                    await AppPreferences.setRagEnabled(
-                      ref.read(ragEnabledProvider),
-                    );
-                  },
-            icon: Icon(
-              ragEnabled ? Icons.psychology_rounded : Icons.psychology_outlined,
+    return AppPageScaffold(
+      titleWidget: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'চ্যাট',
+            style: AppTextStyles.titleLarge.copyWith(
+              color: context.primaryTextColor,
             ),
-            tooltip: ragEnabled ? 'Personal data চালু' : 'Personal data বন্ধ',
           ),
-          const GlobalSettingsButton(),
+          const SizedBox(height: 2),
+          Text(
+            ragEnabled ? '🧠 স্মার্ট মোড চালু' : 'সাধারণ মোড',
+            style: AppTextStyles.caption.copyWith(
+              color: context.secondaryTextColor,
+            ),
+          ),
         ],
       ),
+      showBackButton: false,
+      showOfflineBanner: true,
+      onManualAdd: () => showManualAddSheet(context),
+      useGradientBackground: true,
+      actions: [
+        IconButton(
+          onPressed: isResponding || isRecording || isScanning
+              ? null
+              : () async {
+                  ref.read(chatProvider.notifier).toggleRag();
+                  await AppPreferences.setRagEnabled(
+                    ref.read(ragEnabledProvider),
+                  );
+                },
+          icon: Icon(
+            ragEnabled ? Icons.psychology_rounded : Icons.psychology_outlined,
+            color: ragEnabled
+                ? context.appColors.primary
+                : context.secondaryTextColor,
+          ),
+          tooltip: 'স্মার্ট মোড',
+        ),
+        IconButton(
+          onPressed: isResponding || isRecording || isScanning
+              ? null
+              : () => _confirmClearChat(context),
+          icon: Icon(
+            Icons.delete_sweep_outlined,
+            color: context.secondaryTextColor,
+          ),
+          tooltip: 'চ্যাট মুছুন',
+        ),
+      ],
       body: Stack(
         children: [
-          SafeArea(
-            child: Column(
-              children: [
-                OfflineBanner(onManualAdd: () => showManualAddSheet(context)),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: lastMessageUsedRag && !_ragBannerDismissed
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                          child: _RagStatusBanner(
-                            onDismiss: () {
-                              setState(() {
-                                _ragBannerDismissed = true;
-                              });
-                            },
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Expanded(
-                  child: messages.when(
-                    data: (items) => _MessageList(
-                      messages: items,
-                      latestStreamText: latestStreamText,
-                      isResponding: isResponding,
-                      isStreamingWithRag: lastMessageUsedRag,
-                      onCopyAiMessage: _copyAiMessage,
-                      onSaveExpense: _saveExpenseData,
-                      onSaveExpenseList: _saveExpenseList,
-                      onSaveReceipt: _saveReceiptData,
-                      onSaveIncome: _saveIncomeData,
-                      onSaveIncomeList: _saveIncomeList,
-                      onOpenAnalytics: _openAnalytics,
-                      ragResponseMap: ragResponseMap,
-                      parsedExpenseMap: parsedExpenseMap,
-                      scrollController: _scrollController,
-                      onSuggestionTap: _handleSuggestionTap,
-                    ),
-                    loading: () => const Center(child: TypingIndicatorWidget()),
-                    error: (error, stackTrace) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Failed to load messages.\n$error',
-                          textAlign: TextAlign.center,
+          Column(
+            children: [
+              AnimatedSwitcher(
+                duration: AppMotion.fast,
+                child: lastMessageUsedRag && !_ragBannerDismissed
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenPadding,
+                          AppSpacing.sm,
+                          AppSpacing.screenPadding,
+                          0,
                         ),
-                      ),
+                        child: _RagStatusBanner(
+                          onDismiss: () {
+                            setState(() {
+                              _ragBannerDismissed = true;
+                            });
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              Expanded(
+                child: messages.when(
+                  data: (items) => _MessageList(
+                    messages: items,
+                    latestStreamText: latestStreamText,
+                    isResponding: isResponding,
+                    isStreamingWithRag: lastMessageUsedRag,
+                    onCopyAiMessage: _copyAiMessage,
+                    onSaveExpense: _saveExpenseData,
+                    onSaveExpenseList: _saveExpenseList,
+                    onSaveReceipt: _saveReceiptData,
+                    onSaveIncome: _saveIncomeData,
+                    onSaveIncomeList: _saveIncomeList,
+                    onOpenAnalytics: _openAnalytics,
+                    ragResponseMap: ragResponseMap,
+                    parsedExpenseMap: parsedExpenseMap,
+                    scrollController: _scrollController,
+                  ),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screenPadding,
+                      AppSpacing.md,
+                      AppSpacing.screenPadding,
+                      AppSpacing.md,
                     ),
+                    child: AppLoadingState.list(),
+                  ),
+                  error: (error, stackTrace) => AppErrorState(
+                    message: error.toString(),
+                    onRetry: () => ref.invalidate(chatProvider),
                   ),
                 ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: context.backgroundColor,
-                    border: Border(top: BorderSide(color: context.borderColor)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    child: ValueListenableBuilder<int>(
-                      valueListenable: _characterCountNotifier,
-                      builder: (context, currentCount, child) {
-                        final trimmedText = _messageController.text.trim();
-                        final isOverLimit = currentCount > _maxMessageLength;
-                        final canSend =
-                            !isResponding &&
-                            !isRecording &&
-                            !isScanning &&
-                            trimmedText.isNotEmpty &&
-                            !isOverLimit;
-
-                        if (isRecording) {
-                          return _RecordingComposer(
-                            duration: recordingDuration,
-                            onStop: () => ref
-                                .read(chatProvider.notifier)
-                                .stopAndSendVoice(),
-                          );
-                        }
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                _AttachButton(
-                                  enabled: !isResponding && !isScanning,
-                                  onTap: () {
-                                    _showAttachOptions();
-                                  },
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _messageController,
-                                    focusNode: _messageFocusNode,
-                                    minLines: 1,
-                                    maxLines: 6,
-                                    enabled: !isScanning,
-                                    textInputAction: TextInputAction.send,
-                                    onChanged: (value) {
-                                      _characterCountNotifier.value =
-                                          value.length;
-                                      if (value.isNotEmpty) {
-                                        _scrollToBottom();
-                                      }
-                                    },
-                                    onSubmitted: (_) {
-                                      _submitMessage();
-                                    },
-                                    decoration: const InputDecoration(
-                                      hintText: AppStrings.chatHint,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                _ComposerActionButton(
-                                  hasText: trimmedText.isNotEmpty,
-                                  isResponding: isResponding || isScanning,
-                                  canSend: canSend,
-                                  onSend: () {
-                                    _submitMessage();
-                                  },
-                                  onStartRecording: () {
-                                    _startRecording();
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (currentCount > 400) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                '$currentCount/$_maxMessageLength',
-                                style: TextStyle(
-                                  color: isOverLimit
-                                      ? AppColors.error
-                                      : context.secondaryTextColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 6),
-                            Center(
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(999),
-                                onTap: () => _showUsageDetails(usageData),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  child: Text(
-                                    AppStrings.poweredBy,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: context.hintTextColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              ChatInputArea(
+                messageController: _messageController,
+                messageFocusNode: _messageFocusNode,
+                characterCountNotifier: _characterCountNotifier,
+                maxMessageLength: _maxMessageLength,
+                isResponding: isResponding,
+                isRecording: isRecording,
+                isScanning: isScanning,
+                recordingDuration: recordingDuration,
+                onMessageChanged: (value) {
+                  _characterCountNotifier.value = value.length;
+                  if (value.isNotEmpty) {
+                    _scrollToBottom();
+                  }
+                },
+                onSubmitMessage: _submitMessage,
+                onScanFromCamera: () => _startReceiptScan(fromCamera: true),
+                onScanFromGallery: () => _startReceiptScan(fromCamera: false),
+                onStartRecording: _startRecording,
+                onStopRecording: () =>
+                    ref.read(chatProvider.notifier).stopAndSendVoice(),
+                onShowUsageDetails: () => _showUsageDetails(usageData),
+              ),
+            ],
           ),
           if (isScanning) const _ScanningOverlay(),
         ],
@@ -338,73 +279,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     setState(() {
       _ragBannerDismissed = false;
     });
+    _shouldAutoScroll = true;
     ref.read(chatProvider.notifier).sendMessage(text);
     _messageController.clear();
     _characterCountNotifier.value = 0;
     _messageFocusNode.requestFocus();
-    _scrollToBottom();
-  }
-
-  void _handleSuggestionTap(String text) {
-    _messageController.text = text;
-    _characterCountNotifier.value = text.length;
-    _messageController.selection = TextSelection.fromPosition(
-      TextPosition(offset: text.length),
-    );
-    _messageFocusNode.requestFocus();
-  }
-
-  Future<void> _showAttachOptions() async {
-    if (!ref.read(connectivityProvider)) {
-      await _showOfflineActionSheet();
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.cardBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 4),
-                const Text(
-                  'Receipt scan করুন',
-                  style: AppTextStyles.titleLarge,
-                ),
-                const SizedBox(height: 14),
-                _AttachmentOptionTile(
-                  icon: Icons.photo_camera_rounded,
-                  title: 'Camera',
-                  subtitle: 'নতুন receipt তুলুন',
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _startReceiptScan(fromCamera: true);
-                  },
-                ),
-                const SizedBox(height: 8),
-                _AttachmentOptionTile(
-                  icon: Icons.photo_library_rounded,
-                  title: 'Gallery',
-                  subtitle: 'আগের receipt image বাছাই করুন',
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _startReceiptScan(fromCamera: false);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    _scrollToBottom(force: true);
   }
 
   Future<void> _startRecording() async {
@@ -431,67 +311,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   Future<void> _showOfflineActionSheet() async {
-    await showModalBottomSheet<void>(
+    await AppBottomSheet.show<void>(
       context: context,
-      backgroundColor: context.cardBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 48,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: context.borderColor,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Internet নেই', style: AppTextStyles.titleLarge),
-                const SizedBox(height: 8),
-                const Text(
-                  'AI ছাড়া manual add করতে পারেন',
-                  style: AppTextStyles.bodyMedium,
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          showManualAddSheet(context);
-                        }
-                      });
-                    },
-                    icon: const Icon(Icons.edit_note_rounded),
-                    label: const Text('Manual expense add করুন'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                    child: const Text('বাদ দিন'),
-                  ),
-                ),
-              ],
-            ),
+      title: 'Internet নেই',
+      subtitle: 'AI ছাড়া manual add করতে পারেন',
+      scrollable: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppActionButton(
+            label: 'Manual expense add করুন',
+            icon: Icons.edit_note_rounded,
+            onPressed: () {
+              Navigator.of(context).pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  showManualAddSheet(context);
+                }
+              });
+            },
+            fullWidth: true,
           ),
-        );
-      },
+          const SizedBox(height: AppSpacing.sm),
+          AppActionButton(
+            label: 'বাদ দিন',
+            variant: AppActionButtonVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+            fullWidth: true,
+          ),
+        ],
+      ),
     );
   }
 
@@ -549,10 +398,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ..showSnackBar(SnackBar(content: Text(error ?? AppStrings.expenseSaved)));
   }
 
-  Future<void> _saveIncomeData(
-    IncomeData incomeData, [
-    int? walletId,
-  ]) async {
+  Future<void> _saveIncomeData(IncomeData incomeData, [int? walletId]) async {
     final income = IncomeEntity(
       amount: incomeData.amount,
       source: incomeData.source,
@@ -573,9 +419,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(error ?? 'আয় সংরক্ষণ হয়েছে')),
-      );
+      ..showSnackBar(SnackBar(content: Text(error ?? 'আয় সংরক্ষণ হয়েছে')));
   }
 
   Future<void> _saveIncomeList(
@@ -628,13 +472,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ).push(MaterialPageRoute<void>(builder: (_) => const AnalyticsScreen()));
   }
 
-  void _scrollToBottom() {
+  void _syncAutoScrollState() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    _shouldAutoScroll = _isNearBottom();
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) {
+      return true;
+    }
+
+    final position = _scrollController.position;
+    return position.pixels <= position.minScrollExtent + 56;
+  }
+
+  void _scrollToBottom({bool force = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_scrollController.hasClients) {
         return;
       }
 
-      final offset = _scrollController.position.maxScrollExtent;
+      if (!force && !_shouldAutoScroll) {
+        return;
+      }
+
+      final offset = _scrollController.position.minScrollExtent;
       try {
         await _scrollController.animateTo(
           offset,
@@ -755,6 +620,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final scaled = (outputTokens * 1.3).round();
     return scaled < 24 ? 24 : scaled;
   }
+
+  Future<void> _confirmClearChat(BuildContext dialogContext) async {
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('চ্যাট মুছে ফেলবেন?'),
+          content: const Text('সব বার্তা মুছে যাবে। এটি অপরিবর্তনীয়।'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('বাতিল'),
+            ),
+            SizedBox(
+              width: 92,
+              child: AppActionButton(
+                label: 'মুছুন',
+                variant: AppActionButtonVariant.danger,
+                size: AppActionButtonSize.small,
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await ref.read(chatProvider.notifier).clearChat();
+    }
+  }
 }
 
 class _MessageList extends StatefulWidget {
@@ -773,11 +669,10 @@ class _MessageList extends StatefulWidget {
     required this.ragResponseMap,
     required this.parsedExpenseMap,
     required this.scrollController,
-    required this.onSuggestionTap,
   });
 
   final List<MessageEntity> messages;
-  final String latestStreamText;
+  final String? latestStreamText;
   final bool isResponding;
   final bool isStreamingWithRag;
   final ValueChanged<String> onCopyAiMessage;
@@ -795,7 +690,6 @@ class _MessageList extends StatefulWidget {
   final Map<String, RagResponseData> ragResponseMap;
   final Map<String, ExpenseResult> parsedExpenseMap;
   final ScrollController scrollController;
-  final ValueChanged<String> onSuggestionTap;
 
   @override
   State<_MessageList> createState() => _MessageListState();
@@ -808,108 +702,70 @@ class _MessageListState extends State<_MessageList> {
   @override
   Widget build(BuildContext context) {
     if (widget.messages.isEmpty && !widget.isResponding) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 900),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, child) {
-                  return Transform.translate(
-                    offset: Offset(0, -8 * value),
-                    child: child,
-                  );
-                },
-                child: const SmartSpendLogo(
-                  size: 80,
-                  showShadow: true,
-                  borderRadius: BorderRadius.all(AppRadius.xl),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                AppStrings.welcomeTitle,
-                style: AppTextStyles.displayMedium,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                AppStrings.welcomeSubtitle,
-                style: AppTextStyles.bodyMedium,
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _SuggestionChip(
-                    label: 'আজকের খরচ দিন',
-                    onTap: () => widget.onSuggestionTap('আজকের খরচ দিন'),
-                  ),
-                  _SuggestionChip(
-                    label: 'এই মাসের summary',
-                    onTap: () =>
-                        widget.onSuggestionTap('এই মাসে কত খরচ হয়েছে?'),
-                  ),
-                  _SuggestionChip(
-                    label: 'receipt scan করুন',
-                    onTap: () => widget.onSuggestionTap('receipt scan করুন'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
+      return const _ChatEmptyState();
     }
 
-    final itemCount = widget.messages.length + (widget.isResponding ? 1 : 0);
+    final reversedMessages = widget.messages.reversed.toList(growable: false);
+    final hasStreamingSlot = widget.isResponding;
+    final itemCount = reversedMessages.length + (hasStreamingSlot ? 1 : 0);
 
     return ListView.builder(
       controller: widget.scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      reverse: true,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenPadding,
+        AppSpacing.md,
+        AppSpacing.screenPadding,
+        AppSpacing.md,
+      ),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        if (index < widget.messages.length) {
-          final message = widget.messages[index];
+        if (hasStreamingSlot && index == 0) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildMessageItem(context, message, index),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildStreamingItem(),
           );
         }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              widget.latestStreamText.trim().isEmpty
-                  ? const TypingIndicatorWidget()
-                  : MessageBubble(
-                      text: widget.latestStreamText,
-                      isUser: false,
-                      createdAt: DateTime.now(),
-                    ),
-              if (widget.isStreamingWithRag) ...[
-                const SizedBox(height: 6),
-                const _RagIndicatorChip(),
-              ],
-            ],
-          ),
-        );
+        final messageIndex = index - (hasStreamingSlot ? 1 : 0);
+        if (messageIndex >= 0 && messageIndex < reversedMessages.length) {
+          final message = reversedMessages[messageIndex];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildMessageItem(context, message),
+          );
+        }
+
+        return const SizedBox.shrink();
       },
     );
   }
 
-  Widget _buildMessageItem(
-    BuildContext context,
-    MessageEntity message,
-    int index,
-  ) {
+  Widget _buildStreamingItem() {
+    final streamingText = widget.latestStreamText?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        streamingText == null || streamingText.isEmpty
+            ? const TypingIndicatorWidget()
+            : MessageBubble(
+                key: const ValueKey('streaming-message-bubble'),
+                text: streamingText,
+                isUser: false,
+                createdAt: DateTime.now(),
+                isStreaming: true,
+                animationIdentity: 'streaming-message-bubble',
+              ),
+        if (widget.isStreamingWithRag) ...[
+          const SizedBox(height: 6),
+          const _RagIndicatorChip(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMessageItem(BuildContext context, MessageEntity message) {
     final messageKey = _messageKey(message);
     if (!message.isUser && !message.isError) {
       final expenseResult =
@@ -924,10 +780,15 @@ class _MessageListState extends State<_MessageList> {
         if (conversationalText.isNotEmpty) {
           parts.add(
             MessageBubble(
+              key: ValueKey('conversational-$messageKey'),
               text: conversationalText,
               isUser: false,
               createdAt: message.createdAt,
               onLongPress: () => widget.onCopyAiMessage(message.text),
+              promptTokenCount: message.promptTokenCount,
+              outputTokenCount: message.outputTokenCount,
+              totalTokenCount: message.totalTokenCount,
+              animationIdentity: 'conversational-$messageKey',
             ),
           );
         }
@@ -1009,9 +870,11 @@ class _MessageListState extends State<_MessageList> {
               if (expenseResult.hasMixedEntries) {
                 parts.add(
                   MessageBubble(
+                    key: ValueKey('income-hint-$messageKey'),
                     text: 'আয়ের তথ্যও পাওয়া গেছে। দেখুন:',
                     isUser: false,
                     createdAt: message.createdAt,
+                    animationIdentity: 'income-hint-$messageKey',
                   ),
                 );
                 parts.add(const SizedBox(height: 8));
@@ -1055,6 +918,7 @@ class _MessageListState extends State<_MessageList> {
     }
 
     final bubble = MessageBubble(
+      key: ValueKey(message.id ?? message.createdAt.microsecondsSinceEpoch),
       text: message.text,
       isUser: message.isUser,
       isReceipt: message.isReceipt,
@@ -1063,6 +927,10 @@ class _MessageListState extends State<_MessageList> {
       isRag: message.isRag,
       ragData: widget.ragResponseMap[messageKey],
       createdAt: message.createdAt,
+      promptTokenCount: message.promptTokenCount,
+      outputTokenCount: message.outputTokenCount,
+      totalTokenCount: message.totalTokenCount,
+      animationIdentity: message.id ?? message.createdAt.microsecondsSinceEpoch,
       onLongPress: message.isUser || message.isError
           ? null
           : () => widget.onCopyAiMessage(message.text),
@@ -1095,6 +963,19 @@ class _MessageListState extends State<_MessageList> {
   }
 }
 
+class _ChatEmptyState extends StatelessWidget {
+  const _ChatEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppEmptyState(
+      icon: Icons.chat_bubble_outline_rounded,
+      title: 'চ্যাট শুরু করুন',
+      subtitle: 'আপনার খরচ লিখুন, বলুন বা রিসিট স্ক্যান করুন',
+    );
+  }
+}
+
 class _ScanningOverlay extends StatelessWidget {
   const _ScanningOverlay();
 
@@ -1103,14 +984,12 @@ class _ScanningOverlay extends StatelessWidget {
     return Positioned.fill(
       child: AbsorbPointer(
         child: ColoredBox(
-          color: context.primaryTextColor.withValues(alpha: 0.7),
+          color: context.primaryTextColor.withValues(alpha: 0.56),
           child: Center(
-            child: Container(
+            child: AppCard(
+              elevation: 4,
+              borderRadius: const BorderRadius.all(AppRadius.heroCard),
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-              decoration: BoxDecoration(
-                color: context.cardBackgroundColor,
-                borderRadius: BorderRadius.circular(22),
-              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1118,10 +997,8 @@ class _ScanningOverlay extends StatelessWidget {
                   const SizedBox(height: 14),
                   Text(
                     'Receipt পড়ছি...',
-                    style: TextStyle(
+                    style: AppTextStyles.titleMedium.copyWith(
                       color: context.primaryTextColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -1141,51 +1018,39 @@ class _RagStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: context.ragChipBackgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.24),
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      borderRadius: const BorderRadius.all(AppRadius.card),
+      child: Row(
+        children: [
+          Icon(
+            Icons.psychology_rounded,
+            size: 18,
+            color: context.ragChipTextColor,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.psychology_rounded,
-              size: 18,
-              color: context.ragChipTextColor,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Personal data ব্যবহার হচ্ছে',
-                style: TextStyle(
-                  color: context.ragChipTextColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Personal data ব্যবহার হচ্ছে',
+              style: AppTextStyles.caption.copyWith(
+                color: context.ragChipTextColor,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            InkWell(
-              onTap: onDismiss,
-              borderRadius: BorderRadius.circular(999),
-              child: Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 16,
-                  color: context.ragChipTextColor,
-                ),
+          ),
+          InkWell(
+            onTap: onDismiss,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: context.ragChipTextColor,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1200,9 +1065,12 @@ class _RagIndicatorChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.ragChipBackgroundColor,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: context.appColors.primary.withValues(alpha: 0.16),
+        ),
       ),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1214,465 +1082,14 @@ class _RagIndicatorChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'আপনার data থেকে',
-              style: TextStyle(
+              style: AppTextStyles.caption.copyWith(
                 color: context.ragChipTextColor,
-                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ComposerActionButton extends StatelessWidget {
-  const _ComposerActionButton({
-    required this.hasText,
-    required this.isResponding,
-    required this.canSend,
-    required this.onSend,
-    required this.onStartRecording,
-  });
-
-  final bool hasText;
-  final bool isResponding;
-  final bool canSend;
-  final VoidCallback onSend;
-  final VoidCallback onStartRecording;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      transitionBuilder: (child, animation) {
-        return SlideTransition(
-          position:
-              Tween<Offset>(
-                begin: const Offset(0.15, 0),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            ),
-            child: FadeTransition(opacity: animation, child: child),
-          ),
-        );
-      },
-      child: hasText
-          ? SizedBox(
-              key: const ValueKey('send-button'),
-              height: 54,
-              width: 54,
-              child: FilledButton(
-                onPressed: canSend ? onSend : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: const CircleBorder(),
-                ),
-                child: isResponding
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded),
-              ),
-            )
-          : _MicIdleButton(
-              key: const ValueKey('mic-button'),
-              enabled: !isResponding,
-              onTap: onStartRecording,
-            ),
-    );
-  }
-}
-
-class _MicIdleButton extends StatefulWidget {
-  const _MicIdleButton({super.key, required this.enabled, required this.onTap});
-
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  State<_MicIdleButton> createState() => _MicIdleButtonState();
-}
-
-class _MicIdleButtonState extends State<_MicIdleButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  late final Animation<double> _scale = Tween<double>(
-    begin: 0.96,
-    end: 1,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-  late final Animation<double> _haloScale = Tween<double>(
-    begin: 0.9,
-    end: 1.18,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-  late final Animation<double> _haloOpacity = Tween<double>(
-    begin: 0.12,
-    end: 0.02,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-  @override
-  void didUpdateWidget(covariant _MicIdleButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.enabled && !_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    } else if (!widget.enabled && _controller.isAnimating) {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      width: 56,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final isEnabled = widget.enabled;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              if (isEnabled)
-                Opacity(
-                  opacity: _haloOpacity.value,
-                  child: Transform.scale(
-                    scale: _haloScale.value,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ),
-              Transform.scale(
-                scale: isEnabled ? _scale.value : 0.94,
-                child: child,
-              ),
-            ],
-          );
-        },
-        child: FilledButton(
-          onPressed: widget.enabled ? widget.onTap : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            disabledBackgroundColor: AppColors.grey400,
-            shape: const CircleBorder(),
-            padding: EdgeInsets.zero,
-          ),
-          child: Icon(
-            Icons.mic_rounded,
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecordingComposer extends StatelessWidget {
-  const _RecordingComposer({required this.duration, required this.onStop});
-
-  final String duration;
-  final VoidCallback onStop;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: context.isDarkMode
-            ? AppColors.error.withValues(alpha: 0.14)
-            : const Color(0xFFFFF6F5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: context.isDarkMode
-              ? AppColors.error.withValues(alpha: 0.35)
-              : const Color(0xFFF6CCC8),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.error.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: context.cardBackgroundColor,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: context.isDarkMode
-                    ? AppColors.error.withValues(alpha: 0.25)
-                    : const Color(0xFFF2D5D2),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                PulsingRecordingWidget(),
-                SizedBox(width: 12),
-                _RecordingBars(),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'ভয়েস রেকর্ড হচ্ছে',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  duration,
-                  style: const TextStyle(
-                    color: AppColors.grey900,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'শেষ হলে পাশের বাটনে চাপুন',
-                  style: TextStyle(
-                    color: context.secondaryTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 64,
-            width: 64,
-            child: FilledButton(
-              onPressed: onStop,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.send_rounded, size: 18),
-                  SizedBox(height: 2),
-                  Text(
-                    'পাঠান',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AttachButton extends StatelessWidget {
-  const _AttachButton({required this.enabled, required this.onTap});
-
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 46,
-      height: 46,
-      child: IconButton.filledTonal(
-        onPressed: enabled ? onTap : null,
-        style: IconButton.styleFrom(
-          backgroundColor: context.mutedSurfaceColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: Icon(Icons.add_rounded, color: context.primaryTextColor),
-      ),
-    );
-  }
-}
-
-class _AttachmentOptionTile extends StatelessWidget {
-  const _AttachmentOptionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: context.mutedSurfaceColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: context.borderColor),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: context.ragChipBackgroundColor,
-                child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppTextStyles.titleMedium),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: AppTextStyles.bodySmall),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      label: Text(label),
-      onPressed: onTap,
-      backgroundColor: context.mutedSurfaceColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      side: BorderSide(color: context.borderColor),
-      labelStyle: AppTextStyles.bodySmall.copyWith(
-        color: context.primaryTextColor,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-class _RecordingBars extends StatefulWidget {
-  const _RecordingBars();
-
-  @override
-  State<_RecordingBars> createState() => _RecordingBarsState();
-}
-
-class _RecordingBarsState extends State<_RecordingBars>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  static const _baseHeights = [10.0, 18.0, 12.0, 22.0, 14.0];
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: List<Widget>.generate(_baseHeights.length, (index) {
-            final phase = (_controller.value + (index * 0.14)) % 1;
-            final multiplier = 0.72 + (phase * 0.56);
-            final height = _baseHeights[index] * multiplier;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                right: index == _baseHeights.length - 1 ? 0 : 4,
-              ),
-              child: Container(
-                width: 4,
-                height: height,
-                decoration: BoxDecoration(
-                  color: Color.lerp(
-                    const Color(0xFFF5B0A8),
-                    AppColors.error,
-                    0.35 + (phase * 0.55),
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            );
-          }),
-        );
-      },
     );
   }
 }
