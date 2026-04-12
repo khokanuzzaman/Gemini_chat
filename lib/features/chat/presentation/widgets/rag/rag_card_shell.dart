@@ -1,169 +1,83 @@
 import 'package:flutter/material.dart';
 
-class RagAnimatedCard extends StatefulWidget {
-  const RagAnimatedCard({
+import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/widgets/widgets.dart';
+
+class RagCardShell extends StatelessWidget {
+  const RagCardShell({
     super.key,
-    required this.child,
-    this.borderColor,
-    this.backgroundColor,
-  });
-
-  final Widget child;
-  final Color? borderColor;
-  final Color? backgroundColor;
-
-  @override
-  State<RagAnimatedCard> createState() => _RagAnimatedCardState();
-}
-
-class _RagAnimatedCardState extends State<RagAnimatedCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 400),
-  )..forward();
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _controller,
-    curve: Curves.easeOutCubic,
-  );
-  late final Animation<Offset> _slide = Tween<Offset>(
-    begin: const Offset(0, 0.08),
-    end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor =
-        widget.borderColor ??
-        Theme.of(context).colorScheme.primary.withValues(alpha: 0.24);
-    final backgroundColor =
-        widget.backgroundColor ?? Theme.of(context).cardColor;
-
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
-                blurRadius: 16,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: widget.child,
-        ),
-      ),
-    );
-  }
-}
-
-class RagCardHeader extends StatelessWidget {
-  const RagCardHeader({
-    super.key,
-    required this.icon,
     required this.title,
-    required this.subtitle,
+    required this.icon,
+    required this.tintColor,
+    required this.child,
+    this.subtitle,
   });
 
-  final IconData icon;
   final String title;
-  final String subtitle;
+  final IconData icon;
+  final Color tintColor;
+  final Widget child;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final iconBackground = primary.withValues(
-      alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.12,
-    );
-
-    return Row(
-      children: [
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: iconBackground,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class RagFooter extends StatelessWidget {
-  const RagFooter({super.key, required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    return AppFadeSlideIn(
+      duration: AppMotion.normal,
+      offset: const Offset(0, 0.05),
+      child: Container(
+        margin: const EdgeInsets.only(top: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
         decoration: BoxDecoration(
-          color: primary.withValues(
-            alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.1,
-          ),
-          borderRadius: BorderRadius.circular(16),
+          color: context.ragCardBackground(tintColor),
+          borderRadius: AppRadius.cardAll,
+          border: Border.all(color: context.ragCardBorder(tintColor), width: 1),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storage_rounded, size: 14, color: primary),
-            const SizedBox(width: 6),
-            Text(
-              'আপনার data থেকে',
-              style: TextStyle(
-                color: primary,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: tintColor.withValues(
+                      alpha: context.isDarkMode ? 0.25 : 0.15,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 16, color: tintColor),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: context.secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            Icon(Icons.arrow_forward_rounded, size: 14, color: primary),
+            const SizedBox(height: AppSpacing.md),
+            child,
           ],
         ),
       ),
@@ -171,83 +85,61 @@ class RagFooter extends StatelessWidget {
   }
 }
 
-class AnimatedCategoryBar extends StatelessWidget {
-  const AnimatedCategoryBar({
-    super.key,
-    required this.label,
-    required this.amountLabel,
-    required this.percentLabel,
-    required this.value,
-    required this.color,
-  });
+class RagStatBlock extends StatelessWidget {
+  const RagStatBlock({super.key, required this.label, required this.value});
 
   final String label;
-  final String amountLabel;
-  final String percentLabel;
-  final double value;
-  final Color color;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    final secondary = Theme.of(context).textTheme.bodySmall?.color;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.mutedSurfaceColor,
+        borderRadius: AppRadius.cardAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: context.secondaryTextColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: context.primaryTextColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: onSurface,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              amountLabel,
-              style: TextStyle(
-                color: onSurface,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              percentLabel,
-              style: TextStyle(
-                color: secondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: value.clamp(0, 1)),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeOutCubic,
-          builder: (context, progress, child) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: color.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.2
-                      : 0.1,
-                ),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            );
-          },
-        ),
-      ],
+class RagAnalyticsButton extends StatelessWidget {
+  const RagAnalyticsButton({
+    super.key,
+    required this.onTap,
+    required this.tintColor,
+  });
+
+  final VoidCallback onTap;
+  final Color tintColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(Icons.analytics_outlined, size: 16, color: tintColor),
+      label: Text(
+        'বিশদ দেখুন',
+        style: AppTextStyles.bodySmall.copyWith(color: tintColor),
+      ),
     );
   }
 }

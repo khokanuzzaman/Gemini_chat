@@ -52,7 +52,8 @@ class DashboardScreen extends ConsumerWidget {
     final anomalyState = ref.watch(anomalyProvider);
     final activeAlerts = anomalyState.activeAlerts;
     final highSeverityCount = anomalyState.highSeverityCount;
-    final prediction = ref.watch(predictionProvider).prediction;
+    final predictionState = ref.watch(predictionProvider);
+    final prediction = predictionState.prediction;
     final categoryNames = ref
         .watch(categoryProvider)
         .map((category) => category.name)
@@ -68,6 +69,14 @@ class DashboardScreen extends ConsumerWidget {
           return days >= 0 && days <= 7;
         })
         .toList(growable: false);
+
+    if (predictionState.isStale && !predictionState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(predictionProvider.notifier)
+            .loadPrediction(forceRefresh: true);
+      });
+    }
 
     return AppPageScaffold(
       showOfflineBanner: true,
@@ -202,9 +211,9 @@ class DashboardScreen extends ConsumerWidget {
                           title: 'আসছে খরচ',
                           action: TextButton(
                             onPressed: () {
-                              Navigator.of(context).push(
-                                buildAppRoute(const RecurringScreen()),
-                              );
+                              Navigator.of(
+                                context,
+                              ).push(buildAppRoute(const RecurringScreen()));
                             },
                             child: const Text('সব দেখুন →'),
                           ),
@@ -215,7 +224,9 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
-                if (prediction != null) ...[
+                if (prediction != null ||
+                    predictionState.isLoading ||
+                    predictionState.isStale) ...[
                   const SizedBox(height: AppSpacing.sectionGap),
                   AppFadeSlideIn(
                     delay: const Duration(milliseconds: 800),
@@ -224,7 +235,11 @@ class DashboardScreen extends ConsumerWidget {
                       children: [
                         const AppSectionHeader(title: 'পূর্বাভাস'),
                         const SizedBox(height: AppSpacing.sm),
-                        _PredictionTeaserCard(prediction: prediction),
+                        if (predictionState.isLoading ||
+                            predictionState.isStale)
+                          const _PredictionTeaserLoadingCard()
+                        else if (prediction != null)
+                          _PredictionTeaserCard(prediction: prediction),
                       ],
                     ),
                   ),
@@ -257,9 +272,9 @@ class DashboardScreen extends ConsumerWidget {
                           title: 'আমার লক্ষ্য',
                           action: TextButton(
                             onPressed: () {
-                              Navigator.of(context).push(
-                                buildAppRoute(const GoalsScreen()),
-                              );
+                              Navigator.of(
+                                context,
+                              ).push(buildAppRoute(const GoalsScreen()));
                             },
                             child: const Text('সব দেখুন →'),
                           ),
@@ -322,8 +337,7 @@ class DashboardScreen extends ConsumerWidget {
                                           recentExpenses.take(5).last)
                                         Divider(
                                           height: 1,
-                                          color:
-                                              context.borderColor.withValues(
+                                          color: context.borderColor.withValues(
                                             alpha: 0.55,
                                           ),
                                         ),
@@ -350,7 +364,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _GreetingHeader extends StatelessWidget {
@@ -413,8 +426,9 @@ class _NetWorthSection extends ConsumerWidget {
         compact: true,
       ),
       data: (wallets) {
-        final activeWallets =
-            wallets.where((wallet) => !wallet.isArchived).toList();
+        final activeWallets = wallets
+            .where((wallet) => !wallet.isArchived)
+            .toList();
         if (activeWallets.isEmpty) {
           return AppEmptyState(
             icon: Icons.account_balance_wallet_outlined,
@@ -466,12 +480,11 @@ class _CashFlowStatRow extends ConsumerWidget {
                 valueColor: context.incomeColor,
                 trend: cashFlow.lastMonthIncome > 0
                     ? StatTrend(
-                        percentage: ((cashFlow.income -
-                                    cashFlow.lastMonthIncome) /
+                        percentage:
+                            ((cashFlow.income - cashFlow.lastMonthIncome) /
                                 cashFlow.lastMonthIncome) *
                             100,
-                        isPositive:
-                            cashFlow.income >= cashFlow.lastMonthIncome,
+                        isPositive: cashFlow.income >= cashFlow.lastMonthIncome,
                       )
                     : null,
                 onTap: AppShellNavigation.openIncome,
@@ -487,8 +500,8 @@ class _CashFlowStatRow extends ConsumerWidget {
                 valueColor: context.expenseColor,
                 trend: cashFlow.lastMonthExpense > 0
                     ? StatTrend(
-                        percentage: ((cashFlow.expense -
-                                    cashFlow.lastMonthExpense) /
+                        percentage:
+                            ((cashFlow.expense - cashFlow.lastMonthExpense) /
                                 cashFlow.lastMonthExpense) *
                             100,
                         isPositive:
@@ -518,10 +531,7 @@ class _CashFlowStatRow extends ConsumerWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions({
-    required this.onOpenChat,
-    required this.onOpenIncome,
-  });
+  const _QuickActions({required this.onOpenChat, required this.onOpenIncome});
 
   final VoidCallback onOpenChat;
   final VoidCallback onOpenIncome;
@@ -534,11 +544,7 @@ class _QuickActions extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
         children: [
-          AppChip(
-            label: 'খরচ যোগ',
-            icon: Icons.add_rounded,
-            onTap: onOpenChat,
-          ),
+          AppChip(label: 'খরচ যোগ', icon: Icons.add_rounded, onTap: onOpenChat),
           const SizedBox(width: 8),
           AppChip(
             label: 'আয় যোগ',
@@ -789,9 +795,7 @@ class _BudgetProgressCard extends StatelessWidget {
         : AppColors.success;
     return AppCard(
       onTap: () {
-        Navigator.of(
-          context,
-        ).push(buildAppRoute(const BudgetPlannerScreen()));
+        Navigator.of(context).push(buildAppRoute(const BudgetPlannerScreen()));
       },
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -993,6 +997,33 @@ class _PredictionTeaserCard extends StatelessWidget {
   }
 }
 
+class _PredictionTeaserLoadingCard extends StatelessWidget {
+  const _PredictionTeaserLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'রিফ্রেশ হচ্ছে...',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: context.secondaryTextColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AnomalyAlertCard extends StatelessWidget {
   const _AnomalyAlertCard({
     required this.count,
@@ -1022,10 +1053,7 @@ class _AnomalyAlertCard extends StatelessWidget {
             color: color.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            Icons.warning_amber_rounded,
-            color: color,
-          ),
+          child: Icon(Icons.warning_amber_rounded, color: color),
         ),
         trailing: const Icon(Icons.chevron_right_rounded),
         dense: true,

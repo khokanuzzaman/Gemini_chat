@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
+import 'chat_confirmation_primitives.dart';
 
 class ReceiptConfirmationWidget extends ConsumerStatefulWidget {
   const ReceiptConfirmationWidget({
@@ -33,6 +34,9 @@ class _ReceiptConfirmationWidgetState
   late bool _autoAdjustedToToday;
   late bool _hadInvalidDate;
   int? _selectedWalletId;
+  bool _showAll = false;
+  bool _isSaving = false;
+  bool _isSaved = false;
 
   Map<String, dynamic> get _effectiveReceiptData {
     return {...widget.receiptData, 'date': _formatIsoDate(_selectedDate)};
@@ -59,266 +63,203 @@ class _ReceiptConfirmationWidgetState
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList(growable: false);
+    final visibleItems = _showAll
+        ? items
+        : items.take(5).toList(growable: false);
+    final remaining = items.length - visibleItems.length;
     final categoryMeta = resolveExpenseCategory(category);
-    final isPastDate =
-        !_isSameDay(_selectedDate, DateTime.now()) &&
-        _stripTime(_selectedDate).isBefore(_stripTime(DateTime.now()));
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.86,
-        ),
-        child: Card(
-          elevation: 0,
-          color: context.cardBackgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-            side: BorderSide(color: context.borderColor),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.receiptDetected,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  merchant,
-                  style: TextStyle(
-                    color: context.primaryTextColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _pickDate,
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+    return ChatConfirmationCardShell(
+      accentColor: const Color(0xFF00897B),
+      maxWidthFactor: 0.86,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _pickDate,
+              borderRadius: AppRadius.cardAll,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const ChatConfirmationIconCircle(
+                    icon: Icons.receipt_long_rounded,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF00897B), Color(0xFF004D40)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    decoration: BoxDecoration(
-                      color: context.mutedSurfaceColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.borderColor),
-                    ),
-                    child: Row(
+                    iconColor: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.calendar_month_rounded,
-                          size: 18,
-                          color: context.secondaryTextColor,
+                        Text(
+                          merchant,
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: context.primaryTextColor,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            BanglaFormatters.fullDate(_selectedDate),
-                            style: TextStyle(
-                              color: context.primaryTextColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
+                        const SizedBox(height: 2),
+                        Text(
+                          BanglaFormatters.fullDate(_selectedDate),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
+                          ),
+                        ),
+                        if (_autoAdjustedToToday)
+                          const ChatConfirmationNoteChip(
+                            note:
+                                'Receipt date current monthের বাইরে ছিল, তাই আজকের তারিখ select করা হয়েছে।',
+                          ),
+                        if (_hadInvalidDate)
+                          const ChatConfirmationNoteChip(
+                            note:
+                                'Receipt date বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে।',
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  AppAmountText(
+                    amount: total,
+                    style: AppTextStyles.titleLarge,
+                    isExpense: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (summary.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              summary,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.secondaryTextColor,
+              ),
+            ),
+          ],
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ChatConfirmationMutedBox(
+              child: AnimatedSize(
+                duration: AppMotion.normal,
+                curve: AppMotion.standard,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (
+                      var index = 0;
+                      index < visibleItems.length;
+                      index++
+                    ) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(top: 6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                        if (isPastDate) ...[
-                          const _DateBadge(label: 'অতীত'),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              visibleItems[index]['name'] as String? ?? 'আইটেম',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: context.primaryTextColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            BanglaFormatters.currency(
+                              _normalizeAmount(visibleItems[index]['amount']),
+                            ),
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: context.secondaryTextColor,
+                            ),
+                          ),
                         ],
-                        Icon(
-                          Icons.edit_calendar_rounded,
-                          size: 16,
-                          color: context.secondaryTextColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_autoAdjustedToToday) ...[
-                  const SizedBox(height: 10),
-                  _InfoBanner(
-                    icon: Icons.info_outline_rounded,
-                    backgroundColor: context.mutedSurfaceColor,
-                    borderColor: context.borderColor,
-                    textColor: context.secondaryTextColor,
-                    text:
-                        'Receipt date current monthের বাইরে ছিল, তাই আজকের তারিখ select করা হয়েছে। চাইলে বদলান।',
-                  ),
-                ] else if (_hadInvalidDate) ...[
-                  const SizedBox(height: 10),
-                  _InfoBanner(
-                    icon: Icons.info_outline_rounded,
-                    backgroundColor: context.mutedSurfaceColor,
-                    borderColor: context.borderColor,
-                    textColor: context.secondaryTextColor,
-                    text:
-                        'Receipt date বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে।',
-                  ),
-                ],
-                if (summary.trim().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    summary,
-                    style: TextStyle(
-                      color: context.secondaryTextColor,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ReceiptBadge(
-                      icon: categoryMeta.icon,
-                      label: category,
-                      color: categoryMeta.color,
-                    ),
-                    _ReceiptBadge(
-                      icon: Icons.shopping_cart_checkout_rounded,
-                      label: '${items.length} item',
-                      color: const Color(0xFF475569),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  decoration: BoxDecoration(
-                    color: context.mutedSurfaceColor,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: context.borderColor),
-                  ),
-                  child: Column(
-                    children: [
-                      for (var index = 0; index < items.length; index++) ...[
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  items[index]['name'] as String? ?? 'Item',
-                                  style: TextStyle(
-                                    color: context.primaryTextColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                BanglaFormatters.currency(
-                                  _normalizeAmount(items[index]['amount']),
-                                ),
-                                style: TextStyle(
-                                  color: context.secondaryTextColor,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (index != items.length - 1)
-                          Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: context.borderColor,
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.ragChipBackgroundColor,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'মোট',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
                       ),
-                      const Spacer(),
-                      Text(
-                        BanglaFormatters.currency(total),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                      if (index != visibleItems.length - 1)
+                        const SizedBox(height: 6),
+                    ],
+                    if (remaining > 0) ...[
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showAll = !_showAll;
+                          });
+                        },
+                        child: Text(
+                          _showAll
+                              ? 'কম দেখুন'
+                              : 'আরো ${BanglaFormatters.count(remaining)}টি দেখুন',
                         ),
                       ),
                     ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          AppChip(
+            label: category,
+            icon: categoryMeta.icon,
+            color: categoryMeta.color,
+            compact: true,
+          ),
+          const SizedBox(height: 12),
+          WalletSelectorWidget(
+            label: null,
+            selectedWalletId: effectiveWalletId,
+            onChanged: (walletId) {
+              setState(() {
+                _selectedWalletId = walletId;
+                _isSaved = false;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          ChatConfirmationActionSwitcher(
+            isSaved: _isSaved,
+            unsavedChild: Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: ChatActionButton(
+                    label: 'এডিট',
+                    icon: Icons.edit_outlined,
+                    variant: AppActionButtonVariant.ghost,
+                    fullWidth: true,
+                    onPressed: widget.onCancel,
                   ),
                 ),
-                const SizedBox(height: 16),
-                WalletSelectorWidget(
-                  selectedWalletId: effectiveWalletId,
-                  onChanged: (walletId) {
-                    setState(() {
-                      _selectedWalletId = walletId;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => widget.onSave(
-                          _effectiveReceiptData,
-                          effectiveWalletId,
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
-                        ),
-                        child: const Text(AppStrings.saveButton),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: widget.onCancel,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
-                        ),
-                        child: const Text(AppStrings.cancelButton),
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: ChatActionButton(
+                    label: 'সংরক্ষণ করুন',
+                    icon: Icons.check_rounded,
+                    variant: AppActionButtonVariant.primary,
+                    fullWidth: true,
+                    isLoading: _isSaving,
+                    onPressed: () => _save(effectiveWalletId),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -338,6 +279,28 @@ class _ReceiptConfirmationWidgetState
       _selectedDate = _stripTime(pickedDate);
       _autoAdjustedToToday = false;
       _hadInvalidDate = false;
+      _isSaved = false;
+    });
+  }
+
+  Future<void> _save(int? walletId) async {
+    if (_isSaving || _isSaved) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    await widget.onSave(_effectiveReceiptData, walletId);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = false;
+      _isSaved = true;
     });
   }
 
@@ -404,12 +367,6 @@ class _ReceiptConfirmationWidgetState
   DateTime _stripTime(DateTime date) {
     return DateTime(date.year, date.month, date.day);
   }
-
-  bool _isSameDay(DateTime first, DateTime second) {
-    return first.year == second.year &&
-        first.month == second.month &&
-        first.day == second.day;
-  }
 }
 
 class _ReceiptDateResolution {
@@ -422,113 +379,4 @@ class _ReceiptDateResolution {
   final DateTime date;
   final bool autoAdjustedToToday;
   final bool hadInvalidDate;
-}
-
-class _DateBadge extends StatelessWidget {
-  const _DateBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.borderColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: context.secondaryTextColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({
-    required this.icon,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.text,
-  });
-
-  final IconData icon;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color textColor;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: textColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReceiptBadge extends StatelessWidget {
-  const _ReceiptBadge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

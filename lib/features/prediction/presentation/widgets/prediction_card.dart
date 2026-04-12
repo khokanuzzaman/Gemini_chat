@@ -38,21 +38,31 @@ class _PredictionCardState extends ConsumerState<PredictionCard> {
   Widget build(BuildContext context) {
     final state = ref.watch(predictionProvider);
 
-    if (state.isLoading) {
+    if (state.isStale && !state.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(predictionProvider.notifier)
+            .loadPrediction(forceRefresh: true);
+      });
+    }
+
+    if (state.isLoading || state.isStale) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
-            children: const [
-              SizedBox(
+            children: [
+              const SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'পূর্বাভাস তৈরি হচ্ছে...',
+                  state.isStale
+                      ? 'রিফ্রেশ হচ্ছে...'
+                      : 'পূর্বাভাস তৈরি হচ্ছে...',
                   style: AppTextStyles.bodyMedium,
                 ),
               ),

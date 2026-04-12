@@ -138,7 +138,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     if (!isAnalyticsScreen || !isOverviewTab) {
       return;
     }
-    ref.read(predictionProvider.notifier).loadPrediction();
+    final predictionState = ref.read(predictionProvider);
+    ref
+        .read(predictionProvider.notifier)
+        .loadPrediction(forceRefresh: predictionState.isStale);
   }
 }
 

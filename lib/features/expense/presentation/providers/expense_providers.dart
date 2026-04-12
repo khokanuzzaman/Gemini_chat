@@ -122,8 +122,11 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
 
   final now = DateTime.now();
   final thisMonthStart = DateTime(now.year, now.month, 1);
-  final thisMonthEnd = DateTime(now.year, now.month + 1, 1)
-      .subtract(const Duration(milliseconds: 1));
+  final thisMonthEnd = DateTime(
+    now.year,
+    now.month + 1,
+    1,
+  ).subtract(const Duration(milliseconds: 1));
   final lastMonthStart = now.month == 1
       ? DateTime(now.year - 1, 12, 1)
       : DateTime(now.year, now.month - 1, 1);
@@ -132,10 +135,14 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
   final expenseRepo = ref.read(expenseRepositoryProvider);
   final incomeUseCase = ref.read(getIncomeTotalsUseCaseProvider);
 
-  final thisMonthExpenses =
-      await expenseRepo.getExpensesByDateRange(thisMonthStart, thisMonthEnd);
-  final lastMonthExpenses =
-      await expenseRepo.getExpensesByDateRange(lastMonthStart, lastMonthEnd);
+  final thisMonthExpenses = await expenseRepo.getExpensesByDateRange(
+    thisMonthStart,
+    thisMonthEnd,
+  );
+  final lastMonthExpenses = await expenseRepo.getExpensesByDateRange(
+    lastMonthStart,
+    lastMonthEnd,
+  );
   final thisMonthIncome = await incomeUseCase.forRange(
     thisMonthStart,
     thisMonthEnd,
@@ -149,7 +156,10 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
     income: thisMonthIncome,
     expense: thisMonthExpenses.fold<double>(0, (sum, e) => sum + e.amount),
     lastMonthIncome: lastMonthIncome,
-    lastMonthExpense: lastMonthExpenses.fold<double>(0, (sum, e) => sum + e.amount),
+    lastMonthExpense: lastMonthExpenses.fold<double>(
+      0,
+      (sum, e) => sum + e.amount,
+    ),
   );
 });
 
@@ -322,6 +332,7 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
 
   void _notifyExpenseChanged() {
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.read(predictionRefreshTokenProvider.notifier).state++;
   }
 
   ExpenseEntity? _findExpenseInState(List<ExpenseEntity>? expenses, int id) {
@@ -716,6 +727,7 @@ class ExpenseMutationController {
 
   Future<void> _notifyExpenseChanged({int addedCount = 0}) async {
     _ref.read(expenseRefreshTokenProvider.notifier).state++;
+    _ref.read(predictionRefreshTokenProvider.notifier).state++;
     _ref.invalidate(dashboardControllerProvider);
     _ref.invalidate(expenseListControllerProvider);
     _ref.invalidate(analyticsControllerProvider);

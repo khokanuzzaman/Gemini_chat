@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/ai/rag_response_parser.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
+import '../../../../../core/widgets/widgets.dart';
 import 'rag_card_shell.dart';
 
 class RagComparisonWidget extends StatelessWidget {
@@ -20,272 +21,145 @@ class RagComparisonWidget extends StatelessWidget {
     final currentTotal = data.totalAmount ?? 0;
     final previousTotal = data.lastMonthTotal ?? 0;
     final difference = currentTotal - previousTotal;
-    final categories = _collectCategories(
-      data.lastMonthCategoryData ?? const {},
-      data.categoryData ?? const {},
+    final percentChange = previousTotal <= 0
+        ? null
+        : ((difference.abs() / previousTotal) * 100).round();
+    final differenceColor = difference > 0
+        ? AppColors.error
+        : difference < 0
+        ? AppColors.success
+        : context.secondaryTextColor;
+    final differenceBackground = differenceColor.withValues(
+      alpha: context.isDarkMode ? 0.18 : 0.10,
     );
-    final insightLines = data.insights ?? const <String>[];
+    final differenceText = _buildDifferenceText(
+      difference: difference,
+      percentChange: percentChange,
+      currentTotal: currentTotal,
+    );
 
-    return RagAnimatedCard(
-      borderColor: context.ragCardBorder(AppColors.warning),
-      backgroundColor: context.ragCardBackground(AppColors.warning),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RagCardHeader(
-              icon: Icons.compare_arrows_rounded,
-              title: 'মাসিক তুলনা',
-              subtitle:
-                  '${data.lastMonthName ?? 'আগের মাস'} বনাম ${data.monthName}',
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _AmountColumn(
-                    label: data.lastMonthName ?? 'আগের মাস',
-                    amount: previousTotal,
-                  ),
+    return RagCardShell(
+      title: 'মাসিক তুলনা',
+      icon: Icons.compare_arrows_rounded,
+      tintColor: Colors.purple,
+      subtitle: '${data.monthName} বনাম ${data.lastMonthName ?? 'গত মাস'}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _MonthBlock(
+                  label: data.monthName.isEmpty ? 'এই মাস' : data.monthName,
+                  amount: currentTotal,
                 ),
-                const SizedBox(width: 12),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MonthBlock(
+                  label: data.lastMonthName ?? 'গত মাস',
+                  amount: previousTotal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: differenceBackground,
+              borderRadius: AppRadius.cardAll,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  difference > 0
+                      ? Icons.trending_up_rounded
+                      : difference < 0
+                      ? Icons.trending_down_rounded
+                      : Icons.trending_flat_rounded,
+                  color: differenceColor,
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: _AmountColumn(
-                    label: data.monthName,
-                    amount: currentTotal,
-                    difference: difference,
+                  child: Text(
+                    differenceText,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: differenceColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.cardBackgroundColor,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: context.ragCardBorder(AppColors.warning),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const Row(
-                    children: [
-                      Expanded(child: _TableHeading(text: 'Category')),
-                      SizedBox(width: 12),
-                      Expanded(child: _TableHeading(text: 'আগের মাস')),
-                      SizedBox(width: 12),
-                      Expanded(child: _TableHeading(text: 'এই মাস')),
-                      SizedBox(width: 12),
-                      Expanded(child: _TableHeading(text: 'পরিবর্তন')),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  for (final category in categories) ...[
-                    _ComparisonRow(
-                      category: category,
-                      previous: data.lastMonthCategoryData?[category] ?? 0,
-                      current: data.categoryData?[category] ?? 0,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ],
-              ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: RagAnalyticsButton(
+              onTap: onOpenAnalytics,
+              tintColor: Colors.purple,
             ),
-            const SizedBox(height: 16),
-            if (insightLines.isNotEmpty)
-              ...insightLines.map(
-                (line) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _InsightLine(text: line),
-                ),
-              ),
-            RagFooter(onTap: onOpenAnalytics),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  List<String> _collectCategories(
-    Map<String, double> previous,
-    Map<String, double> current,
-  ) {
-    final all = {...previous.keys, ...current.keys}.toList(growable: false)
-      ..sort((a, b) {
-        final currentDiff = (current[b] ?? 0).compareTo(current[a] ?? 0);
-        return currentDiff;
-      });
-    return all.take(4).toList(growable: false);
+  String _buildDifferenceText({
+    required double difference,
+    required int? percentChange,
+    required double currentTotal,
+  }) {
+    if (difference == 0) {
+      return 'গত মাসের মতোই খরচ হয়েছে';
+    }
+
+    if (percentChange == null) {
+      if (currentTotal <= 0) {
+        return 'তুলনার জন্য যথেষ্ট তথ্য নেই';
+      }
+      return 'এই মাসে নতুন খরচ ধরা হয়েছে';
+    }
+
+    final direction = difference > 0 ? 'বেশি' : 'কম';
+    return 'গত মাসের চেয়ে ${BanglaFormatters.count(percentChange)}% $direction খরচ';
   }
 }
 
-class _AmountColumn extends StatelessWidget {
-  const _AmountColumn({
-    required this.label,
-    required this.amount,
-    this.difference,
-  });
+class _MonthBlock extends StatelessWidget {
+  const _MonthBlock({required this.label, required this.amount});
 
   final String label;
   final double amount;
-  final double? difference;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: context.cardBackgroundColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.ragCardBorder(AppColors.warning)),
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: context.borderColor.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: AppTextStyles.bodySmall.copyWith(
               color: context.secondaryTextColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            BanglaFormatters.currency(amount),
-            style: TextStyle(
-              color: context.primaryTextColor,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
+          const SizedBox(height: 4),
+          AppAmountText(
+            amount: amount,
+            style: AppTextStyles.titleLarge,
+            isExpense: true,
           ),
-          if (difference != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              difference == 0
-                  ? 'অপরিবর্তিত'
-                  : difference! > 0
-                  ? '↑ ${BanglaFormatters.currency(difference!.abs())} বেশি'
-                  : '↓ ${BanglaFormatters.currency(difference!.abs())} কম',
-              style: TextStyle(
-                color: difference == 0
-                    ? const Color(0xFF64748B)
-                    : difference! > 0
-                    ? const Color(0xFFDC2626)
-                    : const Color(0xFF16A34A),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
         ],
       ),
-    );
-  }
-}
-
-class _TableHeading extends StatelessWidget {
-  const _TableHeading({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: context.secondaryTextColor,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _ComparisonRow extends StatelessWidget {
-  const _ComparisonRow({
-    required this.category,
-    required this.previous,
-    required this.current,
-  });
-
-  final String category;
-  final double previous;
-  final double current;
-
-  @override
-  Widget build(BuildContext context) {
-    final difference = current - previous;
-    final color = difference > 0
-        ? const Color(0xFFDC2626)
-        : difference < 0
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF64748B);
-    final symbol = difference > 0
-        ? '↑'
-        : difference < 0
-        ? '↓'
-        : '•';
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            category,
-            style: TextStyle(
-              color: context.primaryTextColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Text(BanglaFormatters.currency(previous))),
-        const SizedBox(width: 12),
-        Expanded(child: Text(BanglaFormatters.currency(current))),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            '$symbol ${BanglaFormatters.currency(difference.abs())}',
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InsightLine extends StatelessWidget {
-  const _InsightLine({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPositive = text.contains('সাশ্রয়') || text.contains('কম');
-    final isWarning = text.contains('বেশি') || text.contains('সতর্ক');
-    final color = isPositive
-        ? const Color(0xFF16A34A)
-        : isWarning
-        ? const Color(0xFFF59E0B)
-        : Theme.of(context).textTheme.bodySmall?.color ?? AppColors.grey600;
-    final prefix = isPositive
-        ? '✅'
-        : isWarning
-        ? '⚠️'
-        : '•';
-
-    return Text(
-      '$prefix $text',
-      style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
     );
   }
 }

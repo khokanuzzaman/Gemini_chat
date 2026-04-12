@@ -11,6 +11,12 @@ import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/services/anomaly_detection_service.dart';
 import '../../domain/entities/anomaly_alert.dart';
 
+/// Incremented by mutation paths that change anomaly inputs beyond
+/// normal expense save/delete flow — specifically category rename/delete,
+/// demo-seed, and clear-all-data. Bumping this forces AnomalyNotifier.build
+/// to re-run detection instead of using cached alerts.
+final anomalyForceRedetectTokenProvider = StateProvider<int>((ref) => 0);
+
 class AnomalyState {
   const AnomalyState({
     required this.alerts,
@@ -65,15 +71,32 @@ class AnomalyNotifier extends Notifier<AnomalyState> {
   static const _lastDetectedKey = 'anomaly_last_detected_v2';
   static const _lastHighSignatureKey = 'anomaly_last_high_signature_v2';
   Future<void>? _inFlightDetection;
+  int? _lastSeenRefreshToken;
+  int? _lastSeenForceToken;
+  bool _queuedDetection = false;
 
   @override
   AnomalyState build() {
-    ref.watch(expenseRefreshTokenProvider);
+    final refreshToken = ref.watch(expenseRefreshTokenProvider);
+    final forceToken = ref.watch(anomalyForceRedetectTokenProvider);
     final prefs = ref.read(sharedPreferencesProvider);
+    final isFirstBuild = _lastSeenRefreshToken == null;
+    final refreshTokenChanged = _lastSeenRefreshToken != refreshToken;
+    final forceTokenChanged = _lastSeenForceToken != forceToken;
+
+    _lastSeenRefreshToken = refreshToken;
+    _lastSeenForceToken = forceToken;
+
     final cachedAlerts = _decodeAlerts(prefs.getString(_cacheKey));
     final lastDetected = _decodeDate(prefs.getInt(_lastDetectedKey));
 
-    Future.microtask(detectIfNeeded);
+    if (forceTokenChanged && !isFirstBuild) {
+      Future.microtask(detect);
+    } else if (refreshTokenChanged && !isFirstBuild) {
+      Future.microtask(detect);
+    } else {
+      Future.microtask(detectIfNeeded);
+    }
 
     return AnomalyState(
       alerts: cachedAlerts,
@@ -94,17 +117,25 @@ class AnomalyNotifier extends Notifier<AnomalyState> {
   /// Runs anomaly detection over the last 30 days vs previous 90 days.
   Future<void> detect() async {
     if (_inFlightDetection != null) {
+      _queuedDetection = true;
       await _inFlightDetection;
+      if (_queuedDetection) {
+        _queuedDetection = false;
+        await detect();
+      }
       return;
     }
 
-    final future = _performDetect();
-    _inFlightDetection = future;
-    try {
-      await future;
-    } finally {
-      _inFlightDetection = null;
-    }
+    do {
+      _queuedDetection = false;
+      final future = _performDetect();
+      _inFlightDetection = future;
+      try {
+        await future;
+      } finally {
+        _inFlightDetection = null;
+      }
+    } while (_queuedDetection);
   }
 
   Future<void> _performDetect() async {
@@ -151,10 +182,7 @@ class AnomalyNotifier extends Notifier<AnomalyState> {
     state = state.copyWith(
       alerts: [
         for (final alert in state.alerts)
-          if (alert.id == alertId)
-            alert.copyWith(isDismissed: true)
-          else
-            alert,
+          if (alert.id == alertId) alert.copyWith(isDismissed: true) else alert,
       ],
     );
     await _persistState();
@@ -175,16 +203,19 @@ class AnomalyNotifier extends Notifier<AnomalyState> {
   }
 
   Future<void> clear() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.remove(_cacheKey);
+    await prefs.remove(_lastDetectedKey);
+    await prefs.remove(_lastHighSignatureKey);
+
+    _lastSeenRefreshToken = null;
+    _lastSeenForceToken = null;
+    _queuedDetection = false;
     state = const AnomalyState(
       alerts: [],
       isDetecting: false,
       lastDetected: null,
     );
-
-    final prefs = ref.read(sharedPreferencesProvider);
-    await prefs.remove(_cacheKey);
-    await prefs.remove(_lastDetectedKey);
-    await prefs.remove(_lastHighSignatureKey);
   }
 
   Future<void> _persistState() async {

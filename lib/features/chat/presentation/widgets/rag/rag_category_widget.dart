@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/ai/rag_response_parser.dart';
 import '../../../../../core/theme/app_theme.dart';
-import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
+import '../../../../../core/widgets/widgets.dart';
 import 'rag_card_shell.dart';
 
 class RagCategoryWidget extends StatelessWidget {
@@ -18,207 +18,174 @@ class RagCategoryWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final category =
-        data.highlightedCategory ??
-        (data.categoryData?.isNotEmpty ?? false
-            ? data.categoryData!.entries.first.key
-            : 'Other');
-    final total = data.totalAmount ?? 0;
-    final categoryAmount = data.categoryData?[category] ?? 0;
-    final percent = total <= 0 ? 0 : ((categoryAmount / total) * 100).round();
-    final transactions = data.recentItems ?? const <RecentTransaction>[];
-    final insight = (data.insights?.isNotEmpty ?? false)
-        ? data.insights!.last
-        : data.aiText;
+    final categories = _sortedCategories(data.categoryData ?? const {});
+    final highlightedCategory = data.highlightedCategory;
+    final highlightedColor = highlightedCategory != null
+        ? CategoryIcon.getColor(highlightedCategory)
+        : categories.isNotEmpty
+        ? CategoryIcon.getColor(categories.first.key)
+        : AppColors.food;
+    final highlightedAmount = highlightedCategory == null
+        ? 0.0
+        : (data.categoryData?[highlightedCategory] ?? 0);
+    final totalAmount = data.totalAmount ?? 0;
 
-    return RagAnimatedCard(
-      borderColor: CategoryIcon.getColor(category).withValues(alpha: 0.22),
-      backgroundColor: context.ragCardBackground(
-        CategoryIcon.getColor(category),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RagCardHeader(
-              icon: CategoryIcon.getIcon(category),
-              title: 'Category বিশ্লেষণ',
-              subtitle: data.monthName,
-            ),
-            const SizedBox(height: 18),
+    return RagCardShell(
+      title: 'ক্যাটাগরি ভিত্তিক',
+      icon: Icons.pie_chart_rounded,
+      tintColor: highlightedColor,
+      subtitle: data.monthName,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (highlightedCategory != null) ...[
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: context.cardBackgroundColor,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: AppRadius.cardAll,
                 border: Border.all(
-                  color: CategoryIcon.getColor(
-                    category,
-                  ).withValues(alpha: 0.18),
+                  color: context.ragCardBorder(highlightedColor),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: CategoryIcon.getColor(
-                          category,
-                        ).withValues(alpha: 0.14),
-                        child: Icon(
-                          CategoryIcon.getIcon(category),
-                          color: CategoryIcon.getColor(category),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            color: context.primaryTextColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: highlightedColor.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      CategoryIcon.getIcon(highlightedCategory),
+                      size: 32,
+                      color: highlightedColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'সবচেয়ে বেশি খরচ',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    BanglaFormatters.currency(categoryAmount),
-                    style: TextStyle(
-                      color: context.primaryTextColor,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
+                        const SizedBox(height: 2),
+                        Text(
+                          highlightedCategory,
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: context.primaryTextColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$percent% of total',
-                    style: TextStyle(
-                      color: context.secondaryTextColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  AnimatedCategoryBar(
-                    label: 'এই মাসে',
-                    amountLabel: BanglaFormatters.currency(categoryAmount),
-                    percentLabel: '$percent%',
-                    value: total <= 0 ? 0 : categoryAmount / total,
-                    color: CategoryIcon.getColor(category),
+                  const SizedBox(width: 12),
+                  AppAmountText(
+                    amount: highlightedAmount,
+                    style: AppTextStyles.titleLarge,
+                    isExpense: true,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'সাম্প্রতিক খরচ',
-              style: TextStyle(
-                color: context.primaryTextColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 10),
-            if (transactions.isEmpty)
-              Text(
-                'এই ক্যাটাগরিতে এখনো কোনো খরচ নেই',
-                style: TextStyle(
-                  color: context.secondaryTextColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            else ...[
-              for (final item in transactions.take(4)) ...[
-                _TransactionRow(item: item),
-                const SizedBox(height: 10),
-              ],
-              if (transactions.length > 4)
-                Text(
-                  '... আরো ${BanglaFormatters.count(transactions.length - 4)}টি',
-                  style: TextStyle(
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (categories.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  'কোনো ক্যাটাগরির তথ্য নেই',
+                  style: AppTextStyles.bodyMedium.copyWith(
                     color: context.secondaryTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+            )
+          else
+            for (var index = 0; index < categories.length; index++) ...[
+              _CategoryProgressRow(
+                entry: categories[index],
+                totalAmount: totalAmount,
+              ),
+              if (index != categories.length - 1) const SizedBox(height: 10),
             ],
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.mutedSurfaceColor,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: context.borderColor),
-              ),
-              child: Text(
-                '💡 "$insight"',
-                style: TextStyle(
-                  color: context.primaryTextColor,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: RagAnalyticsButton(
+              onTap: onOpenAnalytics,
+              tintColor: highlightedColor,
             ),
-            const SizedBox(height: 16),
-            RagFooter(onTap: onOpenAnalytics),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  List<MapEntry<String, double>> _sortedCategories(Map<String, double> source) {
+    final sorted = source.entries.toList(growable: false)
+      ..sort((first, second) => second.value.compareTo(first.value));
+    return sorted;
+  }
 }
 
-class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.item});
+class _CategoryProgressRow extends StatelessWidget {
+  const _CategoryProgressRow({required this.entry, required this.totalAmount});
 
-  final RecentTransaction item;
+  final MapEntry<String, double> entry;
+  final double totalAmount;
 
   @override
   Widget build(BuildContext context) {
-    final parsedDate = DateTime.tryParse(item.date);
+    final color = CategoryIcon.getColor(entry.key);
+    final ratio = totalAmount <= 0 ? 0.0 : entry.value / totalAmount;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            item.description,
-            style: TextStyle(
-              color: context.primaryTextColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+        Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                CategoryIcon.getIcon(entry.key),
+                size: 16,
+                color: color,
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                entry.key,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: context.primaryTextColor,
+                ),
+              ),
+            ),
+            AppAmountText(
+              amount: entry.value,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              isExpense: true,
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Text(
-          BanglaFormatters.currency(item.amount),
-          style: TextStyle(
-            color: context.primaryTextColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          parsedDate == null
-              ? item.date
-              : BanglaFormatters.dayMonth(parsedDate),
-          style: TextStyle(
-            color: context.secondaryTextColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const SizedBox(height: 6),
+        AppProgressBar(value: ratio, color: color, height: 6),
       ],
     );
   }

@@ -4,7 +4,9 @@ import 'package:isar/isar.dart';
 
 import '../../../../core/database/models/expense_record_model.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../data/datasources/category_local_datasource.dart';
 import '../../data/models/category_model.dart';
 import '../../data/repositories/category_repository_impl.dart';
@@ -266,5 +268,7 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
 
   void _notifyExpenseChanged() {
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.read(anomalyForceRedetectTokenProvider.notifier).state++;
+    ref.read(predictionRefreshTokenProvider.notifier).state++;
   }
 }

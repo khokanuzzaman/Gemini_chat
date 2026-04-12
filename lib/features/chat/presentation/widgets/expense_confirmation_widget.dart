@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/expense_result.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
+import 'chat_confirmation_primitives.dart';
 
 class ExpenseConfirmationWidget extends ConsumerStatefulWidget {
   const ExpenseConfirmationWidget({
@@ -30,189 +31,119 @@ class _ExpenseConfirmationWidgetState
     extends ConsumerState<ExpenseConfirmationWidget> {
   late ExpenseData _expense = widget.expense;
   int? _selectedWalletId;
+  bool _isSaving = false;
+  bool _isSaved = false;
 
   @override
   Widget build(BuildContext context) {
     final activeWallet = ref.watch(activeWalletProvider);
     final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final categoryMeta = resolveExpenseCategory(_expense.category);
+    final description = _expense.description.trim().isEmpty
+        ? 'খরচ'
+        : _expense.description.trim();
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
-        ),
-        child: Card(
-          elevation: 0,
-          color: context.cardBackgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: context.borderColor),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _pickDate,
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.mutedSurfaceColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.borderColor),
-                    ),
-                    child: Row(
+    return ChatConfirmationCardShell(
+      accentColor: context.appColors.primary,
+      maxWidthFactor: 0.82,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _pickDate,
+              borderRadius: AppRadius.cardAll,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ChatConfirmationIconCircle(
+                    icon: categoryMeta.icon,
+                    tintColor: categoryMeta.color,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.calendar_month_rounded,
-                          size: 18,
-                          color: context.secondaryTextColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _expense.displayDate,
-                            style: TextStyle(
-                              color: context.primaryTextColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (_expense.isPastDate) ...[
-                          const _DateBadge(label: 'অতীত'),
-                          const SizedBox(width: 8),
-                        ],
-                        Icon(
-                          Icons.edit_calendar_rounded,
-                          size: 16,
-                          color: context.secondaryTextColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_expense.isFutureDate) ...[
-                  const SizedBox(height: 10),
-                  const _InfoBanner(
-                    icon: Icons.warning_amber_rounded,
-                    backgroundColor: Color(0xFFFFF7ED),
-                    borderColor: Color(0xFFFED7AA),
-                    textColor: Color(0xFFB45309),
-                    text: 'এটা ভবিষ্যতের তারিখ। নিশ্চিত?',
-                  ),
-                ],
-                if (_expense.dateFallbackNote != null) ...[
-                  const SizedBox(height: 10),
-                  _InfoBanner(
-                    icon: Icons.info_outline_rounded,
-                    backgroundColor: context.mutedSurfaceColor,
-                    borderColor: context.borderColor,
-                    textColor: context.secondaryTextColor,
-                    text: _expense.dateFallbackNote!,
-                  ),
-                ],
-                const SizedBox(height: 14),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: categoryMeta.color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          categoryMeta.icon,
-                          size: 18,
-                          color: categoryMeta.color,
-                        ),
-                        const SizedBox(width: 8),
                         Text(
-                          _expense.category,
-                          style: TextStyle(
-                            color: categoryMeta.color,
-                            fontWeight: FontWeight.w700,
+                          description,
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: context.primaryTextColor,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_expense.category} • ${BanglaFormatters.fullDate(_expense.parsedDate)}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
+                          ),
+                        ),
+                        if (_expense.dateFallbackNote != null)
+                          ChatConfirmationNoteChip(
+                            note: _expense.dateFallbackNote!,
+                          ),
+                        if (_expense.isFutureDate)
+                          const ChatConfirmationNoteChip(
+                            note: 'তারিখটি ভবিষ্যতের',
+                            tintColor: AppColors.warning,
+                            icon: Icons.warning_amber_rounded,
+                          ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  _expense.description.trim().isEmpty
-                      ? 'খরচ'
-                      : _expense.description.trim(),
-                  style: TextStyle(
-                    color: context.primaryTextColor,
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  AppAmountText(
+                    amount: _expense.amount,
+                    style: AppTextStyles.titleLarge,
+                    isExpense: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          WalletSelectorWidget(
+            label: null,
+            selectedWalletId: effectiveWalletId,
+            onChanged: (walletId) {
+              setState(() {
+                _selectedWalletId = walletId;
+                _isSaved = false;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          ChatConfirmationActionSwitcher(
+            isSaved: _isSaved,
+            unsavedChild: Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: ChatActionButton(
+                    label: 'এডিট',
+                    icon: Icons.edit_outlined,
+                    variant: AppActionButtonVariant.ghost,
+                    fullWidth: true,
+                    onPressed: widget.onCancel,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  BanglaFormatters.currency(_expense.amount),
-                  style: TextStyle(
-                    color: context.primaryTextColor,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: ChatActionButton(
+                    label: 'সংরক্ষণ করুন',
+                    icon: Icons.check_rounded,
+                    variant: AppActionButtonVariant.primary,
+                    fullWidth: true,
+                    isLoading: _isSaving,
+                    onPressed: () => _save(effectiveWalletId),
                   ),
-                ),
-                const SizedBox(height: 16),
-                WalletSelectorWidget(
-                  selectedWalletId: effectiveWalletId,
-                  onChanged: (walletId) {
-                    setState(() {
-                      _selectedWalletId = walletId;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: widget.onCancel,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: const BorderSide(color: AppColors.error),
-                        ),
-                        child: const Text(AppStrings.cancelButton),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () =>
-                            widget.onSave(_expense, effectiveWalletId),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
-                        ),
-                        child: const Text(AppStrings.saveButton),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -230,6 +161,28 @@ class _ExpenseConfirmationWidgetState
 
     setState(() {
       _expense = _expense.copyWith(date: _formatIsoDate(pickedDate));
+      _isSaved = false;
+    });
+  }
+
+  Future<void> _save(int? walletId) async {
+    if (_isSaving || _isSaved) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    await widget.onSave(_expense, walletId);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = false;
+      _isSaved = true;
     });
   }
 
@@ -238,78 +191,5 @@ class _ExpenseConfirmationWidgetState
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
-  }
-}
-
-class _DateBadge extends StatelessWidget {
-  const _DateBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.borderColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: context.secondaryTextColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({
-    required this.icon,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.text,
-  });
-
-  final IconData icon;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color textColor;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: textColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
