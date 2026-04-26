@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/utils/category_icon.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../domain/entities/budget_plan_entity.dart';
@@ -47,11 +48,25 @@ class BudgetDashboard extends ConsumerWidget {
         final usage = budget.totalBudgeted <= 0
             ? 0.0
             : totalSpent / totalBudget;
-        final entries =
-            budget.categoryBudgets.entries
-                .where((entry) => entry.value > 0)
-                .toList(growable: false)
-              ..sort((first, second) => second.value.compareTo(first.value));
+        final liveCategoryNames = ref
+            .watch(categoryProvider)
+            .map((category) => category.name.trim().toLowerCase())
+            .toSet();
+        final validEntries = <MapEntry<String, double>>[];
+        final orphanedEntries = <MapEntry<String, double>>[];
+        for (final entry in budget.categoryBudgets.entries) {
+          if (entry.value <= 0) {
+            continue;
+          }
+          if (liveCategoryNames.contains(entry.key.trim().toLowerCase())) {
+            validEntries.add(entry);
+          } else {
+            orphanedEntries.add(entry);
+          }
+        }
+        validEntries.sort(
+          (first, second) => second.value.compareTo(first.value),
+        );
 
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -151,7 +166,36 @@ class BudgetDashboard extends ConsumerWidget {
                       subtitle: 'খরচ বনাম বরাদ্দ',
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    if (entries.isEmpty)
+                    if (orphanedEntries.isNotEmpty) ...[
+                      AppCard(
+                        elevation: 0,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.warning.withValues(alpha: 0.14),
+                            AppColors.warning.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppColors.warning,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                '${orphanedEntries.length}টি মুছে ফেলা ক্যাটাগরি লুকানো আছে। Budget health check থেকে দেখে নিন।',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: context.primaryTextColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    if (validEntries.isEmpty)
                       const AppEmptyState(
                         icon: Icons.savings_outlined,
                         title: 'কোনো ক্যাটাগরি বাজেট নেই',
@@ -164,16 +208,16 @@ class BudgetDashboard extends ConsumerWidget {
                         children: [
                           for (
                             var index = 0;
-                            index < entries.length;
+                            index < validEntries.length;
                             index++
                           ) ...[
                             _BudgetCategoryRow(
                               budget: budget,
-                              category: entries[index].key,
-                              budgetAmount: entries[index].value,
+                              category: validEntries[index].key,
+                              budgetAmount: validEntries[index].value,
                               expenses: expenses,
                             ),
-                            if (index != entries.length - 1)
+                            if (index != validEntries.length - 1)
                               const SizedBox(height: AppSpacing.md),
                           ],
                         ],

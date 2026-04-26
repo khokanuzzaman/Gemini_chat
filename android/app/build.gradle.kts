@@ -4,6 +4,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Google Sign-In setup:
+// 1. Add both debug and release SHA-1 fingerprints in Google Cloud Console/Firebase.
+// 2. Download `google-services.json` for package `com.troubleshootbangla.pocketpilotai`.
+// 3. Place the file at `android/app/google-services.json`.
+// 4. If you prefer not to use `google-services.json`, provide `GOOGLE_WEB_CLIENT_ID`
+//    via `.env` or `--dart-define` instead.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.troubleshootbangla.pocketpilotai"
     compileSdk = flutter.compileSdkVersion
@@ -24,7 +34,7 @@ android {
         applicationId = "com.troubleshootbangla.pocketpilotai"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 21)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

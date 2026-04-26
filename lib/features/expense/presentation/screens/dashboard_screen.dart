@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/notifications/budget_settings.dart';
+import '../../../../core/backup/backup_models.dart';
+import '../../../../core/backup/backup_providers.dart';
 import '../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -19,12 +20,18 @@ import '../../../goals/presentation/screens/goals_screen.dart';
 import '../../../prediction/domain/entities/prediction_entity.dart';
 import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../debt/presentation/providers/debt_providers.dart';
 import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../../recurring/presentation/screens/recurring_screen.dart';
+import '../../../settings/backup_screen.dart';
+import '../../../settings/settings_screen.dart';
+import '../../../sms_import/presentation/providers/sms_import_provider.dart';
+import '../../../sms_import/presentation/screens/sms_import_screen.dart';
 import '../../../income/presentation/providers/income_providers.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/screens/wallet_management_screen.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
+import '../../../sms_import/presentation/widgets/sms_import_entry_widgets.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../screens/manual_add_screen.dart';
@@ -44,7 +51,8 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(dashboardControllerProvider);
-    final budgets = ref.watch(budgetSettingsProvider).categoryBudgets;
+    final restorePrompt = ref.watch(restorePromptProvider);
+    final budgets = ref.watch(effectiveBudgetLimitsProvider);
     final budgetPlan = ref.watch(budgetProvider).activeBudget;
     final recurringExpenses =
         ref.watch(recurringProvider).valueOrNull ?? const [];
@@ -76,6 +84,7 @@ class DashboardScreen extends ConsumerWidget {
         ref.invalidate(cashFlowProvider);
         ref.invalidate(walletProvider);
         ref.read(incomeRefreshTokenProvider.notifier).state++;
+        await ref.read(debtListProvider.notifier).refresh();
         await ref.read(dashboardControllerProvider.notifier).refresh();
       },
       floatingActionButton: FloatingActionButton(
@@ -103,6 +112,20 @@ class DashboardScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _GreetingHeader(),
+                if (restorePrompt != null) ...[
+                  const SizedBox(height: AppSpacing.cardGap),
+                  _RestoreBackupBanner(
+                    info: restorePrompt,
+                    onRestore: () {
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const BackupScreen()));
+                    },
+                    onSkip: () {
+                      ref.read(restorePromptProvider.notifier).state = null;
+                    },
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 AppFadeSlideIn(
                   delay: const Duration(milliseconds: 100),
@@ -129,6 +152,11 @@ class DashboardScreen extends ConsumerWidget {
                     onOpenIncome: AppShellNavigation.openIncome,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.cardGap),
+                const AppFadeSlideIn(
+                  delay: Duration(milliseconds: 340),
+                  child: SmsImportDashboardTeaserCard(),
+                ),
                 const SizedBox(height: AppSpacing.sectionGap),
                 AppFadeSlideIn(
                   delay: const Duration(milliseconds: 400),
@@ -150,7 +178,15 @@ class DashboardScreen extends ConsumerWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sectionGap),
+                const SizedBox(height: AppSpacing.cardGap),
+                const AppFadeSlideIn(
+                  delay: Duration(milliseconds: 430),
+                  child: _SmsAutoImportStatusCard(),
+                ),
+                const AppFadeSlideIn(
+                  delay: Duration(milliseconds: 450),
+                  child: _DebtSummaryTeaserCard(),
+                ),
                 AppFadeSlideIn(
                   delay: const Duration(milliseconds: 500),
                   child: Column(
@@ -348,6 +384,145 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _SmsAutoImportStatusCard extends ConsumerStatefulWidget {
+  const _SmsAutoImportStatusCard();
+
+  @override
+  ConsumerState<_SmsAutoImportStatusCard> createState() =>
+      _SmsAutoImportStatusCardState();
+}
+
+class _SmsAutoImportStatusCardState
+    extends ConsumerState<_SmsAutoImportStatusCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    );
+    _pulseScale = Tween<double>(begin: 1, end: 1.015).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(smsAutoImportProvider);
+    if (!state.isEnabled) {
+      _pulseController.stop();
+      return const SizedBox.shrink();
+    }
+
+    if (state.hasPending) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+      return ScaleTransition(
+        scale: _pulseScale,
+        child: AppCard(
+          child: InkWell(
+            onTap: () => SmsImportScreen.push(context),
+            borderRadius: AppRadius.cardAll,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.appColors.primary.withValues(alpha: 0.12),
+                    borderRadius: const BorderRadius.all(AppRadius.card),
+                  ),
+                  child: Icon(
+                    Icons.sms_rounded,
+                    color: context.appColors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${BanglaFormatters.count(state.pendingTransactions.length)} টি নতুন লেনদেন পাওয়া গেছে',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'ট্যাপ করে নিশ্চিত করুন',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    _pulseController.stop();
+    return AppCard(
+      child: InkWell(
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(AppSlideRoute(builder: (_) => const SettingsScreen()));
+        },
+        borderRadius: AppRadius.cardAll,
+        child: Row(
+          children: [
+            const Icon(Icons.sms_outlined, color: AppColors.success),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'SMS স্বয়ংক্রিয় আমদানি চালু · শেষ স্ক্যান ${_relativeScanLabel(state.lastScanTime)}',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _relativeScanLabel(DateTime? time) {
+    if (time == null) {
+      return 'অজানা';
+    }
+
+    final difference = DateTime.now().difference(time);
+    if (difference.inMinutes < 1) {
+      return 'এইমাত্র';
+    }
+    if (difference.inHours < 1) {
+      return '${BanglaFormatters.count(difference.inMinutes)} মিনিট আগে';
+    }
+    if (difference.inDays < 1) {
+      return '${BanglaFormatters.count(difference.inHours)} ঘণ্টা আগে';
+    }
+    return BanglaFormatters.relativeDay(time);
   }
 }
 
@@ -577,6 +752,7 @@ class _QuickActions extends StatelessWidget {
             Navigator.of(context).push(buildAppRoute(const GoalsScreen()));
           },
         ),
+        const SmsImportQuickActionChip(),
         AppChip(
           label: 'এক্সপোর্ট',
           icon: Icons.ios_share_rounded,
@@ -1176,6 +1352,116 @@ class _WalletSummarySection extends ConsumerWidget {
   }
 }
 
+class _DebtSummaryTeaserCard extends ConsumerWidget {
+  const _DebtSummaryTeaserCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final debtListAsync = ref.watch(debtListProvider);
+    final summary = ref.watch(debtSummaryProvider);
+
+    if (debtListAsync.isLoading ||
+        debtListAsync.hasError ||
+        !summary.hasActiveDebts) {
+      return const SizedBox.shrink();
+    }
+
+    final netColor = summary.netPosition >= 0
+        ? AppColors.success
+        : AppColors.error;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
+      child: AppCard(
+        onTap: AppShellNavigation.openDebts,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: context.appColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.handshake_outlined,
+                    color: context.appColors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'ধার-দেনা',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: context.primaryTextColor,
+                    ),
+                  ),
+                ),
+                if (summary.overdueCount > 0)
+                  AppChip(
+                    label:
+                        '${BanglaFormatters.count(summary.overdueCount)} টি মেয়াদোত্তীর্ণ',
+                    color: AppColors.error,
+                    compact: true,
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            RichText(
+              text: TextSpan(
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: context.secondaryTextColor,
+                ),
+                children: [
+                  TextSpan(
+                    text:
+                        'পাওনা: ${BanglaFormatters.currency(summary.totalOwedToMe)}',
+                    style: const TextStyle(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text:
+                        'দেনা: ${BanglaFormatters.currency(summary.totalIOwe)}',
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'নিট: ${summary.netPosition >= 0 ? '+' : '-'}${BanglaFormatters.currency(summary.netPosition.abs())}',
+              style: AppTextStyles.titleMedium.copyWith(
+                color: netColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (summary.upcomingEMICount > 0) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '⚠️ ${BanglaFormatters.count(summary.upcomingEMICount)} কিস্তি এই সপ্তাহে · ${BanglaFormatters.currency(summary.upcomingEMITotal)}',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DashboardWalletCard extends ConsumerWidget {
   const _DashboardWalletCard({
     required this.walletId,
@@ -1298,6 +1584,105 @@ class _AddWalletCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RestoreBackupBanner extends StatelessWidget {
+  const _RestoreBackupBanner({
+    required this.info,
+    required this.onRestore,
+    required this.onSkip,
+  });
+
+  final BackupFileInfo info;
+  final VoidCallback onRestore;
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: 0.45),
+          width: 1.4,
+        ),
+      ),
+      child: AppCard(
+        elevation: 1,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.cloud_download_rounded,
+                  color: AppColors.success,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'পূর্বের ব্যাকআপ পাওয়া গেছে',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${BanglaFormatters.fullDate(info.modifiedAt)} · ${_formatSize(info.sizeBytes)}',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: AppActionButton(
+                    label: 'রিস্টোর করুন',
+                    fullWidth: true,
+                    onPressed: onRestore,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppActionButton(
+                    label: 'এড়িয়ে যান',
+                    fullWidth: true,
+                    variant: AppActionButtonVariant.ghost,
+                    onPressed: onSkip,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatSize(int sizeBytes) {
+    if (sizeBytes <= 0) {
+      return '0 B';
+    }
+    if (sizeBytes < 1024) {
+      return '$sizeBytes B';
+    }
+    final kb = sizeBytes / 1024;
+    if (kb < 1024) {
+      return '${kb.toStringAsFixed(1)} KB';
+    }
+    final mb = kb / 1024;
+    return '${mb.toStringAsFixed(1)} MB';
   }
 }
 

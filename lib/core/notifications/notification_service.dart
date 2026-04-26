@@ -7,6 +7,9 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../navigation/app_shell_navigation.dart';
+import '../sms/parsed_transaction.dart';
+import '../sms/sms_import_entry.dart';
+import '../utils/bangla_formatters.dart';
 
 class NotificationService {
   NotificationService._();
@@ -18,7 +21,8 @@ class NotificationService {
   static const int budgetAlertId = 2;
   static const int weeklyReportId = 3;
   static const int anomalyAlertId = 4;
-  static const int goalReminderPreviewId = 5;
+  static const int smsImportNotificationId = 5;
+  static const int goalReminderPreviewId = 6;
 
   static const AndroidNotificationChannel _dailyReminderChannel =
       AndroidNotificationChannel(
@@ -60,6 +64,22 @@ class NotificationService {
         importance: Importance.defaultImportance,
       );
 
+  static const AndroidNotificationChannel _smsImportChannel =
+      AndroidNotificationChannel(
+        'sms_import',
+        'SMS আমদানি',
+        description: 'নতুন আর্থিক SMS সনাক্ত হলে জানায়',
+        importance: Importance.high,
+      );
+
+  static const AndroidNotificationChannel _debtReminderChannel =
+      AndroidNotificationChannel(
+        'debt_reminder',
+        'ধার-দেনা রিমাইন্ডার',
+        description: 'ধার, দেনা ও কিস্তির রিমাইন্ডার',
+        importance: Importance.defaultImportance,
+      );
+
   static Future<void> initialize() async {
     await _initTimezone();
 
@@ -86,6 +106,8 @@ class NotificationService {
     await androidPlugin?.createNotificationChannel(_weeklyReportChannel);
     await androidPlugin?.createNotificationChannel(_anomalyAlertChannel);
     await androidPlugin?.createNotificationChannel(_goalReminderChannel);
+    await androidPlugin?.createNotificationChannel(_smsImportChannel);
+    await androidPlugin?.createNotificationChannel(_debtReminderChannel);
 
     final launchDetails = await _plugin.getNotificationAppLaunchDetails();
     _handlePayload(launchDetails?.notificationResponse?.payload);
@@ -268,6 +290,49 @@ class NotificationService {
     );
   }
 
+  static Future<void> showSmsImportDetected(SmsImportEntry entry) async {
+    await _plugin.show(
+      smsImportNotificationId,
+      'নতুন লেনদেন সনাক্ত',
+      '${entry.transaction.source.label} থেকে ${BanglaFormatters.preciseCurrency(entry.transaction.amount)} ${_smsVerb(entry)}',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'sms_import',
+          'SMS আমদানি',
+          channelDescription: 'নতুন আর্থিক SMS সনাক্ত হলে জানায়',
+          importance: Importance.high,
+          priority: Priority.high,
+          color: Color(0xFF2E7D32),
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      ),
+      payload: 'sms_import',
+    );
+  }
+
+  static Future<void> showSmsAutoSaved(SmsImportEntry entry) async {
+    await _plugin.show(
+      smsImportNotificationId,
+      'স্বয়ংক্রিয়ভাবে সংরক্ষিত',
+      '${entry.transaction.source.label} ${BanglaFormatters.preciseCurrency(entry.transaction.amount)} → ${entry.mappedLabel}',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'sms_import',
+          'SMS আমদানি',
+          channelDescription: 'নতুন আর্থিক SMS সনাক্ত হলে জানায়',
+          importance: Importance.low,
+          priority: Priority.low,
+          playSound: false,
+          enableVibration: false,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(presentAlert: true, presentSound: false),
+      ),
+      payload: 'sms_import',
+    );
+  }
+
   static Future<void> showGoalReminder({
     required String goalTitle,
     required double monthlyNeeded,
@@ -326,6 +391,42 @@ class NotificationService {
     await _plugin.cancel(notificationId);
   }
 
+  static Future<void> scheduleDebtReminder({
+    required int notificationId,
+    required String title,
+    required String body,
+    required DateTime scheduledFor,
+    required String payload,
+  }) async {
+    await _plugin.cancel(notificationId);
+
+    await _plugin.zonedSchedule(
+      notificationId,
+      title,
+      body,
+      _nextDebtReminderDate(scheduledFor),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'debt_reminder',
+          'ধার-দেনা রিমাইন্ডার',
+          channelDescription: 'ধার, দেনা ও কিস্তির রিমাইন্ডার',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
+    );
+  }
+
+  static Future<void> cancelDebtReminder(int notificationId) async {
+    await _plugin.cancel(notificationId);
+  }
+
   static Future<void> cancelWeeklyReport() async {
     await _plugin.cancel(weeklyReportId);
   }
@@ -370,7 +471,39 @@ class NotificationService {
     return scheduled;
   }
 
+  static tz.TZDateTime _nextDebtReminderDate(DateTime scheduledFor) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      scheduledFor.year,
+      scheduledFor.month,
+      scheduledFor.day,
+      9,
+    );
+
+    if (scheduled.isBefore(now) || scheduled.isAtSameMomentAs(now)) {
+      scheduled = now.add(const Duration(minutes: 1));
+    }
+
+    return scheduled;
+  }
+
   static Future<void> cancelAll() async {
     await _plugin.cancelAll();
+  }
+
+  static String _smsVerb(SmsImportEntry entry) {
+    if (entry.isIncome) {
+      return 'জমা হয়েছে';
+    }
+
+    return switch (entry.transaction.kind) {
+      _ when entry.transaction.kind.name == 'sendMoney' => 'পাঠানো হয়েছে',
+      _ when entry.transaction.kind.name == 'cashOut' => 'ক্যাশ আউট হয়েছে',
+      _ when entry.transaction.kind.name == 'billPay' => 'বিল পরিশোধ হয়েছে',
+      _ when entry.transaction.kind.name == 'atmWithdrawal' =>
+        'উত্তোলন হয়েছে',
+      _ => 'খরচ হয়েছে',
+    };
   }
 }

@@ -3,11 +3,15 @@ import '../../features/category/domain/category_registry.dart';
 import '../../features/anomaly/data/services/anomaly_detection_service.dart';
 import '../../features/anomaly/domain/entities/anomaly_alert.dart';
 import '../../features/budget/data/datasources/budget_plan_local_datasource.dart';
+import '../../features/debt/data/datasources/debt_local_datasource.dart';
+import '../../features/debt/domain/entities/debt_entity.dart';
 import '../../features/goals/data/datasources/goal_local_datasource.dart';
 import '../../features/prediction/domain/entities/prediction_entity.dart';
 import '../../features/recurring/data/datasources/recurring_local_datasource.dart';
 import '../database/expense_local_datasource.dart';
 import '../database/models/expense_record_model.dart';
+import '../database/models/sms_ledger_entry_model.dart';
+import '../sms/parsed_transaction.dart';
 import '../utils/bangla_formatters.dart';
 
 class RagContext {
@@ -53,23 +57,29 @@ class RagContextBuilder {
   const RagContextBuilder({
     required ExpenseLocalDataSource localDataSource,
     BudgetPlanLocalDataSource? budgetPlanLocalDataSource,
+    DebtLocalDataSource? debtLocalDataSource,
     GoalLocalDataSource? goalLocalDataSource,
     RecurringLocalDataSource? recurringLocalDataSource,
     Future<List<AnomalyAlert>> Function()? anomalyLoader,
     Future<PredictionEntity?> Function()? predictionLoader,
+    Future<List<SmsLedgerEntryModel>> Function()? smsLedgerLoader,
   }) : _localDataSource = localDataSource,
        _budgetPlanLocalDataSource = budgetPlanLocalDataSource,
+       _debtLocalDataSource = debtLocalDataSource,
        _goalLocalDataSource = goalLocalDataSource,
        _recurringLocalDataSource = recurringLocalDataSource,
        _anomalyLoader = anomalyLoader,
-       _predictionLoader = predictionLoader;
+       _predictionLoader = predictionLoader,
+       _smsLedgerLoader = smsLedgerLoader;
 
   final ExpenseLocalDataSource _localDataSource;
   final BudgetPlanLocalDataSource? _budgetPlanLocalDataSource;
+  final DebtLocalDataSource? _debtLocalDataSource;
   final GoalLocalDataSource? _goalLocalDataSource;
   final RecurringLocalDataSource? _recurringLocalDataSource;
   final Future<List<AnomalyAlert>> Function()? _anomalyLoader;
   final Future<PredictionEntity?> Function()? _predictionLoader;
+  final Future<List<SmsLedgerEntryModel>> Function()? _smsLedgerLoader;
 
   /// Builds personalized context from local expense data for RAG-style prompts.
   Future<RagContext?> buildContext(String userQuestion) async {
@@ -81,12 +91,16 @@ class RagContextBuilder {
     final requestedMonth = _resolveRequestedMonth(userQuestion, now);
     final thisMonthExpenses = await _localDataSource.getThisMonthExpenses();
     final todayExpenses = await _localDataSource.getTodayExpenses();
+    final includeDebtContext = _needsDebtContext(userQuestion);
     final includeLastMonth = _containsAny(userQuestion, const [
       'গত মাস',
       'last month',
       'তুলনা',
       'compare',
     ]);
+    final activeDebts = includeDebtContext
+        ? await _loadActiveDebts()
+        : const <DebtEntity>[];
 
     final lastMonthExpenses = includeLastMonth
         ? await _loadComparisonExpenses(now, requestedMonth)
@@ -96,7 +110,8 @@ class RagContextBuilder {
     if (primaryExpenses.isEmpty &&
         thisMonthExpenses.isEmpty &&
         todayExpenses.isEmpty &&
-        lastMonthExpenses.isEmpty) {
+        lastMonthExpenses.isEmpty &&
+        !includeDebtContext) {
       return null;
     }
 
@@ -187,6 +202,9 @@ class RagContextBuilder {
         ? await _budgetPlanLocalDataSource?.getActiveBudget()
         : null;
     if (budgetPlan != null) {
+      final liveCategoryNames = CategoryRegistry.categories
+          .map((category) => category.name.trim().toLowerCase())
+          .toSet();
       buffer
         ..writeln('')
         ..writeln('## Active Budget Plan')
@@ -201,6 +219,9 @@ class RagContextBuilder {
         );
       buffer.writeln('Category limits:');
       for (final entry in budgetPlan.categoryBudgets.entries) {
+        if (!liveCategoryNames.contains(entry.key.trim().toLowerCase())) {
+          continue;
+        }
         buffer.writeln(
           '  ${entry.key}: ${BanglaFormatters.currency(entry.value)}/month',
         );
@@ -224,6 +245,74 @@ class RagContextBuilder {
         buffer.writeln(
           '- ${goal.emoji} ${goal.title}: ${BanglaFormatters.currency(goal.savedAmount)} / ${BanglaFormatters.currency(goal.targetAmount)} (${goal.progressPercentage.toStringAsFixed(0)}%), ${goal.daysRemaining} days remaining, ${goal.isOnTrack ? "on track" : "behind schedule"}',
         );
+      }
+    }
+
+    if (includeDebtContext) {
+      final openDebts = activeDebts;
+      final totalOwedToMe = openDebts
+          .where((debt) => debt.type == DebtType.theyOwe)
+          .fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      final totalIOwe = openDebts
+          .where((debt) => debt.type == DebtType.iOwe)
+          .fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      final today = DateTime(now.year, now.month, now.day);
+      final upcomingWindowEnd = today.add(const Duration(days: 7));
+      final upcomingEmis = openDebts
+          .where(
+            (debt) =>
+                debt.isEMI &&
+                debt.status == DebtStatus.active &&
+                !debt.isOverdue &&
+                debt.nextInstallmentDate != null &&
+                !DateTime(
+                  debt.nextInstallmentDate!.year,
+                  debt.nextInstallmentDate!.month,
+                  debt.nextInstallmentDate!.day,
+                ).isBefore(today) &&
+                !DateTime(
+                  debt.nextInstallmentDate!.year,
+                  debt.nextInstallmentDate!.month,
+                  debt.nextInstallmentDate!.day,
+                ).isAfter(upcomingWindowEnd),
+          )
+          .toList(growable: false);
+
+      buffer
+        ..writeln('')
+        ..writeln('## Debt / Loan Summary')
+        ..writeln('মোট পাওনা: ${BanglaFormatters.currency(totalOwedToMe)}')
+        ..writeln('মোট দেনা: ${BanglaFormatters.currency(totalIOwe)}');
+
+      if (upcomingEmis.isNotEmpty) {
+        final upcomingTotal = upcomingEmis.fold<double>(
+          0,
+          (sum, debt) => sum + debt.nextInstallmentAmount,
+        );
+        buffer.writeln(
+          'এই সপ্তাহের কিস্তি: ${BanglaFormatters.count(upcomingEmis.length)}টি, মোট ${BanglaFormatters.currency(upcomingTotal)}',
+        );
+      }
+
+      if (openDebts.isEmpty) {
+        buffer.writeln('- কোনো সক্রিয় ধার-দেনা নেই');
+      } else {
+        for (final debt in openDebts.take(10)) {
+          final typeLabel = debt.type == DebtType.theyOwe ? 'পাওনা' : 'দেনা';
+          final overdueLabel =
+              debt.status == DebtStatus.overdue || debt.isOverdue
+              ? ' [মেয়াদোত্তীর্ণ]'
+              : '';
+          final dueDateLabel = debt.effectiveDueDate == null
+              ? ''
+              : ' · তারিখ ${BanglaFormatters.fullDate(debt.effectiveDueDate!)}';
+          final emiLabel = debt.isEMI
+              ? ' · কিস্তি ${BanglaFormatters.count(debt.paidInstallments)}/${BanglaFormatters.count(debt.totalInstallments)} · মাসিক ${BanglaFormatters.currency(debt.emiAmount)}'
+              : '';
+          buffer.writeln(
+            '- ${debt.personName}: $typeLabel ${BanglaFormatters.currency(debt.remainingAmount)}$emiLabel$dueDateLabel$overdueLabel',
+          );
+        }
       }
     }
 
@@ -273,6 +362,11 @@ class RagContextBuilder {
         ..writeln('Days remaining: ${prediction.daysRemaining}')
         ..writeln('Trend: ${prediction.trend.name}')
         ..writeln('Confidence: ${prediction.confidence.name}');
+    }
+
+    if (_needsSmsContext(userQuestion)) {
+      final smsEntries = await _smsLedgerLoader?.call() ?? const [];
+      _appendSmsContext(buffer, smsEntries, requestedMonth ?? now);
     }
 
     return RagContext(textForAi: buffer.toString().trim(), data: data);
@@ -399,6 +493,18 @@ class RagContextBuilder {
 
   bool _needsData(String question) {
     const staticKeywords = [
+      'ধার',
+      'দেনা',
+      'পাওনা',
+      'ঋণ',
+      'কিস্তি',
+      'emi',
+      'installment',
+      'debt',
+      'loan',
+      'owe',
+      'lend',
+      'borrow',
       'কত',
       'খরচ',
       'টাকা',
@@ -542,6 +648,45 @@ class RagContextBuilder {
     ]);
   }
 
+  bool _needsDebtContext(String question) {
+    return _containsAny(question, const [
+      'ধার',
+      'দেনা',
+      'পাওনা',
+      'ঋণ',
+      'কিস্তি',
+      'emi',
+      'installment',
+      'debt',
+      'loan',
+      'owe',
+      'lend',
+      'borrow',
+    ]);
+  }
+
+  bool _needsSmsContext(String question) {
+    return _containsAny(question, const [
+      'sms',
+      'import',
+      'auto import',
+      'bkash',
+      'bikash',
+      'বিকাশ',
+      'nagad',
+      'নগদ',
+      'rocket',
+      'রকেট',
+      'bank',
+      'ব্যাংক',
+      'payment',
+      'send money',
+      'cash in',
+      'cash out',
+      'লেনদেন',
+    ]);
+  }
+
   bool _looksLikeExpenseEntry(String input) {
     final normalized = input.toLowerCase();
     final hasAmount = RegExp(r'\d').hasMatch(normalized);
@@ -582,6 +727,77 @@ class RagContextBuilder {
   bool _containsAny(String input, List<String> keywords) {
     final lower = input.toLowerCase();
     return keywords.any(lower.contains);
+  }
+
+  void _appendSmsContext(
+    StringBuffer buffer,
+    List<SmsLedgerEntryModel> entries,
+    DateTime referenceMonth,
+  ) {
+    final visibleEntries = [
+      for (final entry in entries)
+        if (entry.isImported && !entry.isIgnored) entry,
+    ];
+    if (visibleEntries.isEmpty) {
+      return;
+    }
+
+    final monthEntries = [
+      for (final entry in visibleEntries)
+        if (entry.occurredAt.year == referenceMonth.year &&
+            entry.occurredAt.month == referenceMonth.month)
+          entry,
+    ];
+    final relevantEntries = monthEntries.isNotEmpty ? monthEntries : visibleEntries;
+    final sourceTotals = <String, double>{};
+    final kindTotals = <String, double>{};
+    for (final entry in relevantEntries) {
+      sourceTotals.update(
+        entry.source.label,
+        (value) => value + entry.amount,
+        ifAbsent: () => entry.amount,
+      );
+      kindTotals.update(
+        entry.kind.label,
+        (value) => value + entry.amount,
+        ifAbsent: () => entry.amount,
+      );
+    }
+
+    buffer
+      ..writeln('')
+      ..writeln('## SMS Imported Transactions')
+      ..writeln(
+        'Count: ${BanglaFormatters.count(relevantEntries.length)} · Total: ${BanglaFormatters.currency(relevantEntries.fold<double>(0, (sum, entry) => sum + entry.amount))}',
+      )
+      ..writeln('Source totals:');
+    for (final entry in sourceTotals.entries) {
+      buffer.writeln(
+        '- ${entry.key}: ${BanglaFormatters.currency(entry.value)}',
+      );
+    }
+    buffer.writeln('Kind totals:');
+    for (final entry in kindTotals.entries) {
+      buffer.writeln(
+        '- ${entry.key}: ${BanglaFormatters.currency(entry.value)}',
+      );
+    }
+    buffer.writeln('Recent SMS imports:');
+    for (final entry in relevantEntries.take(5)) {
+      buffer.writeln(
+        '- ${BanglaFormatters.dayMonth(entry.occurredAt)}: ${entry.source.label} | ${entry.kind.label} | ${entry.displayTitle} | ${BanglaFormatters.currency(entry.amount)}',
+      );
+    }
+  }
+
+  Future<List<DebtEntity>> _loadActiveDebts() async {
+    if (_debtLocalDataSource == null) {
+      return const [];
+    }
+
+    await _debtLocalDataSource.updateOverdueStatuses();
+    final debts = await _debtLocalDataSource.getActiveDebts();
+    return debts.map((debt) => debt.toEntity()).toList(growable: false);
   }
 
   DateTime? _resolveRequestedMonth(String userQuestion, DateTime now) {

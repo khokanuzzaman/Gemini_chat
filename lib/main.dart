@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,13 +13,18 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/backup/backup_orchestrator.dart';
+import 'core/backup/backup_providers.dart';
 import 'core/database/expense_migration.dart';
 import 'core/database/models/expense_record_model.dart';
+import 'core/database/models/imported_sms_model.dart';
 import 'core/database/models/income_record_model.dart';
 import 'core/database/models/budget_plan_model.dart';
 import 'core/database/models/goal_model.dart';
 import 'core/database/models/goal_saving_model.dart';
 import 'core/database/models/recurring_expense_model.dart';
+import 'core/database/models/sms_ledger_entry_model.dart';
+import 'core/database/models/sms_ledger_sync_state_model.dart';
 import 'core/database/models/split_bill_model.dart';
 import 'core/database/models/wallet_model.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
@@ -22,15 +32,20 @@ import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/preferences/app_preferences.dart';
+import 'core/premium/premium_providers.dart';
+import 'core/premium/premium_service.dart';
 import 'core/providers/database_providers.dart';
 import 'core/providers/shared_preferences_provider.dart';
 import 'core/security/app_lifecycle_observer.dart';
 import 'core/security/biometric_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/usage/usage_limits.dart';
 import 'features/chat/data/models/message_model.dart';
 import 'features/category/data/datasources/category_local_datasource.dart';
 import 'features/category/data/models/category_model.dart';
+import 'features/debt/data/models/debt_model.dart';
+import 'features/debt/data/models/debt_payment_model.dart';
 import 'features/category/domain/category_registry.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/anomaly/presentation/providers/anomaly_provider.dart';
@@ -41,10 +56,12 @@ import 'features/expense/presentation/screens/dashboard_screen.dart';
 import 'features/expense/presentation/screens/expense_list_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/security/lock_screen.dart';
+import 'features/sms_import/presentation/providers/sms_import_provider.dart';
 import 'features/split/presentation/screens/split_bill_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/wallet/data/datasources/wallet_local_datasource.dart';
 import 'features/wallet/presentation/providers/wallet_provider.dart';
+import 'core/usage/usage_providers.dart';
 
 const _notificationPermissionAskedKey = 'notification_permission_asked';
 
@@ -52,6 +69,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('bn');
   await dotenv.load(fileName: '.env');
+  await Firebase.initializeApp();
+  final premiumService = PremiumService(
+    firebaseAuth: FirebaseAuth.instance,
+    firestore: FirebaseFirestore.instance,
+  );
+  await premiumService.initialize(
+    userId: FirebaseAuth.instance.currentUser?.uid,
+  );
   final sharedPreferences = await SharedPreferences.getInstance();
   final savedThemeMode = await _loadSavedThemeMode();
 
@@ -81,12 +106,27 @@ Future<void> main() async {
   );
 
   final bootstrapContainer = ProviderContainer(
-    overrides: [sharedPreferencesProvider.overrideWithValue(sharedPreferences)],
+    overrides: [
+      isarProvider.overrideWithValue(isar),
+      sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      premiumServiceProvider.overrideWithValue(premiumService),
+    ],
   );
   await bootstrapContainer
       .read(notificationProvider.notifier)
       .reapplyCurrentSettings();
-  bootstrapContainer.dispose();
+  unawaited(() async {
+    try {
+      if (FirebaseAuth.instance.currentUser != null) {
+        await bootstrapContainer
+            .read(usageTrackerServiceProvider)
+            .syncFromFirestore();
+      }
+      await _checkAutoBackup(bootstrapContainer);
+    } finally {
+      bootstrapContainer.dispose();
+    }
+  }());
 
   runApp(
     ProviderScope(
@@ -94,6 +134,7 @@ Future<void> main() async {
         isarProvider.overrideWithValue(isar),
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         themeBootstrapProvider.overrideWithValue(savedThemeMode),
+        premiumServiceProvider.overrideWithValue(premiumService),
       ],
       child: const ExpenseTrackerApp(),
     ),
@@ -107,6 +148,82 @@ Future<ThemeMode> _loadSavedThemeMode() async {
     'dark' => ThemeMode.dark,
     _ => ThemeMode.system,
   };
+}
+
+Future<void> _checkAutoBackup(ProviderContainer container) async {
+  try {
+    final prefs = container.read(sharedPreferencesProvider);
+    final isEnabled =
+        prefs.getBool(BackupOrchestrator.autoBackupEnabledKey) ?? false;
+    if (!isEnabled) {
+      return;
+    }
+
+    final lastBackupMs = prefs.getInt(BackupOrchestrator.backupLastTimeKey);
+    if (lastBackupMs != null && lastBackupMs > 0) {
+      final lastBackup = DateTime.fromMillisecondsSinceEpoch(lastBackupMs);
+      if (DateTime.now().difference(lastBackup) < const Duration(hours: 24)) {
+        return;
+      }
+    }
+
+    final auth = container.read(googleAuthServiceProvider);
+    if (!await auth.isSignedIn()) {
+      await auth.signInSilently();
+      if (!await auth.isSignedIn()) {
+        return;
+      }
+    }
+
+    final isPremiumUser = await _isPremiumUser(container);
+    if (!isPremiumUser) {
+      try {
+        final gate = await container
+            .read(usageTrackerServiceProvider)
+            .checkAndConsume(UsageLimits.cloudBackup);
+        if (!gate.isAllowed) {
+          return;
+        }
+      } catch (_) {
+        // Usage tracking is best-effort for silent backups.
+      }
+    }
+
+    await container.read(backupOrchestratorProvider).createBackup();
+  } catch (_) {
+    // Auto-backup is best-effort; failures are intentionally ignored.
+  }
+}
+
+Future<bool> _isPremiumUser(ProviderContainer container) async {
+  if (container.read(isPremiumProvider)) {
+    return true;
+  }
+
+  try {
+    return await container.read(premiumServiceProvider).isPremium();
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<void> _checkForExistingBackup(WidgetRef ref) async {
+  try {
+    final auth = ref.read(googleAuthServiceProvider);
+    await auth.signInSilently();
+    if (!await auth.isSignedIn()) {
+      return;
+    }
+
+    final backup = await ref
+        .read(backupOrchestratorProvider)
+        .getCloudBackupInfo();
+    if (backup != null) {
+      ref.read(restorePromptProvider.notifier).state = backup;
+    }
+  } catch (_) {
+    // Restore prompt is opportunistic; failures are intentionally ignored.
+  }
 }
 
 Future<Isar> _openIsar() async {
@@ -128,8 +245,13 @@ Future<Isar> _openIsar() async {
       RecurringExpenseModelSchema,
       SplitBillModelSchema,
       WalletModelSchema,
+      ImportedSmsModelSchema,
+      SmsLedgerEntryModelSchema,
+      SmsLedgerSyncStateModelSchema,
       PredictionCacheModelSchema,
       IncomeRecordModelSchema,
+      DebtModelSchema,
+      DebtPaymentModelSchema,
     ],
     directory: directory.path,
     name: instanceName,
@@ -194,14 +316,14 @@ class _ExpenseTrackerAppState extends ConsumerState<ExpenseTrackerApp> {
   }
 }
 
-class _AppBootstrap extends StatefulWidget {
+class _AppBootstrap extends ConsumerStatefulWidget {
   const _AppBootstrap();
 
   @override
-  State<_AppBootstrap> createState() => _AppBootstrapState();
+  ConsumerState<_AppBootstrap> createState() => _AppBootstrapState();
 }
 
-class _AppBootstrapState extends State<_AppBootstrap> {
+class _AppBootstrapState extends ConsumerState<_AppBootstrap> {
   bool _showSplash = true;
   bool _onboardingComplete = false;
   bool _ready = false;
@@ -216,6 +338,19 @@ class _AppBootstrapState extends State<_AppBootstrap> {
     final onboardingComplete = await AppPreferences.isOnboardingComplete();
     if (!mounted) {
       return;
+    }
+
+    if (onboardingComplete) {
+      final expenseCount = await ref
+          .read(isarProvider)
+          .expenseRecordModels
+          .count();
+      if (!mounted) {
+        return;
+      }
+      if (expenseCount == 0) {
+        unawaited(_checkForExistingBackup(ref));
+      }
     }
     setState(() {
       _onboardingComplete = onboardingComplete;
@@ -269,17 +404,26 @@ class _MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<_MainShell> {
   int _currentIndex = 0;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     AppShellNavigation.selectedTab.addListener(_handleExternalTabChange);
     _currentIndex = AppShellNavigation.selectedTab.value;
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      ref.read(premiumStatusProvider.notifier).syncUser(user?.uid);
+      if (user != null) {
+        ref.read(usageTrackerServiceProvider).syncFromFirestore();
+        ref.read(usageRefreshTokenProvider.notifier).state++;
+      }
+    });
     _hydratePreferences();
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     AppShellNavigation.selectedTab.removeListener(_handleExternalTabChange);
     super.dispose();
   }
@@ -292,6 +436,8 @@ class _MainShellState extends ConsumerState<_MainShell> {
     }
     ref.read(ragEnabledProvider.notifier).state = ragEnabled;
     ref.read(activeWalletIdProvider.notifier).state = activeWalletId;
+    ref.read(backupStateProvider);
+    ref.read(smsAutoImportProvider);
   }
 
   @override

@@ -5,13 +5,17 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/app_strings.dart';
+import '../../core/backup/backup_providers.dart';
 import '../../core/database/expense_seed_data.dart';
 import '../../core/database/models/budget_plan_model.dart';
 import '../../core/database/models/expense_record_model.dart';
 import '../../core/database/models/goal_model.dart';
 import '../../core/database/models/goal_saving_model.dart';
+import '../../core/database/models/imported_sms_model.dart';
 import '../../core/database/models/income_record_model.dart';
 import '../../core/database/models/recurring_expense_model.dart';
+import '../../core/database/models/sms_ledger_entry_model.dart';
+import '../../core/database/models/sms_ledger_sync_state_model.dart';
 import '../../core/database/models/split_bill_model.dart';
 import '../../core/database/models/wallet_model.dart';
 import '../../core/navigation/app_page_route.dart';
@@ -19,6 +23,8 @@ import '../../core/navigation/app_shell_navigation.dart';
 import '../../core/notifications/budget_settings.dart';
 import '../../core/notifications/notification_provider.dart';
 import '../../core/notifications/notification_settings.dart';
+import '../../core/premium/premium_providers.dart';
+import '../../core/premium/premium_service.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/providers/database_providers.dart';
 import '../../core/security/biometric_provider.dart';
@@ -26,6 +32,7 @@ import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/bangla_formatters.dart';
+import '../../core/usage/usage_limits.dart';
 import '../../core/widgets/widgets.dart';
 import '../ai_guide/presentation/screens/ai_guide_screen.dart';
 import '../anomaly/presentation/providers/anomaly_provider.dart';
@@ -35,6 +42,9 @@ import '../category/presentation/providers/category_provider.dart';
 import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/data/models/message_model.dart';
 import '../chat/presentation/providers/chat_provider.dart';
+import '../debt/data/models/debt_model.dart';
+import '../debt/data/models/debt_payment_model.dart';
+import '../debt/presentation/providers/debt_providers.dart';
 import '../expense/presentation/providers/expense_providers.dart';
 import '../export/presentation/screens/export_screen.dart';
 import '../goals/presentation/providers/goal_provider.dart';
@@ -42,9 +52,13 @@ import '../goals/presentation/screens/goals_screen.dart';
 import '../income/presentation/providers/income_providers.dart';
 import '../income/presentation/screens/income_list_screen.dart';
 import '../recurring/presentation/screens/recurring_screen.dart';
+import '../sms_import/presentation/providers/sms_import_provider.dart';
+import '../sms_import/presentation/widgets/sms_import_entry_widgets.dart';
 import '../wallet/presentation/providers/wallet_provider.dart';
 import '../wallet/presentation/screens/wallet_management_screen.dart';
+import 'backup_screen.dart';
 import 'budget_settings_screen.dart';
+import 'premium_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -107,6 +121,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final anomalyState = ref.watch(anomalyProvider);
     final goalState = ref.watch(goalProvider);
     final activeBudget = ref.watch(budgetProvider).activeBudget;
+    final backupStateAsync = ref.watch(backupStateProvider);
+    final backupState = backupStateAsync.valueOrNull;
+    final backupSignedIn = backupState?.isSignedIn ?? false;
+    final premiumStatusAsync = ref.watch(premiumStatusProvider);
+    final premiumStatus = premiumStatusAsync.valueOrNull;
+    final premiumOfferingsAsync = ref.watch(premiumOfferingsProvider);
+    final isPremium = ref.watch(isPremiumProvider);
+    final premiumTeaserTitle = _premiumTeaserTitle(premiumOfferingsAsync);
+    final backupSubtitle = isPremium
+        ? 'স্বয়ংক্রিয় ব্যাকআপ চালু'
+        : 'দৈনিক ${BanglaFormatters.count(UsageLimits.cloudBackupPerDay)}টি ম্যানুয়াল ব্যাকআপ';
     final activeAnomalyCount = anomalyState.activeAlerts.length;
     final activeGoalCount = goalState.activeGoals.length;
     final categories = ref.watch(categoryProvider);
@@ -228,6 +253,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           AppListTile(
+            leadingIcon: Icons.handshake_outlined,
+            leadingColor: context.appColors.primary,
+            title: 'ধার-দেনা',
+            subtitle: 'পাওনা, দেনা ও কিস্তি ম্যানেজ করুন',
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: AppShellNavigation.openDebts,
+          ),
+          AppListTile(
             leadingIcon: Icons.warning_amber_rounded,
             leadingColor: activeAnomalyCount > 0
                 ? AppColors.warning
@@ -247,8 +280,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ]),
       ),
       _SettingsGroup(
+        title: 'ক্লাউড ব্যাকআপ',
+        child: _tileCard(context, [
+          AppListTile(
+            leadingIcon: backupSignedIn
+                ? Icons.cloud_done_rounded
+                : Icons.backup_outlined,
+            leadingColor: backupSignedIn
+                ? AppColors.success
+                : context.appColors.primary,
+            title: 'Google Drive ব্যাকআপ',
+            subtitle: backupSubtitle,
+            trailing: backupSignedIn
+                ? const Icon(Icons.chevron_right_rounded)
+                : const AppChip(label: 'সেটআপ করুন', selected: false),
+            onTap: () {
+              Navigator.of(
+                context,
+              ).push(AppSlideRoute(builder: (_) => const BackupScreen()));
+            },
+          ),
+        ]),
+      ),
+      _SettingsGroup(
+        title: 'Premium',
+        child: premiumStatusAsync.when(
+          loading: () => const AppLoadingState.card(height: 96),
+          error: (error, stackTrace) => _buildPremiumBanner(
+            context,
+            premiumStatus,
+            isPremium,
+            teaserTitle: premiumTeaserTitle,
+          ),
+          data: (status) => _buildPremiumBanner(
+            context,
+            status,
+            status.isPremium,
+            teaserTitle: premiumTeaserTitle,
+          ),
+        ),
+      ),
+      _SettingsGroup(
+        title: 'স্মার্ট ফিচার',
+        child: const SmsAutoImportSettingsCard(),
+      ),
+      _SettingsGroup(
         title: 'ডেটা',
         child: _tileCard(context, [
+          const SmsImportSettingsTile(),
           AppListTile(
             leadingIcon: Icons.table_chart_rounded,
             leadingColor: context.appColors.primary,
@@ -390,6 +469,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ]),
+            if (!isPremium) ...[
+              const SizedBox(height: AppSpacing.sectionGap),
+              const UsageDisplayWidget(),
+            ],
             const SizedBox(height: AppSpacing.sectionGap),
             _buildNotificationCard(context, notificationSettings),
           ],
@@ -628,6 +711,146 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildPremiumBanner(
+    BuildContext context,
+    PremiumStatus? status,
+    bool isPremium, {
+    required String teaserTitle,
+  }) {
+    if (isPremium && status != null) {
+      final expiryText = status.expiryDate != null
+          ? BanglaFormatters.fullDate(status.expiryDate!)
+          : 'Premium সক্রিয়';
+      return AppCard(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.success.withValues(
+              alpha: context.isDarkMode ? 0.22 : 0.12,
+            ),
+            context.cardBackgroundColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
+        },
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Premium সদস্য',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: context.primaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    expiryText,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.secondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      );
+    }
+
+    return AppCard(
+      gradient: LinearGradient(
+        colors: [
+          context.appColors.primary.withValues(
+            alpha: context.isDarkMode ? 0.22 : 0.1,
+          ),
+          context.cardBackgroundColor,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
+      },
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: context.isDarkMode ? 0.1 : 0.55,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.star_rounded, color: AppColors.warning),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  teaserTitle,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: context.primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'সীমা ছাড়া AI, স্ক্যান আর স্মার্ট ব্যাকআপ পান',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.secondaryTextColor,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded),
+        ],
+      ),
+    );
+  }
+
+  String _premiumTeaserTitle(AsyncValue<List<PremiumPackage>> offeringsAsync) {
+    final packages = offeringsAsync.valueOrNull;
+    if (packages == null || packages.isEmpty) {
+      return 'Premium-এ আপগ্রেড করুন';
+    }
+
+    PremiumPackage? monthly;
+    for (final package in packages) {
+      if (!package.isYearly) {
+        monthly = package;
+        break;
+      }
+    }
+    final selected = monthly ?? packages.first;
+    return 'Premium-এ আপগ্রেড করুন · ${selected.priceString}';
+  }
+
   Future<void> _clearAllData() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -654,7 +877,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'চ্যাট, খরচ, আয়, ওয়ালেট, লক্ষ্য এবং বাজেটসহ সব ডেটা স্থায়ীভাবে মুছে যাবে।',
+                    'চ্যাট, খরচ, আয়, ধার-দেনা, ওয়ালেট, লক্ষ্য এবং বাজেটসহ সব ডেটা স্থায়ীভাবে মুছে যাবে।',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: context.secondaryTextColor,
                       height: 1.45,
@@ -686,6 +909,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
+    await ref.read(smsAutoImportProvider.notifier).disable();
+    await ref.read(backupStateProvider.notifier).signOut();
+    await ref.read(backupStateProvider.notifier).resetLocalState();
     await ref.read(isarProvider).writeTxn(() async {
       await ref.read(isarProvider).expenseRecordModels.clear();
       await ref.read(isarProvider).incomeRecordModels.clear();
@@ -696,17 +922,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).goalSavingModels.clear();
       await ref.read(isarProvider).recurringExpenseModels.clear();
       await ref.read(isarProvider).splitBillModels.clear();
+      await ref.read(isarProvider).debtModels.clear();
+      await ref.read(isarProvider).debtPaymentModels.clear();
+      await ref.read(isarProvider).importedSmsModels.clear();
+      await ref.read(isarProvider).smsLedgerEntryModels.clear();
+      await ref.read(isarProvider).smsLedgerSyncStateModels.clear();
     });
 
     await AppPreferences.setActiveWalletId(0);
+    await ref.read(smsSettingsProvider).resetAll();
     await ref.read(budgetSettingsProvider.notifier).clearBudgets();
     await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
     ref.read(incomeRefreshTokenProvider.notifier).state++;
+    ref.read(debtRefreshTokenProvider.notifier).state++;
     ref.invalidate(budgetProvider);
     ref.invalidate(goalsProvider);
     ref.invalidate(walletProvider);
     ref.invalidate(incomeListControllerProvider);
+    ref.invalidate(debtListProvider);
     if (!mounted) {
       return;
     }

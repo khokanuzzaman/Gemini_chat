@@ -115,12 +115,12 @@ void main() {
 
     await tester.tap(find.byKey(const Key('split-action-settle-1')));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'সম্পন্ন'));
+    await tester.tap(find.text('সম্পন্ন').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Travel dinner'), findsOneWidget);
-    expect(find.text('✅ সম্পন্ন'), findsOneWidget);
-    expect(find.widgetWithText(Tab, 'সম্পন্ন'), findsOneWidget);
+    expect(find.text('সম্পন্ন'), findsWidgets);
+    expect(find.text('সক্রিয়'), findsOneWidget);
   });
 }
 

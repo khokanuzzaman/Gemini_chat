@@ -48,6 +48,10 @@ class _SplitBillScreenState extends ConsumerState<SplitBillScreen> {
             ),
             child: AppSegmentedTabs(
               tabs: const ['সক্রিয়', 'সম্পন্ন'],
+              tabKeys: const [
+                Key('split-tab-active'),
+                Key('split-tab-settled'),
+              ],
               selectedIndex: _selectedIndex,
               onChanged: (index) {
                 setState(() {
@@ -380,6 +384,7 @@ class _SplitSummaryCard extends StatelessWidget {
                 if (!split.isSettled && onMarkSettled != null)
                   Expanded(
                     child: AppActionButton(
+                      key: ValueKey('split-action-settle-${split.id}'),
                       label: 'সম্পন্ন',
                       icon: Icons.check_circle_outline_rounded,
                       size: AppActionButtonSize.small,

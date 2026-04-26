@@ -12,24 +12,28 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/network/connectivity_provider.dart';
+import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/preferences/app_preferences.dart';
-import '../../../../core/providers/database_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/usage/usage_limits.dart';
+import '../../../../core/usage/usage_providers.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../../ai_guide/presentation/screens/ai_guide_screen.dart';
 import '../../../category/presentation/providers/category_provider.dart';
-import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../expense/presentation/screens/analytics_screen.dart';
 import '../../../expense/presentation/screens/manual_add_screen.dart';
 import '../../../income/domain/entities/income_entity.dart';
 import '../../../income/presentation/providers/income_providers.dart';
 import '../../../split/presentation/screens/add_edit_split_screen.dart';
 import '../../../split/presentation/widgets/split_suggestion_widget.dart';
 import '../providers/chat_provider.dart';
+import '../providers/chat_suggestion_provider.dart';
 import '../utils/chat_suggestion_engine.dart';
 import '../utils/message_key.dart';
+import '../../../../core/widgets/limit_reached_sheet.dart';
 import '../widgets/expense_confirmation_widget.dart';
 import '../widgets/chat_input_area.dart';
 import '../widgets/income_confirmation_widget.dart';
@@ -39,43 +43,7 @@ import '../widgets/multiple_expense_confirmation_widget.dart';
 import '../widgets/receipt_confirmation_widget.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/usage_details_sheet.dart';
-
-final chatSuggestionHistoryProvider =
-    FutureProvider<List<ChatSuggestionExpense>>((ref) async {
-      ref.watch(expenseRefreshTokenProvider);
-
-      final expenses = await ref
-          .watch(expenseLocalDataSourceProvider)
-          .getAllExpenses();
-      final suggestions = <ChatSuggestionExpense>[];
-      final seen = <String>{};
-
-      for (final expense in expenses.take(30)) {
-        final description = expense.description.trim();
-        if (description.isEmpty) {
-          continue;
-        }
-
-        final key = '${description.toLowerCase()}|${expense.category}';
-        if (!seen.add(key)) {
-          continue;
-        }
-
-        suggestions.add(
-          ChatSuggestionExpense(
-            description: description,
-            category: expense.category,
-            amount: expense.amount,
-          ),
-        );
-
-        if (suggestions.length >= 12) {
-          break;
-        }
-      }
-
-      return suggestions;
-    });
+import '../../../settings/premium_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -94,7 +62,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final FocusNode _messageFocusNode = FocusNode();
   final ValueNotifier<int> _characterCountNotifier = ValueNotifier<int>(0);
   bool _ragBannerDismissed = false;
-  bool _aiGuidePromptSeen = true;
+  bool _chatLimitBannerDismissed = false;
+  bool _aiGuidePromptSeen = false;
   bool _isInputFocused = false;
   bool _shouldAutoScroll = true;
   String _currentInputText = '';
@@ -154,10 +123,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       }
     });
 
+    ref.listen(limitReachedStatusProvider, (previous, next) {
+      if (next == null || !mounted) {
+        return;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        LimitReachedSheet.show(context: context, status: next);
+      });
+
+      ref.read(limitReachedStatusProvider.notifier).state = null;
+    });
+
     final messages = ref.watch(chatProvider);
     final isResponding = ref.watch(isRespondingProvider);
     final isRecording = ref.watch(isRecordingProvider);
     final isScanning = ref.watch(isScanningProvider);
+    final isPremium = ref.watch(isPremiumProvider);
+    final chatUsageStatus = ref.watch(usageStatusProvider(UsageLimits.aiChat));
     final recordingDuration = ref.watch(recordingDurationProvider) ?? '0:00';
     final latestStreamText = ref.watch(chatStreamingTextProvider);
     final liveRateLimit = ref.watch(openAiRateLimitSnapshotProvider);
@@ -187,6 +173,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         !isResponding &&
         !isRecording &&
         !isScanning;
+    final nearLimitStatus = chatUsageStatus.valueOrNull;
+    final showNearLimitBanner =
+        !isPremium &&
+        !_chatLimitBannerDismissed &&
+        nearLimitStatus != null &&
+        nearLimitStatus.isNearLimit &&
+        !nearLimitStatus.hasReachedLimit;
 
     return AppPageScaffold(
       titleWidget: Column(
@@ -309,6 +302,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                 ),
               ),
+              if (showNearLimitBanner)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenPadding,
+                    0,
+                    AppSpacing.screenPadding,
+                    AppSpacing.sm,
+                  ),
+                  child: NearLimitBanner(
+                    status: nearLimitStatus,
+                    onUpgrade: () {
+                      Navigator.of(context).push(
+                        AppSlideRoute(builder: (_) => const PremiumScreen()),
+                      );
+                    },
+                    onDismiss: () {
+                      setState(() {
+                        _chatLimitBannerDismissed = true;
+                      });
+                    },
+                  ),
+                ),
               ChatInputArea(
                 messageController: _messageController,
                 messageFocusNode: _messageFocusNode,

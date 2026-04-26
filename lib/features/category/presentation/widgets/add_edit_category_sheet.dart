@@ -308,7 +308,22 @@ class _AddEditCategorySheetState extends ConsumerState<_AddEditCategorySheet> {
       }
       Navigator.of(context).pop();
     } on StateError catch (error) {
-      _showMessage(error.message.toString());
+      if (error.message == 'budget_sync_warning') {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Category আপডেট হয়েছে, কিন্তু budget sync ব্যর্থ হয়েছে। Budget একবার যাচাই করুন।',
+              ),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        Navigator.of(context).pop();
+      } else {
+        _showMessage(error.message.toString());
+      }
     } catch (_) {
       _showMessage('Category save করা যায়নি');
     } finally {

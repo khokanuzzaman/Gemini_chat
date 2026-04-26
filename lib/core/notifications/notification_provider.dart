@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../database/expense_local_datasource.dart';
 import '../providers/database_providers.dart';
 import '../providers/shared_preferences_provider.dart';
-import 'budget_settings.dart';
 import 'notification_service.dart';
 import 'notification_settings.dart';
+import '../../features/budget/presentation/providers/budget_provider.dart';
 
 const _notificationSettingsKey = 'notification_settings';
 
@@ -68,7 +68,7 @@ class NotificationNotifier extends Notifier<NotificationSettings> {
       return;
     }
 
-    final budget = ref.read(budgetSettingsProvider).categoryBudgets[category];
+    final budget = ref.read(effectiveBudgetLimitsProvider)[category];
     if (budget == null || budget <= 0) {
       return;
     }

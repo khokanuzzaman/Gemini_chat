@@ -102,7 +102,10 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
     await ref.read(updateCategoryUseCaseProvider).call(updatedCategory);
     await _loadSafely();
     if (wasRenamed) {
-      await _remapBudgetCategory(existing.name, normalizedName);
+      final syncOk = await _remapBudgetCategory(existing.name, normalizedName);
+      if (!syncOk) {
+        throw StateError('budget_sync_warning');
+      }
     }
     _notifyExpenseChanged();
   }
@@ -119,8 +122,11 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
     await _replaceExpenseCategory(category.name, 'Other');
     await ref.read(deleteCategoryUseCaseProvider).call(id);
     await _loadSafely();
-    await _removeBudgetCategory(category.name);
+    final syncOk = await _removeBudgetCategory(category.name);
     _notifyExpenseChanged();
+    if (!syncOk) {
+      throw StateError('budget_sync_warning');
+    }
   }
 
   Future<void> reorderCustomCategories(int oldIndex, int newIndex) async {
@@ -275,13 +281,16 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
     ref.read(expenseRefreshTokenProvider.notifier).state++;
   }
 
-  Future<void> _remapBudgetCategory(String oldName, String newName) async {
+  Future<bool> _remapBudgetCategory(String oldName, String newName) async {
+    var ok = true;
+
     try {
       await ref
           .read(budgetSettingsProvider.notifier)
           .remapCategory(oldName, newName);
     } catch (error) {
       debugPrint('[CategoryProvider] Budget settings remap failed: $error');
+      ok = false;
     }
 
     try {
@@ -290,16 +299,31 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .remapCategoryInBudget(oldName, newName);
     } catch (error) {
       debugPrint('[CategoryProvider] Active budget remap failed: $error');
+      ok = false;
     }
+
+    try {
+      await ref
+          .read(budgetPlanLocalDataSourceProvider)
+          .migrateCategory(oldName, newName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Historical plans remap failed: $error');
+      ok = false;
+    }
+
+    return ok;
   }
 
-  Future<void> _removeBudgetCategory(String categoryName) async {
+  Future<bool> _removeBudgetCategory(String categoryName) async {
+    var ok = true;
+
     try {
       await ref
           .read(budgetSettingsProvider.notifier)
           .removeCategory(categoryName);
     } catch (error) {
       debugPrint('[CategoryProvider] Budget settings cleanup failed: $error');
+      ok = false;
     }
 
     try {
@@ -308,6 +332,18 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .removeCategoryFromBudget(categoryName);
     } catch (error) {
       debugPrint('[CategoryProvider] Active budget cleanup failed: $error');
+      ok = false;
     }
+
+    try {
+      await ref
+          .read(budgetPlanLocalDataSourceProvider)
+          .removeCategoryFromAllPlans(categoryName);
+    } catch (error) {
+      debugPrint('[CategoryProvider] Historical plans cleanup failed: $error');
+      ok = false;
+    }
+
+    return ok;
   }
 }

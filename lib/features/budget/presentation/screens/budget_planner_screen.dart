@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/budget_plan_entity.dart';
 import '../providers/budget_provider.dart';
 import '../widgets/budget_dashboard.dart';
@@ -164,6 +165,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     BuildContext context,
     BudgetState budgetState,
   ) async {
+    final liveCategoryNames = ref
+        .read(categoryProvider)
+        .map((category) => category.name.trim().toLowerCase())
+        .toSet();
     await AppBottomSheet.show<void>(
       context: context,
       title: 'বাজেট ইতিহাস',
@@ -197,9 +202,29 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         label: 'চালু করুন',
                         size: AppActionButtonSize.small,
                         onPressed: () async {
+                          final plan = budgetState.allBudgets[index];
+                          final orphanedCategories = plan.categoryBudgets.keys
+                              .where(
+                                (name) => !liveCategoryNames.contains(
+                                  name.trim().toLowerCase(),
+                                ),
+                              )
+                              .toList(growable: false);
+                          if (orphanedCategories.isNotEmpty) {
+                            final confirmed = await _showRestoreCleanupWarning(
+                              context,
+                              orphanedCategories,
+                            );
+                            if (confirmed != true || !context.mounted) {
+                              return;
+                            }
+                          }
                           await ref
                               .read(budgetProvider.notifier)
-                              .restoreBudget(budgetState.allBudgets[index].id);
+                              .restoreBudget(
+                                plan.id,
+                                liveCategoryNames: liveCategoryNames,
+                              );
                           if (!context.mounted) {
                             return;
                           }
@@ -211,6 +236,34 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Future<bool?> _showRestoreCleanupWarning(
+    BuildContext context,
+    List<String> orphanedCategories,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('পুরোনো ক্যাটাগরি আছে'),
+          content: Text(
+            'এই প্ল্যানে মুছে ফেলা ক্যাটাগরি আছে: ${orphanedCategories.join(', ')}। চালু করলে এগুলো সরিয়ে দেওয়া হবে।',
+          ),
+          actions: [
+            AppActionButton(
+              label: 'বাদ দিন',
+              variant: AppActionButtonVariant.ghost,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+            ),
+            AppActionButton(
+              label: 'চালু করুন',
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+            ),
+          ],
+        );
+      },
     );
   }
 

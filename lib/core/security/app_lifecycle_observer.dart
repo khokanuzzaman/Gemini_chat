@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/sms_import/presentation/providers/sms_import_provider.dart';
 import 'biometric_provider.dart';
 
 class AppLifecycleObserver extends WidgetsBindingObserver {
@@ -14,6 +15,18 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(
+        _ref.read(smsAutoImportProvider.notifier).handleAppBackgrounded(),
+      );
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_ref.read(smsAutoImportProvider.notifier).handleAppResumed());
+    }
+
     final biometric = _ref.read(biometricProvider);
     if (!biometric.isEnabled) {
       _backgroundedAt = null;

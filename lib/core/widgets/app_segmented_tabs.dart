@@ -10,12 +10,14 @@ class AppSegmentedTabs extends StatelessWidget {
     required this.selectedIndex,
     required this.onChanged,
     this.compact = false,
+    this.tabKeys,
   });
 
   final List<String> tabs;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final bool compact;
+  final List<Key?>? tabKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +36,15 @@ class AppSegmentedTabs extends StatelessWidget {
           for (var i = 0; i < tabs.length; i++)
             Expanded(
               child: GestureDetector(
+                key: tabKeys != null && i < tabKeys!.length
+                    ? tabKeys![i]
+                    : null,
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
                   duration: AppMotion.fast,
                   curve: AppMotion.standard,
-                  padding: EdgeInsets.symmetric(
-                    vertical: compact ? 8 : 12,
-                  ),
+                  padding: EdgeInsets.symmetric(vertical: compact ? 8 : 12),
                   decoration: BoxDecoration(
                     color: i == selectedIndex
                         ? context.appColors.primary

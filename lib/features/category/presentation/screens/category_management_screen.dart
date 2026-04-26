@@ -179,6 +179,19 @@ class CategoryManagementScreen extends ConsumerWidget {
       }
       return true;
     } on StateError catch (error) {
+      if (error.message == 'budget_sync_warning') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'ক্যাটাগরি মুছে গেছে, কিন্তু budget sync ব্যর্থ হয়েছে। Budget একবার যাচাই করুন।',
+              ),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return true;
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,

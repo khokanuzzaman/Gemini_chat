@@ -14,6 +14,8 @@ export 'app_section_header.dart';
 export 'app_segmented_tabs.dart';
 export 'app_shimmer.dart';
 export 'app_stat_card.dart';
+export 'near_limit_banner.dart';
+export 'usage_display_widget.dart';
 export '../animations/animations.dart';
 export 'global_settings_button.dart';
 export 'offline_banner.dart';

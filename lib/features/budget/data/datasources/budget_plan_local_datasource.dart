@@ -78,6 +78,46 @@ class BudgetPlanLocalDataSource {
     });
   }
 
+  Future<void> migrateCategory(String oldName, String newName) async {
+    final plans = await _isar.budgetPlanModels.where().findAll();
+    final dirty = <BudgetPlanModel>[];
+    for (final plan in plans) {
+      final entity = plan.toEntity();
+      if (!entity.categoryBudgets.containsKey(oldName)) {
+        continue;
+      }
+      final updated = Map<String, double>.from(entity.categoryBudgets);
+      updated[newName] = updated.remove(oldName)!;
+      dirty.add(
+        BudgetPlanModel.fromEntity(entity.copyWith(categoryBudgets: updated)),
+      );
+    }
+    if (dirty.isEmpty) {
+      return;
+    }
+    await _isar.writeTxn(() async => _isar.budgetPlanModels.putAll(dirty));
+  }
+
+  Future<void> removeCategoryFromAllPlans(String categoryName) async {
+    final plans = await _isar.budgetPlanModels.where().findAll();
+    final dirty = <BudgetPlanModel>[];
+    for (final plan in plans) {
+      final entity = plan.toEntity();
+      if (!entity.categoryBudgets.containsKey(categoryName)) {
+        continue;
+      }
+      final updated = Map<String, double>.from(entity.categoryBudgets)
+        ..remove(categoryName);
+      dirty.add(
+        BudgetPlanModel.fromEntity(entity.copyWith(categoryBudgets: updated)),
+      );
+    }
+    if (dirty.isEmpty) {
+      return;
+    }
+    await _isar.writeTxn(() async => _isar.budgetPlanModels.putAll(dirty));
+  }
+
   Future<List<BudgetPlanModel>> _loadSortedModels() async {
     final plans = await _isar.budgetPlanModels.where().findAll();
     plans.sort((first, second) => second.updatedAt.compareTo(first.updatedAt));

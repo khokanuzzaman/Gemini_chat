@@ -7,9 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/ai/json_block_extractor.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/notifications/budget_settings.dart';
+import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/providers/shared_preferences_provider.dart';
+import '../../../../core/usage/usage_limits.dart';
+import '../../../../core/usage/usage_providers.dart';
 import '../../../category/presentation/providers/category_provider.dart';
+import '../../../expense/domain/entities/expense_entity.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/datasources/budget_plan_local_datasource.dart';
 import '../../data/datasources/budget_planner_datasource.dart';
@@ -66,6 +70,88 @@ final setActiveBudgetUseCaseProvider = Provider<SetActiveBudgetUseCase>((ref) {
 final deactivateAllUseCaseProvider = Provider<DeactivateAllUseCase>((ref) {
   return DeactivateAllUseCase(ref.watch(budgetRepositoryProvider));
 });
+
+final effectiveBudgetLimitsProvider = Provider<Map<String, double>>((ref) {
+  final activeBudget = ref.watch(budgetProvider).activeBudget;
+  if (activeBudget != null) {
+    return activeBudget.categoryBudgets;
+  }
+  return ref.watch(budgetSettingsProvider).categoryBudgets;
+});
+
+final budgetHealthReportProvider = FutureProvider<BudgetHealthReport>((
+  ref,
+) async {
+  final budgetState = ref.watch(budgetProvider);
+  final liveCategoryNames = ref
+      .watch(categoryProvider)
+      .map((category) => _normalizedCategoryKey(category.name))
+      .toSet();
+
+  final activeBudgetOrphans = _findOrphanedCategoryNames(
+    budgetState.activeBudget?.categoryBudgets.keys ?? const <String>[],
+    liveCategoryNames,
+  );
+
+  var historicalPlansWithOrphans = 0;
+  final historicalOrphans = <String>{};
+  for (final plan in budgetState.allBudgets) {
+    final orphaned = _findOrphanedCategoryNames(
+      plan.categoryBudgets.keys,
+      liveCategoryNames,
+    );
+    if (orphaned.isEmpty) {
+      continue;
+    }
+    historicalPlansWithOrphans++;
+    historicalOrphans.addAll(orphaned);
+  }
+
+  List<ExpenseEntity> expenses = const [];
+  try {
+    expenses = await ref.watch(expenseRepositoryProvider).getAllExpenses();
+  } catch (_) {
+    expenses = const [];
+  }
+  final expenseHistoryOrphans = <String>{};
+  for (final expense in expenses) {
+    if (liveCategoryNames.contains(_normalizedCategoryKey(expense.category))) {
+      continue;
+    }
+    expenseHistoryOrphans.add(expense.category);
+  }
+
+  final sortedHistoricalOrphans = historicalOrphans.toList(growable: false)
+    ..sort();
+  final sortedExpenseOrphans = expenseHistoryOrphans.toList(growable: false)
+    ..sort();
+
+  return BudgetHealthReport(
+    activeBudgetOrphans: activeBudgetOrphans,
+    historicalPlansWithOrphans: historicalPlansWithOrphans,
+    historicalOrphans: sortedHistoricalOrphans,
+    expenseHistoryOrphans: sortedExpenseOrphans,
+  );
+});
+
+class BudgetHealthReport {
+  const BudgetHealthReport({
+    this.activeBudgetOrphans = const [],
+    this.historicalPlansWithOrphans = 0,
+    this.historicalOrphans = const [],
+    this.expenseHistoryOrphans = const [],
+  });
+
+  final List<String> activeBudgetOrphans;
+  final int historicalPlansWithOrphans;
+  final List<String> historicalOrphans;
+  final List<String> expenseHistoryOrphans;
+
+  bool get hasIssues =>
+      activeBudgetOrphans.isNotEmpty ||
+      historicalPlansWithOrphans > 0 ||
+      expenseHistoryOrphans.isNotEmpty;
+}
 
 class BudgetState {
   const BudgetState({
@@ -163,6 +249,10 @@ class BudgetNotifier extends Notifier<BudgetState> {
       return;
     }
 
+    if (!await _consumeAiBudgetUsage()) {
+      return;
+    }
+
     state = state.copyWith(
       isGenerating: true,
       streamingText: '',
@@ -215,12 +305,27 @@ class BudgetNotifier extends Notifier<BudgetState> {
     }
   }
 
-  Future<void> restoreBudget(int id) async {
-    await ref.read(setActiveBudgetUseCaseProvider).call(id);
+  Future<void> restoreBudget(int id, {Set<String>? liveCategoryNames}) async {
     final budget = state.allBudgets.where((item) => item.id == id).firstOrNull;
-    if (budget != null) {
+    if (budget != null && liveCategoryNames != null) {
+      final sanitizedBudgets = _filterLiveCategoryBudgets(
+        budget.categoryBudgets,
+        liveCategoryNames,
+      );
+      if (!_mapsEqual(sanitizedBudgets, budget.categoryBudgets)) {
+        await ref
+            .read(updateBudgetUseCaseProvider)
+            .call(_copyWithCategoryBudgets(budget, sanitizedBudgets));
+      }
+    }
+
+    await ref.read(setActiveBudgetUseCaseProvider).call(id);
+    final refreshedBudget = state.allBudgets
+        .where((item) => item.id == id)
+        .firstOrNull;
+    if (refreshedBudget != null) {
       await _updateNotificationBudgets(
-        budget.copyWith(isActive: true, updatedAt: DateTime.now()),
+        refreshedBudget.copyWith(isActive: true, updatedAt: DateTime.now()),
       );
     }
     await _loadActiveBudget();
@@ -232,97 +337,94 @@ class BudgetNotifier extends Notifier<BudgetState> {
       return;
     }
 
+    final liveNames = ref.read(categoryProvider).map((c) => c.name).toSet();
+    if (!liveNames.contains(category)) {
+      return;
+    }
+
     final sanitizedAmount = amount.isNaN || amount.isNegative ? 0.0 : amount;
-    final updatedBudgets = Map<String, double>.from(
-      currentBudget.categoryBudgets,
-    )..[category] = sanitizedAmount;
-    final totalBudgeted = updatedBudgets.values.fold<double>(
-      0,
-      (sum, value) => sum + value,
+    final orderedLiveCategories = ref
+        .read(categoryProvider)
+        .map((item) => item.name)
+        .toList(growable: false);
+    final updatedBudgets = _normalizeCategoryBudgetsForLiveCategories(
+      orderedLiveCategories: orderedLiveCategories,
+      incomingBudgets: {
+        ...currentBudget.categoryBudgets,
+        category: sanitizedAmount,
+      },
+      fallbackBudgets: currentBudget.categoryBudgets,
     );
-    final savingsAmount = (currentBudget.monthlyIncome - totalBudgeted)
-        .clamp(0.0, currentBudget.monthlyIncome)
-        .toDouble();
-    final savingsPercentage = currentBudget.monthlyIncome <= 0
-        ? 0.0
-        : (savingsAmount / currentBudget.monthlyIncome) * 100;
-
-    final updated = currentBudget.copyWith(
-      categoryBudgets: updatedBudgets,
-      totalBudgeted: totalBudgeted,
-      savingsAmount: savingsAmount,
-      savingsPercentage: savingsPercentage,
-      updatedAt: DateTime.now(),
-    );
-
-    await ref.read(updateBudgetUseCaseProvider).call(updated);
-    await _updateNotificationBudgets(updated);
-    await _loadActiveBudget();
+    await _saveActiveBudgetWithCategoryBudgets(updatedBudgets);
   }
 
-  Future<void> remapCategoryInBudget(String oldName, String newName) async {
-    final activeBudget = _getActiveBudget();
-    if (activeBudget == null) {
+  Future<void> saveCategoryBudgets(Map<String, double> budgets) async {
+    final currentBudget = state.activeBudget;
+    if (currentBudget == null) {
       return;
     }
 
-    final updatedBudgets = Map<String, double>.from(
-      activeBudget.categoryBudgets,
+    final orderedLiveCategories = ref
+        .read(categoryProvider)
+        .map((item) => item.name)
+        .toList(growable: false);
+    final updatedBudgets = _normalizeCategoryBudgetsForLiveCategories(
+      orderedLiveCategories: orderedLiveCategories,
+      incomingBudgets: budgets,
+      fallbackBudgets: currentBudget.categoryBudgets,
     );
-    final oldValue = updatedBudgets.remove(oldName);
-    if (oldValue == null) {
-      return;
-    }
+    await _saveActiveBudgetWithCategoryBudgets(updatedBudgets);
+  }
 
-    updatedBudgets[newName] = oldValue;
-    final updatedPlan = _copyWithCategoryBudgets(activeBudget, updatedBudgets);
-
+  Future<bool> remapCategoryInBudget(String oldName, String newName) async {
     try {
-      await ref.read(updateBudgetUseCaseProvider).call(updatedPlan);
-      await _updateNotificationBudgets(updatedPlan);
-      _replaceActiveBudgetInState(updatedPlan);
+      await ref
+          .read(budgetPlanLocalDataSourceProvider)
+          .migrateCategory(oldName, newName);
+      await _loadActiveBudget();
+      return true;
     } catch (error) {
       debugPrint('[BudgetNotifier] Failed to remap category in budget: $error');
+      return false;
     }
   }
 
-  Future<void> removeCategoryFromBudget(String categoryName) async {
-    final activeBudget = _getActiveBudget();
-    if (activeBudget == null) {
-      return;
-    }
-
-    final updatedBudgets = Map<String, double>.from(
-      activeBudget.categoryBudgets,
-    );
-    final removed = updatedBudgets.remove(categoryName);
-    if (removed == null) {
-      return;
-    }
-
-    final updatedPlan = _copyWithCategoryBudgets(activeBudget, updatedBudgets);
-
+  Future<bool> removeCategoryFromBudget(String categoryName) async {
     try {
-      await ref.read(updateBudgetUseCaseProvider).call(updatedPlan);
-      await _updateNotificationBudgets(updatedPlan);
-      _replaceActiveBudgetInState(updatedPlan);
+      await ref
+          .read(budgetPlanLocalDataSourceProvider)
+          .removeCategoryFromAllPlans(categoryName);
+      await _loadActiveBudget();
+      return true;
     } catch (error) {
       debugPrint(
         '[BudgetNotifier] Failed to remove category from budget: $error',
       );
+      return false;
     }
   }
 
   Future<void> _loadActiveBudget() async {
     state = state.copyWith(isLoading: true);
-    final activeBudget = await ref.read(getActiveBudgetUseCaseProvider).call();
-    final allBudgets = await ref.read(getAllBudgetsUseCaseProvider).call();
-    state = state.copyWith(
-      activeBudget: activeBudget,
-      allBudgets: allBudgets,
-      isLoading: false,
-      clearError: true,
-    );
+    try {
+      final activeBudget = await ref
+          .read(getActiveBudgetUseCaseProvider)
+          .call();
+      final allBudgets = await ref.read(getAllBudgetsUseCaseProvider).call();
+      state = state.copyWith(
+        activeBudget: activeBudget,
+        allBudgets: allBudgets,
+        isLoading: false,
+        clearError: true,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        clearActiveBudget: true,
+        allBudgets: const [],
+        isLoading: false,
+        clearError: true,
+      );
+    }
   }
 
   Future<void> _initialize() async {
@@ -334,16 +436,18 @@ class BudgetNotifier extends Notifier<BudgetState> {
     return state.activeBudget;
   }
 
-  void _replaceActiveBudgetInState(BudgetPlanEntity updatedPlan) {
-    final updatedAllBudgets = [
-      for (final budget in state.allBudgets)
-        if (budget.id == updatedPlan.id) updatedPlan else budget,
-    ];
+  Future<void> _saveActiveBudgetWithCategoryBudgets(
+    Map<String, double> categoryBudgets,
+  ) async {
+    final currentBudget = _getActiveBudget();
+    if (currentBudget == null) {
+      return;
+    }
 
-    state = state.copyWith(
-      activeBudget: updatedPlan,
-      allBudgets: updatedAllBudgets,
-    );
+    final updated = _copyWithCategoryBudgets(currentBudget, categoryBudgets);
+    await ref.read(updateBudgetUseCaseProvider).call(updated);
+    await _updateNotificationBudgets(updated);
+    await _loadActiveBudget();
   }
 
   BudgetPlanEntity _copyWithCategoryBudgets(
@@ -385,6 +489,44 @@ class BudgetNotifier extends Notifier<BudgetState> {
       );
     }
     return byCategory.map((key, value) => MapEntry(key, value / 3));
+  }
+
+  Future<bool> _consumeAiBudgetUsage() async {
+    if (await _isPremiumUser()) {
+      return true;
+    }
+
+    try {
+      final gate = await ref
+          .read(usageTrackerServiceProvider)
+          .checkAndConsume(UsageLimits.aiBudget);
+      if (!gate.isAllowed) {
+        state = state.copyWith(
+          isGenerating: false,
+          streamingText: '',
+          error:
+              'এই মাসের AI বাজেট সীমা শেষ (${gate.status.used}/${gate.status.limit} ব্যবহার হয়েছে). প্রিমিয়াম এ আপগ্রেড করুন।',
+        );
+        return false;
+      }
+
+      ref.read(usageRefreshTokenProvider.notifier).state++;
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> _isPremiumUser() async {
+    if (ref.read(isPremiumProvider)) {
+      return true;
+    }
+
+    try {
+      return await ref.read(premiumServiceProvider).isPremium();
+    } catch (_) {
+      return false;
+    }
   }
 
   BudgetPlanEntity _parseResponse({
@@ -541,10 +683,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
     );
   }
 
-  Future<void> _updateNotificationBudgets(BudgetPlanEntity plan) async {
-    await ref
-        .read(budgetSettingsProvider.notifier)
-        .saveBudgets(plan.categoryBudgets);
+  Future<void> _updateNotificationBudgets(BudgetPlanEntity _) async {
     await _removeLegacyCategoryBudgetsKey();
   }
 
@@ -556,6 +695,67 @@ class BudgetNotifier extends Notifier<BudgetState> {
       }
     } catch (_) {}
   }
+}
+
+Map<String, double> _normalizeCategoryBudgetsForLiveCategories({
+  required List<String> orderedLiveCategories,
+  required Map<String, double> incomingBudgets,
+  Map<String, double>? fallbackBudgets,
+}) {
+  final normalized = <String, double>{};
+  for (final category in orderedLiveCategories) {
+    final rawValue = incomingBudgets.containsKey(category)
+        ? incomingBudgets[category]
+        : fallbackBudgets?[category];
+    final value = rawValue ?? 0.0;
+    normalized[category] = value.isNaN || value.isNegative ? 0.0 : value;
+  }
+  return normalized;
+}
+
+Map<String, double> _filterLiveCategoryBudgets(
+  Map<String, double> budgets,
+  Set<String> liveCategoryNames,
+) {
+  final filtered = <String, double>{};
+  for (final entry in budgets.entries) {
+    if (!liveCategoryNames.contains(_normalizedCategoryKey(entry.key))) {
+      continue;
+    }
+    filtered[entry.key] = entry.value.isNaN || entry.value.isNegative
+        ? 0.0
+        : entry.value;
+  }
+  return filtered;
+}
+
+List<String> _findOrphanedCategoryNames(
+  Iterable<String> categoryNames,
+  Set<String> liveCategoryNames,
+) {
+  final orphaned = <String>{};
+  for (final categoryName in categoryNames) {
+    if (liveCategoryNames.contains(_normalizedCategoryKey(categoryName))) {
+      continue;
+    }
+    orphaned.add(categoryName);
+  }
+  final sorted = orphaned.toList(growable: false)..sort();
+  return sorted;
+}
+
+String _normalizedCategoryKey(String name) => name.trim().toLowerCase();
+
+bool _mapsEqual(Map<String, double> first, Map<String, double> second) {
+  if (first.length != second.length) {
+    return false;
+  }
+  for (final entry in first.entries) {
+    if (!second.containsKey(entry.key) || second[entry.key] != entry.value) {
+      return false;
+    }
+  }
+  return true;
 }
 
 extension<T> on Iterable<T> {

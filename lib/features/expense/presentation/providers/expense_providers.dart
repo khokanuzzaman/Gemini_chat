@@ -582,14 +582,16 @@ class ExpenseMutationController {
 
   final Ref _ref;
 
-  Future<String?> saveDetectedExpense(
+  Future<DetectedExpenseSaveResult> saveDetectedExpenseDetailed(
     ExpenseData expenseData, {
     int? walletId,
   }) async {
     try {
       final resolvedWalletId = await _resolveWalletId(walletId);
       if (resolvedWalletId == null) {
-        return 'কোনো ওয়ালেট পাওয়া যায়নি';
+        return const DetectedExpenseSaveResult(
+          error: 'কোনো ওয়ালেট পাওয়া যায়নি',
+        );
       }
 
       final expense = ExpenseEntity(
@@ -601,7 +603,9 @@ class ExpenseMutationController {
         date: expenseData.parsedDate,
         walletId: resolvedWalletId,
       );
-      await _ref.read(saveExpenseUseCaseProvider).call(expense);
+      final savedExpense = await _ref.read(saveExpenseUseCaseProvider).call(
+        expense,
+      );
       await _adjustWalletBalance(
         walletId: resolvedWalletId,
         delta: -expense.amount,
@@ -611,12 +615,23 @@ class ExpenseMutationController {
       await _ref
           .read(notificationProvider.notifier)
           .checkBudgetAlert(expense.category);
-      return null;
+      return DetectedExpenseSaveResult(expense: savedExpense);
     } on Failure catch (failure) {
-      return failure.message;
+      return DetectedExpenseSaveResult(error: failure.message);
     } catch (error) {
-      return '$error';
+      return DetectedExpenseSaveResult(error: '$error');
     }
+  }
+
+  Future<String?> saveDetectedExpense(
+    ExpenseData expenseData, {
+    int? walletId,
+  }) async {
+    final result = await saveDetectedExpenseDetailed(
+      expenseData,
+      walletId: walletId,
+    );
+    return result.error;
   }
 
   Future<String?> saveDetectedExpenses(
@@ -815,4 +830,13 @@ class ExpenseMutationController {
       debugPrint('Wallet balance sync failed: $error\n$stackTrace');
     }
   }
+}
+
+class DetectedExpenseSaveResult {
+  const DetectedExpenseSaveResult({this.expense, this.error});
+
+  final ExpenseEntity? expense;
+  final String? error;
+
+  bool get isSuccess => expense != null && error == null;
 }

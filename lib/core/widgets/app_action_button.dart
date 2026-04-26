@@ -46,7 +46,15 @@ class AppActionButton extends StatelessWidget {
                 Icon(icon, size: textStyle.fontSize, color: colors.foreground),
                 const SizedBox(width: 8),
               ],
-              Text(label, style: textStyle.copyWith(color: colors.foreground)),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: textStyle.copyWith(color: colors.foreground),
+                ),
+              ),
             ],
           );
 
@@ -75,39 +83,45 @@ class AppActionButton extends StatelessWidget {
   _ButtonColors _resolveColors(BuildContext context) {
     return switch (variant) {
       AppActionButtonVariant.primary => _ButtonColors(
-          background: context.appColors.primary,
-          foreground: Colors.white,
-        ),
+        background: context.appColors.primary,
+        foreground: Colors.white,
+      ),
       AppActionButtonVariant.success => _ButtonColors(
-          background: AppColors.success,
-          foreground: Colors.white,
-        ),
+        background: AppColors.success,
+        foreground: Colors.white,
+      ),
       AppActionButtonVariant.danger => _ButtonColors(
-          background: AppColors.error,
-          foreground: Colors.white,
-        ),
+        background: AppColors.error,
+        foreground: Colors.white,
+      ),
       AppActionButtonVariant.secondary => _ButtonColors(
-          background: context.appColors.primary.withValues(
-            alpha: context.isDarkMode ? 0.18 : 0.1,
-          ),
-          foreground: context.appColors.primary,
+        background: context.appColors.primary.withValues(
+          alpha: context.isDarkMode ? 0.18 : 0.1,
         ),
+        foreground: context.appColors.primary,
+      ),
       AppActionButtonVariant.ghost => _ButtonColors(
-          background: Colors.transparent,
-          foreground: context.appColors.primary,
-          border: context.borderColor,
-        ),
+        background: Colors.transparent,
+        foreground: context.appColors.primary,
+        border: context.borderColor,
+      ),
     };
   }
 
   EdgeInsetsGeometry _resolvePadding() {
     return switch (size) {
-      AppActionButtonSize.small =>
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      AppActionButtonSize.medium =>
-        const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      AppActionButtonSize.large =>
-        const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      AppActionButtonSize.small => const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 8,
+      ),
+      AppActionButtonSize.medium => const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 14,
+      ),
+      AppActionButtonSize.large => const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 18,
+      ),
     };
   }
 

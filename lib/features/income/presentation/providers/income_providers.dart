@@ -135,6 +135,39 @@ class IncomeMutationController {
 
   final Ref _ref;
 
+  Future<DetectedIncomeSaveResult> saveDetectedIncomeDetailed(
+    IncomeEntity income, {
+    int? walletId,
+  }) async {
+    try {
+      final resolvedWalletId = await _resolveWalletId(walletId);
+      if (resolvedWalletId == null) {
+        return const DetectedIncomeSaveResult(
+          error: 'কোনো ওয়ালেট পাওয়া যায়নি',
+        );
+      }
+
+      final normalized = income.copyWith(
+        walletId: resolvedWalletId,
+        isManual: false,
+      );
+      final savedIncome = await _ref.read(saveIncomeUseCaseProvider).call(
+        normalized,
+      );
+      await _adjustWalletBalance(
+        walletId: resolvedWalletId,
+        delta: normalized.amount,
+      );
+      await _rememberActiveWallet(resolvedWalletId);
+      await _notifyIncomeChanged();
+      return DetectedIncomeSaveResult(income: savedIncome);
+    } on Failure catch (failure) {
+      return DetectedIncomeSaveResult(error: failure.message);
+    } catch (error) {
+      return DetectedIncomeSaveResult(error: '$error');
+    }
+  }
+
   Future<String?> saveManualIncome(
     IncomeEntity income, {
     int? walletId,
@@ -168,29 +201,11 @@ class IncomeMutationController {
     IncomeEntity income, {
     int? walletId,
   }) async {
-    try {
-      final resolvedWalletId = await _resolveWalletId(walletId);
-      if (resolvedWalletId == null) {
-        return 'কোনো ওয়ালেট পাওয়া যায়নি';
-      }
-
-      final normalized = income.copyWith(
-        walletId: resolvedWalletId,
-        isManual: false,
-      );
-      await _ref.read(saveIncomeUseCaseProvider).call(normalized);
-      await _adjustWalletBalance(
-        walletId: resolvedWalletId,
-        delta: normalized.amount,
-      );
-      await _rememberActiveWallet(resolvedWalletId);
-      await _notifyIncomeChanged();
-      return null;
-    } on Failure catch (failure) {
-      return failure.message;
-    } catch (error) {
-      return '$error';
-    }
+    final result = await saveDetectedIncomeDetailed(
+      income,
+      walletId: walletId,
+    );
+    return result.error;
   }
 
   Future<String?> saveDetectedIncomeBatch(
@@ -362,4 +377,13 @@ class IncomeMutationController {
       debugPrint('Wallet balance sync failed: $error\n$stackTrace');
     }
   }
+}
+
+class DetectedIncomeSaveResult {
+  const DetectedIncomeSaveResult({this.income, this.error});
+
+  final IncomeEntity? income;
+  final String? error;
+
+  bool get isSuccess => income != null && error == null;
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../../../core/ai/expense_parser.dart';
 import '../../../../core/ai/expense_result.dart';
@@ -11,13 +12,18 @@ import '../../../../core/ai/rag_context_builder.dart';
 import '../../../../core/ai/token_usage.dart';
 import '../../../../core/audio/voice_recorder_service.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/database/models/sms_ledger_entry_model.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/mlkit/ocr_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
+import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/scanner/receipt_scanner_service.dart';
 import '../../../../core/scanner/scan_result.dart';
+import '../../../../core/usage/usage_limits.dart';
+import '../../../../core/usage/usage_providers.dart';
+import '../../../../core/usage/usage_status.dart';
 import '../../../../core/utils/either.dart';
 import '../../data/datasources/openai_chat_datasource.dart';
 import '../../data/datasources/openai_receipt_datasource.dart';
@@ -25,6 +31,7 @@ import '../../data/datasources/openai_voice_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../budget/presentation/providers/budget_plan_provider.dart';
+import '../../../debt/presentation/providers/debt_providers.dart';
 import '../../../goals/presentation/providers/goal_provider.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../prediction/presentation/providers/prediction_provider.dart';
@@ -44,6 +51,7 @@ final ragContextBuilderProvider = Provider<RagContextBuilder>((ref) {
   return RagContextBuilder(
     localDataSource: ref.watch(expenseLocalDataSourceProvider),
     budgetPlanLocalDataSource: ref.watch(budgetPlanLocalDataSourceProvider),
+    debtLocalDataSource: ref.watch(debtLocalDataSourceProvider),
     goalLocalDataSource: ref.watch(goalLocalDataSourceProvider),
     recurringLocalDataSource: ref.watch(recurringLocalDataSourceProvider),
     anomalyLoader: () => ref.read(anomalyProvider.notifier).getActiveAlerts(),
@@ -54,6 +62,8 @@ final ragContextBuilderProvider = Provider<RagContextBuilder>((ref) {
       }
       return ref.read(predictionProvider.notifier).getCachedPrediction();
     },
+    smsLedgerLoader: () =>
+        ref.read(isarProvider).smsLedgerEntryModels.where().findAll(),
   );
 });
 
@@ -129,6 +139,7 @@ final isRecordingProvider = StateProvider<bool>((ref) => false);
 final isScanningProvider = StateProvider<bool>((ref) => false);
 final recordingDurationProvider = StateProvider<String?>((ref) => null);
 final chatErrorMessageProvider = StateProvider<String?>((ref) => null);
+final limitReachedStatusProvider = StateProvider<UsageStatus?>((ref) => null);
 final openAiRateLimitSnapshotProvider = StateProvider<RateLimitSnapshot?>(
   (ref) => null,
 );
@@ -172,6 +183,10 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
         ref.read(isRespondingProvider) ||
         ref.read(isRecordingProvider) ||
         ref.read(isScanningProvider)) {
+      return;
+    }
+
+    if (!await _checkUsageGate(UsageLimits.aiChat)) {
       return;
     }
 
@@ -227,6 +242,29 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     if (!ref.read(isRecordingProvider) ||
         ref.read(isRespondingProvider) ||
         ref.read(isScanningProvider)) {
+      return;
+    }
+
+    if (!await _checkUsageGate(
+      UsageLimits.voiceInput,
+      onBlocked: (_) async {
+        _stopRecordingTimer();
+        String? abandonedAudioPath;
+        try {
+          abandonedAudioPath = await ref
+              .read(voiceRecorderServiceProvider)
+              .stopRecording();
+        } catch (_) {}
+        _resetRecordingState();
+        if (abandonedAudioPath == null) {
+          return;
+        }
+        final abandonedAudio = File(abandonedAudioPath);
+        if (await abandonedAudio.exists()) {
+          await abandonedAudio.delete();
+        }
+      },
+    )) {
       return;
     }
 
@@ -423,6 +461,15 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     if (ref.read(isRespondingProvider) ||
         ref.read(isRecordingProvider) ||
         ref.read(isScanningProvider)) {
+      return;
+    }
+
+    if (!await _checkUsageGate(
+      UsageLimits.receiptScan,
+      onBlocked: (_) {
+        ref.read(isScanningProvider.notifier).state = false;
+      },
+    )) {
       return;
     }
 
@@ -708,9 +755,9 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
   }
 
   void _storeParsedExpenseResult(MessageEntity message, String responseText) {
-    final parsed = ref.read(expenseParserProvider).parseExpenseFromResponse(
-      responseText,
-    );
+    final parsed = ref
+        .read(expenseParserProvider)
+        .parseExpenseFromResponse(responseText);
     if (!parsed.isExpense && !parsed.isIncome) {
       return;
     }
@@ -739,6 +786,45 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     _recordingSeconds = 0;
     ref.read(isRecordingProvider.notifier).state = false;
     ref.read(recordingDurationProvider.notifier).state = null;
+  }
+
+  Future<bool> _checkUsageGate(
+    String feature, {
+    FutureOr<void> Function(UsageStatus status)? onBlocked,
+  }) async {
+    if (await _isPremiumUser()) {
+      return true;
+    }
+
+    try {
+      final gate = await ref
+          .read(usageTrackerServiceProvider)
+          .checkAndConsume(feature);
+      if (!gate.isAllowed) {
+        ref.read(limitReachedStatusProvider.notifier).state = gate.status;
+        if (onBlocked != null) {
+          await onBlocked(gate.status);
+        }
+        return false;
+      }
+
+      ref.read(usageRefreshTokenProvider.notifier).state++;
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> _isPremiumUser() async {
+    if (ref.read(isPremiumProvider)) {
+      return true;
+    }
+
+    try {
+      return await ref.read(premiumServiceProvider).isPremium();
+    } catch (_) {
+      return false;
+    }
   }
 
   String _formatDuration(int totalSeconds) {

@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/usage/usage_limits.dart';
+import '../../../../core/usage/usage_providers.dart';
+import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../utils/chat_suggestion_engine.dart';
 import 'recording_indicator.dart';
 
-class ChatInputArea extends StatelessWidget {
+class ChatInputArea extends ConsumerWidget {
   const ChatInputArea({
     super.key,
     required this.messageController,
@@ -49,8 +54,27 @@ class ChatInputArea extends StatelessWidget {
   final ValueChanged<ChatSuggestion> onSuggestionSelected;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final actionDisabled = isResponding || isRecording || isScanning;
+    final isPremium = ref.watch(isPremiumProvider);
+    final chatUsageStatus = ref.watch(usageStatusProvider(UsageLimits.aiChat));
+    final usageHint = isPremium
+        ? null
+        : chatUsageStatus.maybeWhen(
+            data: (status) {
+              if (status.remaining > 5) {
+                return null;
+              }
+              if (status.remaining == 0) {
+                return _UsageHint(text: 'সীমা শেষ', color: AppColors.error);
+              }
+              return _UsageHint(
+                text: 'আর ${BanglaFormatters.count(status.remaining)}টি বাকি',
+                color: AppColors.warning,
+              );
+            },
+            orElse: () => null,
+          );
 
     return Container(
       decoration: BoxDecoration(
@@ -216,6 +240,17 @@ class ChatInputArea extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
+                      if (usageHint != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.sm),
+                          child: Text(
+                            usageHint.text,
+                            style: AppTextStyles.caption.copyWith(
+                              color: usageHint.color,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       AnimatedOpacity(
                         opacity: currentCount == 0 ? 0.6 : 1,
                         duration: AppMotion.fast,
@@ -272,6 +307,13 @@ class ChatInputArea extends StatelessWidget {
       ),
     );
   }
+}
+
+class _UsageHint {
+  const _UsageHint({required this.text, required this.color});
+
+  final String text;
+  final Color color;
 }
 
 class _SuggestionTray extends StatelessWidget {
