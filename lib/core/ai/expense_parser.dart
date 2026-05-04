@@ -13,6 +13,16 @@ class ExpenseParser {
     caseSensitive: false,
   );
   static final _arrayRegex = RegExp(r'\[[\s\S]*?\]');
+  static final _jsonArrayBlockRegex = RegExp(r'\[(?:\s*\{|\s*\")\s*[\s\S]*?\]');
+  static final _jsonTextFieldNames = <String>{
+    'text',
+    'message',
+    'reply',
+    'response',
+    'conversation',
+    'content',
+    'summary',
+  };
 
   /// Parses an AI response and extracts expense data plus conversational text.
   ExpenseResult parseExpenseFromResponse(String response) {
@@ -71,6 +81,46 @@ class ExpenseParser {
     return ExpenseResult(isExpense: false, conversationalText: trimmedResponse);
   }
 
+  /// Returns only the text that should be visible in chat UI.
+  /// Structured JSON payloads are stripped from the response.
+  String extractVisibleReplyText(String response) {
+    final trimmedResponse = response.trim();
+    if (trimmedResponse.isEmpty) {
+      return '';
+    }
+
+    final parsedResult = parseExpenseFromResponse(trimmedResponse);
+    if (parsedResult.isExpense || parsedResult.isIncome || parsedResult.isReceipt) {
+      return _normalizeVisibleText(parsedResult.conversationalText ?? '');
+    }
+
+    final jsonReplyText = _extractJsonReplyText(trimmedResponse);
+    if (jsonReplyText != null && jsonReplyText.isNotEmpty) {
+      return _normalizeVisibleText(jsonReplyText);
+    }
+
+    return _normalizeVisibleText(
+      _stripJsonArtifacts(trimmedResponse, allowPartialTail: false),
+    );
+  }
+
+  /// Sanitizes live streaming text so partial JSON never appears in the UI.
+  String extractVisibleStreamingText(String response) {
+    final trimmedResponse = response.trim();
+    if (trimmedResponse.isEmpty) {
+      return '';
+    }
+
+    final jsonReplyText = _extractJsonReplyText(trimmedResponse);
+    if (jsonReplyText != null && jsonReplyText.isNotEmpty) {
+      return _normalizeVisibleText(jsonReplyText);
+    }
+
+    return _normalizeVisibleText(
+      _stripJsonArtifacts(trimmedResponse, allowPartialTail: true),
+    );
+  }
+
   ExpenseResult? _parseStructuredPayload(String response) {
     for (final jsonString in _extractJsonCandidates(response)) {
       try {
@@ -101,6 +151,7 @@ class ExpenseParser {
             : (cleanText.isNotEmpty ? cleanText : null);
 
         final hasMixed = expenseList.isNotEmpty && incomeList.isNotEmpty;
+        final splitPersons = _firstSplitPersons(expenseList);
         return ExpenseResult(
           isExpense: expenseList.isNotEmpty,
           expenses: expenseList,
@@ -109,6 +160,8 @@ class ExpenseParser {
           isIncome: incomeList.isNotEmpty,
           hasMixedEntries: hasMixed,
           conversationalText: conversationalText,
+          isSplit: expenseList.any((expense) => expense.isSplit),
+          splitPersons: splitPersons,
         );
       } catch (_) {
         continue;
@@ -269,6 +322,7 @@ class ExpenseParser {
       }
 
       final cleanText = response.replaceFirst(jsonString, '').trim();
+      final splitPersons = _firstSplitPersons(expenses);
       return ExpenseResult(
         isExpense: expenses.isNotEmpty,
         expenses: expenses,
@@ -277,6 +331,8 @@ class ExpenseParser {
         isIncome: incomes.isNotEmpty,
         hasMixedEntries: expenses.isNotEmpty && incomes.isNotEmpty,
         conversationalText: cleanText.isEmpty ? null : cleanText,
+        isSplit: expenses.any((expense) => expense.isSplit),
+        splitPersons: splitPersons,
       );
     } catch (_) {
       return null;
@@ -503,6 +559,145 @@ class ExpenseParser {
     }
 
     return objects;
+  }
+
+  String? _extractJsonReplyText(String response) {
+    for (final jsonString in _extractJsonCandidates(response)) {
+      try {
+        final decoded = jsonDecode(jsonString);
+        final text = _extractReplyTextValue(decoded);
+        if (text != null && text.trim().isNotEmpty) {
+          return text.trim();
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  String? _extractReplyTextValue(dynamic payload) {
+    if (payload is Map) {
+      for (final fieldName in _jsonTextFieldNames) {
+        final candidate = payload[fieldName];
+        if (candidate is String && candidate.trim().isNotEmpty) {
+          return candidate.trim();
+        }
+      }
+      return null;
+    }
+
+    if (payload is List) {
+      for (final item in payload) {
+        final candidate = _extractReplyTextValue(item);
+        if (candidate != null && candidate.isNotEmpty) {
+          return candidate;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _stripJsonArtifacts(
+    String text, {
+    required bool allowPartialTail,
+  }) {
+    var sanitized = text.replaceAll(_jsonFenceRegex, ' ');
+    sanitized = sanitized.replaceAll(_jsonArrayBlockRegex, ' ');
+
+    final objectCandidates = _extractBalancedJsonObjects(sanitized);
+    for (final candidate in objectCandidates) {
+      sanitized = sanitized.replaceAll(candidate, ' ');
+    }
+
+    if (allowPartialTail) {
+      sanitized = _stripIncompleteJsonTail(sanitized);
+    }
+
+    return sanitized;
+  }
+
+  String _stripIncompleteJsonTail(String text) {
+    final trimmed = text.trimRight();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    final fenceIndex = trimmed.indexOf('```');
+    if (fenceIndex >= 0) {
+      return trimmed.substring(0, fenceIndex).trimRight();
+    }
+
+    final objectIndex = trimmed.indexOf('{');
+    if (objectIndex >= 0) {
+      final suffix = trimmed.substring(objectIndex).trimLeft();
+      if (_looksLikeJsonFragment(suffix)) {
+        return trimmed.substring(0, objectIndex).trimRight();
+      }
+    }
+
+    final arrayIndex = trimmed.indexOf('[');
+    if (arrayIndex >= 0) {
+      final suffix = trimmed.substring(arrayIndex).trimLeft();
+      if (_looksLikeJsonFragment(suffix)) {
+        return trimmed.substring(0, arrayIndex).trimRight();
+      }
+    }
+
+    return trimmed;
+  }
+
+  bool _looksLikeJsonFragment(String text) {
+    final trimmed = text.trimLeft();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+
+    if (trimmed.startsWith('```')) {
+      return true;
+    }
+
+    if (trimmed.startsWith('{"') ||
+        trimmed.startsWith('[{"') ||
+        trimmed.startsWith('[{')) {
+      return true;
+    }
+
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      if (trimmed.contains('":') ||
+          trimmed.contains('"expenses"') ||
+          trimmed.contains('"incomes"') ||
+          trimmed.contains('"amount"') ||
+          trimmed.contains('"category"') ||
+          trimmed.contains('"date"') ||
+          trimmed.contains('"description"') ||
+          trimmed.contains('"source"') ||
+          trimmed.contains('"merchant"') ||
+          trimmed.contains('"items"')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  String _normalizeVisibleText(String text) {
+    return text
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .replaceAll(RegExp(r'\n[ \t]+'), '\n')
+        .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+  }
+
+  int? _firstSplitPersons(List<ExpenseData> expenses) {
+    for (final expense in expenses) {
+      if (expense.splitPersons != null) {
+        return expense.splitPersons;
+      }
+    }
+    return null;
   }
 
   ExpenseData _normalizeExpenseCategory(ExpenseData expense) {

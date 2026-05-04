@@ -40,6 +40,21 @@ class BanglaFormatters {
     return _numberFormat.format(value);
   }
 
+  static String relativeFromNow(DateTime time, {DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    final difference = reference.difference(time);
+    if (difference.inMinutes < 1) {
+      return 'এইমাত্র';
+    }
+    if (difference.inHours < 1) {
+      return '${count(difference.inMinutes)} মিনিট আগে';
+    }
+    if (difference.inDays < 1) {
+      return '${count(difference.inHours)} ঘণ্টা আগে';
+    }
+    return relativeDay(time, now: reference);
+  }
+
   static String relativeDay(DateTime date, {DateTime? now}) {
     final current = _stripTime(now ?? DateTime.now());
     final target = _stripTime(date);

@@ -9,6 +9,7 @@ import '../../../../core/notifications/notification_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/ai/expense_result.dart';
+import '../../../../core/utils/bangla_formatters.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
@@ -115,6 +116,8 @@ class CashFlowData {
     return ((netFlow - lastMonthNetFlow) / lastMonthNetFlow.abs()) * 100;
   }
 }
+
+final dashboardLastRefreshedAtProvider = StateProvider<DateTime?>((ref) => null);
 
 final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
   ref.watch(expenseRefreshTokenProvider);
@@ -603,6 +606,11 @@ class ExpenseMutationController {
         date: expenseData.parsedDate,
         walletId: resolvedWalletId,
       );
+      if (await _isDuplicateExpense(expense)) {
+        return const DetectedExpenseSaveResult(
+          error: 'একই খরচ আগেই যোগ করা আছে',
+        );
+      }
       final savedExpense = await _ref.read(saveExpenseUseCaseProvider).call(
         expense,
       );
@@ -663,16 +671,33 @@ class ExpenseMutationController {
         return AppStrings.noExpenseToSave;
       }
 
-      await _ref.read(saveExpenseUseCaseProvider).saveMany(validExpenses);
+      final dedupedExpenses = <ExpenseEntity>[];
+      var skippedDuplicates = 0;
       for (final expense in validExpenses) {
+        final alreadyQueued = dedupedExpenses.any(
+          (existing) => _isSameExpense(existing, expense),
+        );
+        if (alreadyQueued || await _isDuplicateExpense(expense)) {
+          skippedDuplicates++;
+          continue;
+        }
+        dedupedExpenses.add(expense);
+      }
+
+      if (dedupedExpenses.isEmpty) {
+        return 'একই খরচ আগেই যোগ করা আছে';
+      }
+
+      await _ref.read(saveExpenseUseCaseProvider).saveMany(dedupedExpenses);
+      for (final expense in dedupedExpenses) {
         await _adjustWalletBalance(
           walletId: resolvedWalletId,
           delta: -expense.amount,
         );
       }
       await _rememberActiveWallet(resolvedWalletId);
-      await _notifyExpenseChanged(addedCount: validExpenses.length);
-      final categories = validExpenses
+      await _notifyExpenseChanged(addedCount: dedupedExpenses.length);
+      final categories = dedupedExpenses
           .map((expense) => expense.category)
           .toSet()
           .toList(growable: false);
@@ -680,6 +705,12 @@ class ExpenseMutationController {
         await _ref
             .read(notificationProvider.notifier)
             .checkBudgetAlert(category);
+      }
+      if (skippedDuplicates > 0) {
+        return '${BanglaFormatters.count(dedupedExpenses.length)}'
+            'টি নতুন খরচ সংরক্ষণ হয়েছে, '
+            '${BanglaFormatters.count(skippedDuplicates)}'
+            'টি duplicate বাদ গেছে';
       }
       return null;
     } on Failure catch (failure) {
@@ -710,6 +741,9 @@ class ExpenseMutationController {
         date: ExpenseData.parseDateValue(dateValue),
         walletId: resolvedWalletId,
       );
+      if (await _isDuplicateExpense(expense)) {
+        return 'একই খরচ আগেই যোগ করা আছে';
+      }
       await _ref.read(saveExpenseUseCaseProvider).call(expense);
       await _adjustWalletBalance(
         walletId: resolvedWalletId,
@@ -829,6 +863,33 @@ class ExpenseMutationController {
     } catch (error, stackTrace) {
       debugPrint('Wallet balance sync failed: $error\n$stackTrace');
     }
+  }
+
+  Future<bool> _isDuplicateExpense(ExpenseEntity candidate) async {
+    final sameDayExpenses = await _ref
+        .read(expenseRepositoryProvider)
+        .getExpensesByDateRange(candidate.date, candidate.date);
+    for (final existing in sameDayExpenses) {
+      if (_isSameExpense(existing, candidate)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isSameExpense(ExpenseEntity first, ExpenseEntity second) {
+    return first.walletId == second.walletId &&
+        first.amount == second.amount &&
+        first.category == second.category &&
+        _normalizeText(first.description) ==
+            _normalizeText(second.description) &&
+        first.date.year == second.date.year &&
+        first.date.month == second.date.month &&
+        first.date.day == second.date.day;
+  }
+
+  String _normalizeText(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 

@@ -4,6 +4,7 @@ import '../../../../../core/ai/rag_response_parser.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
+import '../chat_card_primitives.dart';
 import 'rag_card_shell.dart';
 
 class RagCategoryWidget extends StatelessWidget {
@@ -43,22 +44,15 @@ class RagCategoryWidget extends StatelessWidget {
           children: [
             RagCardHeader(
               icon: CategoryIcon.getIcon(category),
-              title: 'Category বিশ্লেষণ',
+              title: 'ক্যাটাগরি বিশ্লেষণ',
               subtitle: data.monthName,
             ),
             const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
+            ChatSectionSurface(
+              accentColor: CategoryIcon.getColor(category),
+              backgroundColor: context.cardBackgroundColor,
+              borderColor: CategoryIcon.getColor(category).withValues(alpha: 0.18),
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: context.cardBackgroundColor,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: CategoryIcon.getColor(
-                    category,
-                  ).withValues(alpha: 0.18),
-                ),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -98,7 +92,7 @@ class RagCategoryWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$percent% of total',
+                    '$percent% মোটের',
                     style: TextStyle(
                       color: context.secondaryTextColor,
                       fontSize: 12,
@@ -115,6 +109,24 @@ class RagCategoryWidget extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChatStatChip(
+                  icon: Icons.pie_chart_rounded,
+                  label: '$percent% শেয়ার',
+                  accentColor: CategoryIcon.getColor(category),
+                ),
+                ChatStatChip(
+                  icon: Icons.receipt_long_rounded,
+                  label:
+                      '${BanglaFormatters.count(transactions.length)}টি লেনদেন',
+                  accentColor: CategoryIcon.getColor(category),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Text(
@@ -151,14 +163,10 @@ class RagCategoryWidget extends StatelessWidget {
                 ),
             ],
             const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.mutedSurfaceColor,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: context.borderColor),
-              ),
+            ChatSectionSurface(
+              accentColor: CategoryIcon.getColor(category),
+              backgroundColor: context.mutedSurfaceColor,
+              borderColor: context.borderColor,
               child: Text(
                 '💡 "$insight"',
                 style: TextStyle(

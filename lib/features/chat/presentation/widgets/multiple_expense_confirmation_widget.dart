@@ -8,6 +8,7 @@ import '../../../../core/utils/bangla_formatters.dart';
 import '../../../expense/presentation/utils/expense_category_meta.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
+import 'chat_card_primitives.dart';
 
 class MultipleExpenseConfirmationWidget extends ConsumerStatefulWidget {
   const MultipleExpenseConfirmationWidget({
@@ -47,11 +48,13 @@ class _MultipleExpenseConfirmationWidgetState
     final activeWallet = ref.watch(activeWalletProvider);
     final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
     final groupedExpenses = _buildGroups();
-    final selectedTotal = _selectedExpenses.fold<double>(
+    final selectedExpenses = _selectedExpenses;
+    final selectedTotal = selectedExpenses.fold<double>(
       0,
       (sum, expense) => sum + expense.amount,
     );
     final selectedDays = _selectedDistinctDays;
+    final selectedCount = selectedExpenses.length;
     final allSameDate = groupedExpenses.length <= 1;
     final hasFutureDates = _displayExpenses.any(
       (expense) => expense.isFutureDate,
@@ -60,113 +63,135 @@ class _MultipleExpenseConfirmationWidgetState
       (expense) => expense.hasInvalidDate,
     );
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.88,
-        ),
-        child: Card(
-          elevation: 0,
-          color: context.cardBackgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-            side: BorderSide(color: context.borderColor),
+    return ChatDataCardShell(
+      accentColor: AppColors.primary,
+      maxWidthFactor: 0.9,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ChatCardHeader(
+            icon: Icons.playlist_add_check_circle_rounded,
+            title: 'গ্রুপ খরচ draft',
+            subtitle: 'চাইলে item বাছাই বা তারিখ edit করুন',
+            accentColor: AppColors.primary,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChatStatChip(
+                icon: Icons.receipt_long_rounded,
+                label: '${BanglaFormatters.count(_displayExpenses.length)}টি খরচ',
+                accentColor: AppColors.primary,
+              ),
+              ChatStatChip(
+                icon: Icons.payments_rounded,
+                label: BanglaFormatters.currency(selectedTotal),
+                accentColor: AppColors.primary,
+              ),
+              if (!allSameDate)
+                ChatStatChip(
+                  icon: Icons.calendar_month_rounded,
+                  label: '${BanglaFormatters.count(groupedExpenses.length)} দিন',
+                  accentColor: AppColors.primary,
+                ),
+            ],
+          ),
+          if (_hasOverflow) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text: 'অনেক বেশি item। প্রথম ১০টা দেখানো হচ্ছে।',
+              backgroundColor: Color(0xFFFFF7ED),
+              borderColor: Color(0xFFFED7AA),
+              textColor: Color(0xFFB45309),
+            ),
+          ],
+          if (hasInvalidDates) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text:
+                  'কিছু item-এর তারিখ বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে। চাইলে বদলান।',
+              backgroundColor: Color(0xFFF8FAFC),
+              borderColor: Color(0xFFE2E8F0),
+              textColor: Color(0xFF475569),
+            ),
+          ],
+          if (hasFutureDates) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.warning_amber_rounded,
+              text: 'এখানে ভবিষ্যতের তারিখ আছে। নিশ্চিত?',
+              backgroundColor: Color(0xFFFFF7ED),
+              borderColor: Color(0xFFFED7AA),
+              textColor: Color(0xFFB45309),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (allSameDate && groupedExpenses.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _GroupHeader(
+                label:
+                    '${groupedExpenses.first.label} — ${BanglaFormatters.count(groupedExpenses.first.indexes.length)}টি খরচ',
+                isPastDate: groupedExpenses.first.isPastDate,
+                isFutureDate: groupedExpenses.first.isFutureDate,
+                onTap: () => _pickDateForGroup(groupedExpenses.first),
+              ),
+            ),
+          ChatSectionSurface(
+            padding: const EdgeInsets.all(12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: _displayExpenses.length > 4 ? 320 : 220,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final group in groupedExpenses) ...[
+                      if (!allSameDate) ...[
+                        _GroupHeader(
+                          label: group.label,
+                          isPastDate: group.isPastDate,
+                          isFutureDate: group.isFutureDate,
+                          onTap: () => _pickDateForGroup(group),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      for (final index in group.indexes) ...[
+                        _ExpenseRow(
+                          expense: _displayExpenses[index],
+                          checked: _checked[index],
+                          onChanged: (value) {
+                            setState(() {
+                              _checked[index] = value ?? false;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ChatSectionSurface(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_hasOverflow)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.info_outline_rounded,
-                      text: 'অনেক বেশি item। প্রথম ১০টা দেখানো হচ্ছে।',
-                      backgroundColor: Color(0xFFFFF7ED),
-                      borderColor: Color(0xFFFED7AA),
-                      textColor: Color(0xFFB45309),
-                    ),
-                  ),
-                if (hasInvalidDates)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.info_outline_rounded,
-                      text:
-                          'কিছু item-এর তারিখ বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে। চাইলে বদলান।',
-                      backgroundColor: Color(0xFFF8FAFC),
-                      borderColor: Color(0xFFE2E8F0),
-                      textColor: Color(0xFF475569),
-                    ),
-                  ),
-                if (hasFutureDates)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.warning_amber_rounded,
-                      text: 'এখানে ভবিষ্যতের তারিখ আছে। নিশ্চিত?',
-                      backgroundColor: Color(0xFFFFF7ED),
-                      borderColor: Color(0xFFFED7AA),
-                      textColor: Color(0xFFB45309),
-                    ),
-                  ),
-                if (allSameDate && groupedExpenses.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _GroupHeader(
-                      label:
-                          '${groupedExpenses.first.label} — ${BanglaFormatters.count(groupedExpenses.first.indexes.length)}টি খরচ',
-                      isPastDate: groupedExpenses.first.isPastDate,
-                      isFutureDate: groupedExpenses.first.isFutureDate,
-                      onTap: () => _pickDateForGroup(groupedExpenses.first),
-                    ),
-                  )
-                else
-                  Text(
-                    '${BanglaFormatters.count(_displayExpenses.length)}টি খরচ পাওয়া গেছে',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: _displayExpenses.length > 4 ? 300 : 200,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        for (final group in groupedExpenses) ...[
-                          if (!allSameDate) ...[
-                            _GroupHeader(
-                              label: group.label,
-                              isPastDate: group.isPastDate,
-                              isFutureDate: group.isFutureDate,
-                              onTap: () => _pickDateForGroup(group),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                          for (final index in group.indexes) ...[
-                            _ExpenseRow(
-                              expense: _displayExpenses[index],
-                              checked: _checked[index],
-                              onChanged: (value) {
-                                setState(() {
-                                  _checked[index] = value ?? false;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ],
-                      ],
-                    ),
+                Text(
+                  'কোন wallet-এ যাবে',
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 WalletSelectorWidget(
                   selectedWalletId: effectiveWalletId,
                   onChanged: (walletId) {
@@ -175,53 +200,57 @@ class _MultipleExpenseConfirmationWidgetState
                     });
                   },
                 ),
-                const SizedBox(height: 14),
-                Divider(height: 1, color: context.borderColor),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        allSameDate
-                            ? 'মোট: ${BanglaFormatters.currency(selectedTotal)}'
-                            : 'মোট: ${BanglaFormatters.currency(selectedTotal)} — ${BanglaFormatters.count(selectedDays)}টি দিনের খরচ',
-                        style: TextStyle(
-                          color: context.primaryTextColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: widget.onCancel,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                      ),
-                      child: const Text(AppStrings.cancelButton),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: _selectedExpenses.isEmpty
-                          ? null
-                          : () => widget.onSave(
-                              _selectedExpenses,
-                              effectiveWalletId,
-                            ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimary,
-                      ),
-                      child: const Text(AppStrings.saveButton),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChatStatChip(
+                icon: Icons.checklist_rounded,
+                label: '${BanglaFormatters.count(selectedCount)}টি বাছাই',
+                accentColor: AppColors.primary,
+              ),
+              ChatStatChip(
+                icon: Icons.account_balance_wallet_rounded,
+                label: allSameDate
+                    ? 'মোট ${BanglaFormatters.currency(selectedTotal)}'
+                    : '${BanglaFormatters.count(selectedDays)} দিন • ${BanglaFormatters.currency(selectedTotal)}',
+                accentColor: AppColors.primary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: widget.onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                  child: const Text(AppStrings.cancelButton),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: selectedExpenses.isEmpty
+                      ? null
+                      : () => widget.onSave(selectedExpenses, effectiveWalletId),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: const Text(AppStrings.saveButton),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -343,9 +372,15 @@ class _GroupHeader extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: context.mutedSurfaceColor,
+          color: AppColors.primary.withValues(
+            alpha: context.isDarkMode ? 0.18 : 0.08,
+          ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.borderColor),
+          border: Border.all(
+            color: AppColors.primary.withValues(
+              alpha: context.isDarkMode ? 0.28 : 0.14,
+            ),
+          ),
         ),
         child: Row(
           children: [
@@ -402,47 +437,80 @@ class _ExpenseRow extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.cardBackgroundColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: categoryMeta.color.withValues(
+            alpha: context.isDarkMode ? 0.28 : 0.12,
+          ),
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Checkbox(value: checked, onChanged: onChanged),
-            Icon(categoryMeta.icon, size: 18, color: categoryMeta.color),
-            const SizedBox(width: 10),
+            Container(
+              height: 34,
+              width: 34,
+              decoration: BoxDecoration(
+                color: categoryMeta.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(categoryMeta.icon, size: 18, color: categoryMeta.color),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    expense.description.trim().isEmpty
-                        ? 'খরচ'
-                        : expense.description,
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          expense.description.trim().isEmpty
+                              ? 'খরচ'
+                              : expense.description,
+                          style: TextStyle(
+                            color: context.primaryTextColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        BanglaFormatters.currency(expense.amount),
+                        style: TextStyle(
+                          color: context.primaryTextColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    expense.category,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
+                  const SizedBox(height: 8),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: categoryMeta.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      child: Text(
+                        expense.category,
+                        style: TextStyle(
+                          color: categoryMeta.color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              BanglaFormatters.currency(expense.amount),
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -474,52 +542,6 @@ class _DateBadge extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({
-    required this.icon,
-    required this.text,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.textColor,
-  });
-
-  final IconData icon;
-  final String text;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: textColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

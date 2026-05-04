@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/ai/income_data.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/bangla_formatters.dart';
 import '../../../income/domain/entities/income_source.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
+import 'chat_card_primitives.dart';
 
 class IncomeConfirmationWidget extends ConsumerStatefulWidget {
   const IncomeConfirmationWidget({
@@ -58,122 +60,145 @@ class _IncomeConfirmationWidgetState
     final source = findIncomeSourceByName(_income.source);
     final label = source?.banglaLabel ?? _income.source;
     final emoji = source?.emoji ?? '💰';
+    final draftAmount = _parseAmount(_amountController.text) ?? _income.amount;
+    final draftDescription = _descriptionController.text.trim();
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.84,
-        ),
-        child: Card(
-          elevation: 0,
-          color: context.cardBackgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: context.borderColor),
+    return ChatDataCardShell(
+      accentColor: AppColors.success,
+      maxWidthFactor: 0.86,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ChatCardHeader(
+            icon: Icons.south_west_rounded,
+            title: 'আয়ের draft',
+            subtitle: 'সেভ করার আগে মিলিয়ে নিন',
+            accentColor: AppColors.success,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChatStatChip(
+                label: '$emoji $label',
+                accentColor: AppColors.success,
+              ),
+              ChatStatChip(
+                icon: Icons.payments_rounded,
+                label: BanglaFormatters.currency(draftAmount),
+                accentColor: AppColors.success,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: _pickDate,
+            child: Ink(
+              child: ChatSectionSurface(
+                accentColor: AppColors.success,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 18,
+                      color: context.secondaryTextColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _income.displayDate,
+                        style: TextStyle(
+                          color: context.primaryTextColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (_income.isPastDate) ...[
+                      const _DateBadge(label: 'অতীত'),
+                      const SizedBox(width: 8),
+                    ],
+                    Icon(
+                      Icons.edit_calendar_rounded,
+                      size: 16,
+                      color: context.secondaryTextColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_income.isFutureDate) ...[
+            const SizedBox(height: 10),
+            const ChatInfoBanner(
+              icon: Icons.warning_amber_rounded,
+              backgroundColor: Color(0xFFF0FDF4),
+              borderColor: Color(0xFFBBF7D0),
+              textColor: Color(0xFF15803D),
+              text: 'এটা ভবিষ্যতের তারিখ। নিশ্চিত?',
+            ),
+          ],
+          if (_income.dateFallbackNote != null) ...[
+            const SizedBox(height: 10),
+            ChatInfoBanner(
+              icon: Icons.info_outline_rounded,
+              backgroundColor: context.mutedSurfaceColor,
+              borderColor: context.borderColor,
+              textColor: context.secondaryTextColor,
+              text: _income.dateFallbackNote!,
+            ),
+          ],
+          const SizedBox(height: 14),
+          ChatSectionSurface(
+            accentColor: AppColors.success,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _pickDate,
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.mutedSurfaceColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_month_rounded,
-                          size: 18,
-                          color: context.secondaryTextColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _income.displayDate,
-                            style: TextStyle(
-                              color: context.primaryTextColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (_income.isPastDate) ...[
-                          const _DateBadge(label: 'অতীত'),
-                          const SizedBox(width: 8),
-                        ],
-                        Icon(
-                          Icons.edit_calendar_rounded,
-                          size: 16,
-                          color: context.secondaryTextColor,
-                        ),
-                      ],
-                    ),
+                Text(
+                  'প্রিভিউ',
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (_income.isFutureDate) ...[
-                  const SizedBox(height: 10),
-                  const _InfoBanner(
-                    icon: Icons.warning_amber_rounded,
-                    backgroundColor: Color(0xFFF0FDF4),
-                    borderColor: Color(0xFFBBF7D0),
-                    textColor: Color(0xFF15803D),
-                    text: 'এটা ভবিষ্যতের তারিখ। নিশ্চিত?',
-                  ),
-                ],
-                if (_income.dateFallbackNote != null) ...[
-                  const SizedBox(height: 10),
-                  _InfoBanner(
-                    icon: Icons.info_outline_rounded,
-                    backgroundColor: context.mutedSurfaceColor,
-                    borderColor: context.borderColor,
-                    textColor: context.secondaryTextColor,
-                    text: _income.dateFallbackNote!,
-                  ),
-                ],
-                const SizedBox(height: 14),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(emoji, style: const TextStyle(fontSize: 16)),
-                        const SizedBox(width: 8),
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  BanglaFormatters.currency(draftAmount),
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 6),
+                Text(
+                  draftDescription.isEmpty ? 'বর্ণনা যোগ করুন' : draftDescription,
+                  style: TextStyle(
+                    color: draftDescription.isEmpty
+                        ? context.secondaryTextColor
+                        : context.primaryTextColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          ChatSectionSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 TextField(
                   controller: _descriptionController,
                   maxLength: 100,
                   onChanged: (value) {
-                    _income = _income.copyWith(description: value.trim());
+                    setState(() {
+                      _income = _income.copyWith(description: value.trim());
+                    });
                   },
                   decoration: const InputDecoration(
                     labelText: 'বিবরণ',
@@ -188,9 +213,11 @@ class _IncomeConfirmationWidgetState
                   ),
                   onChanged: (value) {
                     final parsed = _parseAmount(value);
-                    if (parsed != null) {
-                      _income = _income.copyWith(amount: parsed);
-                    }
+                    setState(() {
+                      if (parsed != null) {
+                        _income = _income.copyWith(amount: parsed);
+                      }
+                    });
                   },
                   style: const TextStyle(
                     color: AppColors.success,
@@ -202,7 +229,23 @@ class _IncomeConfirmationWidgetState
                     prefixText: '৳ ',
                   ),
                 ),
-                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          ChatSectionSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'কোন wallet-এ যাবে',
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 WalletSelectorWidget(
                   selectedWalletId: effectiveWalletId,
                   onChanged: (walletId) {
@@ -211,71 +254,51 @@ class _IncomeConfirmationWidgetState
                     });
                   },
                 ),
-                const SizedBox(height: 16),
-                if (_isSaved)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.success.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: const Text(
-                      'আয় সংরক্ষণ হয়েছে',
-                      style: TextStyle(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _isSaving ? null : widget.onCancel,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            side: const BorderSide(color: AppColors.error),
-                          ),
-                          child: const Text(AppStrings.cancelButton),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _isSaving
-                              ? null
-                              : () => _save(effectiveWalletId),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.onPrimary,
-                          ),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(AppStrings.saveButton),
-                        ),
-                      ),
-                    ],
-                  ),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          if (_isSaved)
+            const ChatInfoBanner(
+              icon: Icons.check_circle_rounded,
+              backgroundColor: Color(0xFFF0FDF4),
+              borderColor: Color(0xFFBBF7D0),
+              textColor: Color(0xFF15803D),
+              text: 'আয় সংরক্ষণ হয়েছে',
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSaving ? null : widget.onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                    ),
+                    child: const Text(AppStrings.cancelButton),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _isSaving ? null : () => _save(effectiveWalletId),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(AppStrings.saveButton),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -398,52 +421,6 @@ class _DateBadge extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({
-    required this.icon,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.text,
-  });
-
-  final IconData icon;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color textColor;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: textColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -15,6 +15,7 @@ class AppChip extends StatelessWidget {
     this.color,
     this.compact = false,
     this.enableHaptic = true,
+    this.fullWidth = false,
   });
 
   final String label;
@@ -25,6 +26,7 @@ class AppChip extends StatelessWidget {
   final Color? color;
   final bool compact;
   final bool enableHaptic;
+  final bool fullWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,13 @@ class AppChip extends StatelessWidget {
         ? accentColor
         : accentColor.withValues(alpha: context.isDarkMode ? 0.15 : 0.08);
     final fgColor = selected ? Colors.white : accentColor;
+    final labelWidget = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: fullWidth ? TextAlign.center : TextAlign.start,
+      style: AppTextStyles.chipLabel.copyWith(color: fgColor),
+    );
 
     return Material(
       color: Colors.transparent,
@@ -62,7 +71,10 @@ class AppChip extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: fullWidth
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
             children: [
               if (emoji != null) ...[
                 Text(emoji!, style: const TextStyle(fontSize: 14)),
@@ -71,10 +83,7 @@ class AppChip extends StatelessWidget {
                 Icon(icon, size: 14, color: fgColor),
                 const SizedBox(width: 6),
               ],
-              Text(
-                label,
-                style: AppTextStyles.chipLabel.copyWith(color: fgColor),
-              ),
+              if (fullWidth) Flexible(child: labelWidget) else labelWidget,
             ],
           ),
         ),

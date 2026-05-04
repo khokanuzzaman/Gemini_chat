@@ -4,6 +4,7 @@ import '../../../../../core/ai/rag_response_parser.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
+import '../chat_card_primitives.dart';
 import 'rag_card_shell.dart';
 
 class RagSummaryWidget extends StatelessWidget {
@@ -30,6 +31,8 @@ class RagSummaryWidget extends StatelessWidget {
         : data.aiText;
 
     return RagAnimatedCard(
+      borderColor: context.ragCardBorder(AppColors.primary),
+      backgroundColor: context.ragCardBackground(AppColors.primary),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -41,18 +44,10 @@ class RagSummaryWidget extends StatelessWidget {
               subtitle: data.monthName,
             ),
             const SizedBox(height: 18),
-            Center(
+            ChatSectionSurface(
+              accentColor: AppColors.primary,
               child: Column(
                 children: [
-                  Text(
-                    BanglaFormatters.currency(total),
-                    style: TextStyle(
-                      color: context.primaryTextColor,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
                   Text(
                     'মোট খরচ',
                     style: TextStyle(
@@ -61,8 +56,17 @@ class RagSummaryWidget extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    BanglaFormatters.currency(total),
+                    style: TextStyle(
+                      color: context.primaryTextColor,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                   if (comparison != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     _ComparisonBadge(
                       isIncrease: comparison.isIncrease,
                       label: comparison.label,
@@ -93,25 +97,41 @@ class RagSummaryWidget extends StatelessWidget {
                 const SizedBox(height: 12),
               ],
             ],
+            const SizedBox(height: 6),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
-                _QuickStatChip(
+                ChatStatChip(
                   icon: Icons.calendar_month_rounded,
                   label:
-                      '${BanglaFormatters.count(data.transactionCount ?? 0)}টি transaction',
+                      '${BanglaFormatters.count(data.transactionCount ?? 0)}টি লেনদেন',
+                  accentColor: AppColors.primary,
                 ),
                 if (leadingCategory != null)
-                  _QuickStatChip(
+                  ChatStatChip(
                     icon: CategoryIcon.getIcon(leadingCategory),
                     label:
                         'সবচেয়ে বেশি: $leadingCategory (${BanglaFormatters.currency(leadingAmount)})',
+                    accentColor: CategoryIcon.getColor(leadingCategory),
                   ),
               ],
             ),
             const SizedBox(height: 16),
-            _InsightCard(text: insight),
+            ChatSectionSurface(
+              accentColor: AppColors.primary,
+              backgroundColor: context.ragChipBackgroundColor,
+              borderColor: context.ragCardBorder(AppColors.primary),
+              child: Text(
+                '💡 "$insight"',
+                style: TextStyle(
+                  color: context.ragChipTextColor,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             RagFooter(onTap: onOpenAnalytics),
           ],
@@ -159,69 +179,6 @@ class RagSummaryWidget extends StatelessWidget {
         ? 'গত মাসের চেয়ে ${BanglaFormatters.currency(difference)} বেশি'
         : 'গত মাসের চেয়ে ${BanglaFormatters.currency(difference.abs())} কম';
     return _ComparisonInfo(label: label, isIncrease: difference > 0);
-  }
-}
-
-class _QuickStatChip extends StatelessWidget {
-  const _QuickStatChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.cardBackgroundColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: context.secondaryTextColor),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: context.secondaryTextColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.ragChipBackgroundColor,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        '💡 "$text"',
-        style: TextStyle(
-          color: context.ragChipTextColor,
-          fontSize: 13,
-          height: 1.45,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
   }
 }
 

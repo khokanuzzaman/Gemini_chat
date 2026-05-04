@@ -96,46 +96,75 @@ class SmsImportDashboardTeaserCard extends ConsumerWidget {
 
         return AppCard(
           key: const Key('sms-import-dashboard-teaser'),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: const BorderRadius.all(AppRadius.card),
-                ),
-                child: Icon(Icons.mark_chat_unread_rounded, color: accent),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'SMS থেকে লেনদেন আনুন',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: context.primaryTextColor,
-                      ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 440;
+              final content = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: const BorderRadius.all(AppRadius.card),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _teaserSubtitle(status),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: context.secondaryTextColor,
-                        height: 1.4,
-                      ),
+                    child: Icon(Icons.mark_chat_unread_rounded, color: accent),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SMS থেকে লেনদেন আনুন',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: context.primaryTextColor,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          _teaserSubtitle(status),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              if (isCompact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    content,
+                    const SizedBox(height: AppSpacing.md),
+                    AppActionButton(
+                      label: 'খুলুন',
+                      size: AppActionButtonSize.small,
+                      variant: AppActionButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: () => SmsImportScreen.push(context),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              AppActionButton(
-                label: 'খুলুন',
-                size: AppActionButtonSize.small,
-                variant: AppActionButtonVariant.secondary,
-                onPressed: () => SmsImportScreen.push(context),
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: content),
+                  const SizedBox(width: AppSpacing.md),
+                  AppActionButton(
+                    label: 'খুলুন',
+                    size: AppActionButtonSize.small,
+                    variant: AppActionButtonVariant.secondary,
+                    onPressed: () => SmsImportScreen.push(context),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -308,56 +337,109 @@ class SmsAutoImportSettingsCard extends ConsumerWidget {
     final actionLabel = isBlocked ? 'সেটিংস খুলুন' : 'অনুমতি দিন';
     final action = isBlocked ? openAppSettings : controller.enable;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.cardPadding,
-        AppSpacing.md,
-        AppSpacing.cardPadding,
-        AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.08),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.lock_outline_rounded, color: AppColors.warning),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isBlocked
-                      ? 'সেটিংস থেকে SMS permission দিন'
-                      : 'SMS পড়ার অনুমতি প্রয়োজন',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: context.primaryTextColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Permission ছাড়া নতুন financial SMS detect করা যাবে না।',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: context.secondaryTextColor,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 440;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.cardPadding,
+            AppSpacing.md,
+            AppSpacing.cardPadding,
+            AppSpacing.sm,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          AppActionButton(
-            label: actionLabel,
-            size: AppActionButtonSize.small,
-            variant: AppActionButtonVariant.secondary,
-            onPressed: action,
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-        ],
-      ),
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.lock_outline_rounded,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isBlocked
+                                    ? 'সেটিংস থেকে SMS permission দিন'
+                                    : 'SMS পড়ার অনুমতি প্রয়োজন',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: context.primaryTextColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Permission ছাড়া নতুন financial SMS detect করা যাবে না।',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: context.secondaryTextColor,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppActionButton(
+                      label: actionLabel,
+                      size: AppActionButtonSize.small,
+                      variant: AppActionButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: action,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, color: AppColors.warning),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isBlocked
+                                ? 'সেটিংস থেকে SMS permission দিন'
+                                : 'SMS পড়ার অনুমতি প্রয়োজন',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: context.primaryTextColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Permission ছাড়া নতুন financial SMS detect করা যাবে না।',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: context.secondaryTextColor,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppActionButton(
+                      label: actionLabel,
+                      size: AppActionButtonSize.small,
+                      variant: AppActionButtonVariant.secondary,
+                      onPressed: action,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 

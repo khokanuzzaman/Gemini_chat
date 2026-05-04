@@ -79,20 +79,30 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
           : null,
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            Padding(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 480;
+            return ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenPadding,
                 AppSpacing.md,
                 AppSpacing.screenPadding,
-                AppSpacing.md,
+                AppSpacing.xl,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _StatusHero(state: state),
-                  const SizedBox(height: AppSpacing.sm),
+              children: [
+                _StatusHero(state: state),
+                const SizedBox(height: AppSpacing.sm),
+                if (isCompact)
+                  AppActionButton(
+                    key: const Key('sms-import-open-history'),
+                    label: 'SMS History',
+                    icon: Icons.timeline_rounded,
+                    size: AppActionButtonSize.small,
+                    variant: AppActionButtonVariant.secondary,
+                    fullWidth: true,
+                    onPressed: () => SmsHistoryScreen.push(context),
+                  )
+                else
                   Align(
                     alignment: Alignment.centerRight,
                     child: AppActionButton(
@@ -104,204 +114,200 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
                       onPressed: () => SmsHistoryScreen.push(context),
                     ),
                   ),
-                  if (state.errorMessage != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    _ErrorBanner(message: state.errorMessage!),
-                  ],
-                  if (autoImportState.hasPending) ...[
-                    const SizedBox(height: AppSpacing.sectionGap),
-                    _PendingAutoImportPanel(
-                      state: autoImportState,
-                      onSaveAll: () async {
-                        final outcome = await autoImportController
-                            .confirmAndSaveAll();
-                        if (!context.mounted ||
-                            (!outcome.hasSuccess && !outcome.hasFailures)) {
-                          return;
-                        }
-                        await _showImportSummary(context, outcome);
-                      },
-                      onDismissAll: autoImportController.dismissAll,
-                      onSaveEntry: (entry) async {
-                        final error = await autoImportController.confirmAndSave(
-                          entry,
-                        );
-                        if (error == null || !context.mounted) {
-                          return;
-                        }
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(error)));
-                      },
-                      onDismissEntry: autoImportController.dismissEntry,
-                    ),
-                  ],
-                  if (state.latestScanResult != null) ...[
-                    const SizedBox(height: AppSpacing.sectionGap),
-                    _ScanSummaryStrip(
-                      result: state.latestScanResult!,
-                      readyCount: state.candidates.length,
-                    ),
-                  ],
-                  if (state.hasCandidates) ...[
-                    const SizedBox(height: AppSpacing.sectionGap),
-                    AppSegmentedTabs(
-                      tabs: const ['সব', 'খরচ', 'আয়'],
-                      selectedIndex: state.activeTab.index,
-                      onChanged: (index) {
-                        controller.setTab(SmsImportTabFilter.values[index]);
-                      },
-                      tabKeys: const [
-                        Key('sms-import-tab-all'),
-                        Key('sms-import-tab-expense'),
-                        Key('sms-import-tab-income'),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 460;
-                        final actions = Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          children: [
-                            TextButton(
-                              key: const Key('sms-import-select-all'),
-                              onPressed: state.isImporting
-                                  ? null
-                                  : controller.selectAllVisible,
-                              child: const Text('সব নির্বাচন'),
-                            ),
-                            TextButton(
-                              key: const Key('sms-import-clear-selection'),
-                              onPressed: state.isImporting
-                                  ? null
-                                  : controller.clearVisibleSelection,
-                              child: const Text('সব বাদ'),
-                            ),
-                          ],
-                        );
-                        final countLabel = Text(
-                          '${BanglaFormatters.count(state.filteredCandidates.length)}টি দেখা যাচ্ছে',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: context.secondaryTextColor,
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _ErrorBanner(message: state.errorMessage!),
+                ],
+                if (autoImportState.hasPending) ...[
+                  const SizedBox(height: AppSpacing.sectionGap),
+                  _PendingAutoImportPanel(
+                    state: autoImportState,
+                    onSaveAll: () async {
+                      final outcome = await autoImportController
+                          .confirmAndSaveAll();
+                      if (!context.mounted ||
+                          (!outcome.hasSuccess && !outcome.hasFailures)) {
+                        return;
+                      }
+                      await _showImportSummary(context, outcome);
+                    },
+                    onDismissAll: autoImportController.dismissAll,
+                    onSaveEntry: (entry) async {
+                      final error = await autoImportController.confirmAndSave(
+                        entry,
+                      );
+                      if (error == null || !context.mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error)));
+                    },
+                    onDismissEntry: autoImportController.dismissEntry,
+                  ),
+                ],
+                if (state.latestScanResult != null) ...[
+                  const SizedBox(height: AppSpacing.sectionGap),
+                  _ScanSummaryStrip(
+                    result: state.latestScanResult!,
+                    readyCount: state.candidates.length,
+                  ),
+                ],
+                if (state.hasCandidates) ...[
+                  const SizedBox(height: AppSpacing.sectionGap),
+                  AppSegmentedTabs(
+                    tabs: const ['সব', 'খরচ', 'আয়'],
+                    selectedIndex: state.activeTab.index,
+                    compact: isCompact,
+                    onChanged: (index) {
+                      controller.setTab(SmsImportTabFilter.values[index]);
+                    },
+                    tabKeys: const [
+                      Key('sms-import-tab-all'),
+                      Key('sms-import-tab-expense'),
+                      Key('sms-import-tab-income'),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 460;
+                      final actions = Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          TextButton(
+                            key: const Key('sms-import-select-all'),
+                            onPressed: state.isImporting
+                                ? null
+                                : controller.selectAllVisible,
+                            child: const Text('সব নির্বাচন'),
                           ),
-                        );
+                          TextButton(
+                            key: const Key('sms-import-clear-selection'),
+                            onPressed: state.isImporting
+                                ? null
+                                : controller.clearVisibleSelection,
+                            child: const Text('সব বাদ'),
+                          ),
+                        ],
+                      );
+                      final countLabel = Text(
+                        '${BanglaFormatters.count(state.filteredCandidates.length)}টি দেখা যাচ্ছে',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      );
 
-                        if (isCompact) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              actions,
-                              const SizedBox(height: AppSpacing.xs),
-                              countLabel,
-                            ],
-                          );
-                        }
-
-                        return Row(
+                      if (isCompact) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: actions),
-                            const SizedBox(width: AppSpacing.sm),
+                            actions,
+                            const SizedBox(height: AppSpacing.xs),
                             countLabel,
                           ],
                         );
-                      },
-                    ),
-                  ],
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: actions),
+                          const SizedBox(width: AppSpacing.sm),
+                          countLabel,
+                        ],
+                      );
+                    },
+                  ),
                 ],
-              ),
-            ),
-            Expanded(child: _buildContent(context, state, controller)),
-          ],
+                ..._buildContentChildren(context, state, controller),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildContent(
+  List<Widget> _buildContentChildren(
     BuildContext context,
     SmsImportScreenState state,
     SmsImportController controller,
   ) {
     if (state.isScanning) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.screenPadding,
-          AppSpacing.md,
-          AppSpacing.screenPadding,
-          AppSpacing.xl,
-        ),
-        child: AppLoadingState.list(),
-      );
+      return const [
+        SizedBox(height: AppSpacing.sectionGap),
+        AppLoadingState.list(),
+      ];
     }
 
     switch (state.permissionState) {
       case SmsPermissionState.unsupported:
-        return _PermissionStateView(
-          icon: Icons.phone_android_outlined,
-          title: 'এই ডিভাইসে SMS import সমর্থিত নয়',
-          subtitle:
-              'PocketPilot AI এখন Android ডিভাইসের SMS inbox থেকে লেনদেন পড়তে পারে।',
-        );
+        return [
+          _PermissionStateView(
+            icon: Icons.phone_android_outlined,
+            title: 'এই ডিভাইসে SMS import সমর্থিত নয়',
+            subtitle:
+                'PocketPilot AI এখন Android ডিভাইসের SMS inbox থেকে লেনদেন পড়তে পারে।',
+          ),
+        ];
       case SmsPermissionState.permanentlyDenied:
-        return _PermissionStateView(
-          icon: Icons.lock_outline_rounded,
-          title: 'SMS permission বন্ধ আছে',
-          subtitle:
-              'Settings থেকে SMS permission চালু করলে নতুন লেনদেন scan করা যাবে।',
-          actionLabel: 'Settings খুলুন',
-          actionKey: const Key('sms-import-open-settings-cta'),
-          onAction: openAppSettings,
-        );
+        return [
+          _PermissionStateView(
+            icon: Icons.lock_outline_rounded,
+            title: 'SMS permission বন্ধ আছে',
+            subtitle:
+                'Settings থেকে SMS permission চালু করলে নতুন লেনদেন scan করা যাবে।',
+            actionLabel: 'Settings খুলুন',
+            actionKey: const Key('sms-import-open-settings-cta'),
+            onAction: openAppSettings,
+          ),
+        ];
       case SmsPermissionState.denied:
-        return _PermissionStateView(
-          icon: Icons.mark_chat_unread_outlined,
-          title: 'SMS permission দরকার',
-          subtitle:
-              'bKash, Nagad, Rocket, Bank SMS থেকে খরচ ও আয় আনতে permission দিন।',
-          actionLabel: 'অনুমতি দিন',
-          actionKey: const Key('sms-import-permission-cta'),
-          onAction: controller.requestPermission,
-        );
+        return [
+          _PermissionStateView(
+            icon: Icons.mark_chat_unread_outlined,
+            title: 'SMS permission দরকার',
+            subtitle:
+                'bKash, Nagad, Rocket, Bank SMS থেকে খরচ ও আয় আনতে permission দিন।',
+            actionLabel: 'অনুমতি দিন',
+            actionKey: const Key('sms-import-permission-cta'),
+            onAction: controller.requestPermission,
+          ),
+        ];
       case SmsPermissionState.granted:
         break;
     }
 
     if (!state.scanAttempted) {
-      return _PermissionStateView(
-        icon: Icons.sms_rounded,
-        title: 'নতুন SMS scan করতে প্রস্তুত',
-        subtitle:
-            'নতুন financial SMS খুঁজে category ও wallet suggestion সহ review list দেখানো হবে।',
-        actionLabel: 'SMS Scan করুন',
-        actionKey: const Key('sms-import-scan-cta'),
-        onAction: controller.scanForNewTransactions,
-      );
+      return [
+        _PermissionStateView(
+          icon: Icons.sms_rounded,
+          title: 'নতুন SMS scan করতে প্রস্তুত',
+          subtitle:
+              'নতুন financial SMS খুঁজে category ও wallet suggestion সহ review list দেখানো হবে।',
+          actionLabel: 'SMS Scan করুন',
+          actionKey: const Key('sms-import-scan-cta'),
+          onAction: controller.scanForNewTransactions,
+        ),
+      ];
     }
 
     if (state.hasCandidates) {
       final groups = _buildGroups(state.filteredCandidates);
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screenPadding,
-          0,
-          AppSpacing.screenPadding,
-          AppSpacing.xl,
-        ),
-        itemCount: groups.length,
-        itemBuilder: (context, index) {
-          final group = groups[index];
-          return Padding(
+      return [
+        const SizedBox(height: AppSpacing.md),
+        for (var index = 0; index < groups.length; index++)
+          Padding(
             padding: EdgeInsets.only(
               bottom: index == groups.length - 1 ? 0 : AppSpacing.sectionGap,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _GroupHeader(group: group),
+                _GroupHeader(group: groups[index]),
                 const SizedBox(height: AppSpacing.sm),
-                for (final candidate in group.candidates) ...[
+                for (final candidate in groups[index].candidates) ...[
                   _CandidateRow(
                     key: Key('sms-import-row-${candidate.sms.id}'),
                     candidate: candidate,
@@ -327,56 +333,63 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
                 ],
               ],
             ),
-          );
-        },
-      );
+          ),
+      ];
     }
 
     final latest = state.latestScanResult;
     if (latest == null) {
-      return const SizedBox.shrink();
+      return const [SizedBox.shrink()];
     }
 
     if (latest.scannedCount == 0) {
-      return _PermissionStateView(
-        icon: Icons.inbox_outlined,
-        title: 'নতুন কোনো SMS পাওয়া যায়নি',
-        subtitle: 'Inbox-এ নতুন SMS এলে আবার scan করুন।',
-        actionLabel: 'আবার স্ক্যান করুন',
-        onAction: controller.scanForNewTransactions,
-      );
+      return [
+        _PermissionStateView(
+          icon: Icons.inbox_outlined,
+          title: 'নতুন কোনো SMS পাওয়া যায়নি',
+          subtitle: 'Inbox-এ নতুন SMS এলে আবার scan করুন।',
+          actionLabel: 'আবার স্ক্যান করুন',
+          onAction: controller.scanForNewTransactions,
+        ),
+      ];
     }
 
     if (latest.financialCount == 0) {
-      return _PermissionStateView(
-        icon: Icons.filter_alt_off_outlined,
-        title: 'Financial SMS পাওয়া যায়নি',
-        subtitle: 'এই batch-এ খরচ বা আয়ের মতো কোনো SMS ধরা পড়েনি।',
-        actionLabel: 'আবার স্ক্যান করুন',
-        onAction: controller.scanForNewTransactions,
-      );
+      return [
+        _PermissionStateView(
+          icon: Icons.filter_alt_off_outlined,
+          title: 'Financial SMS পাওয়া যায়নি',
+          subtitle: 'এই batch-এ খরচ বা আয়ের মতো কোনো SMS ধরা পড়েনি।',
+          actionLabel: 'আবার স্ক্যান করুন',
+          onAction: controller.scanForNewTransactions,
+        ),
+      ];
     }
 
     if (state.lastScanReadyCount > 0 && state.rowErrors.isEmpty) {
-      return _PermissionStateView(
-        icon: Icons.task_alt_rounded,
-        title: 'সব নির্বাচিত লেনদেন ইমপোর্ট হয়েছে',
-        subtitle:
-            '${BanglaFormatters.count(state.lastScanReadyCount)}টি SMS থেকে লেনদেন সংরক্ষণ করা হয়েছে। চাইলে আবার scan করতে পারেন।',
-        actionLabel: 'আবার স্ক্যান করুন',
-        onAction: controller.scanForNewTransactions,
-      );
+      return [
+        _PermissionStateView(
+          icon: Icons.task_alt_rounded,
+          title: 'সব নির্বাচিত লেনদেন ইমপোর্ট হয়েছে',
+          subtitle:
+              '${BanglaFormatters.count(state.lastScanReadyCount)}টি SMS থেকে লেনদেন সংরক্ষণ করা হয়েছে। চাইলে আবার scan করতে পারেন।',
+          actionLabel: 'আবার স্ক্যান করুন',
+          onAction: controller.scanForNewTransactions,
+        ),
+      ];
     }
 
-    return _PermissionStateView(
-      icon: Icons.verified_rounded,
-      title: 'নতুন কিছু বাকি নেই',
-      subtitle: latest.duplicateCount > 0
-          ? '${BanglaFormatters.count(latest.duplicateCount)}টি duplicate আগে থেকেই import করা ছিল।'
-          : 'এই scan-এ import করার মতো নতুন expense বা income পাওয়া যায়নি।',
-      actionLabel: 'আবার স্ক্যান করুন',
-      onAction: controller.scanForNewTransactions,
-    );
+    return [
+      _PermissionStateView(
+        icon: Icons.verified_rounded,
+        title: 'নতুন কিছু বাকি নেই',
+        subtitle: latest.duplicateCount > 0
+            ? '${BanglaFormatters.count(latest.duplicateCount)}টি duplicate আগে থেকেই import করা ছিল।'
+            : 'এই scan-এ import করার মতো নতুন expense বা income পাওয়া যায়নি।',
+        actionLabel: 'আবার স্ক্যান করুন',
+        onAction: controller.scanForNewTransactions,
+      ),
+    ];
   }
 
   Future<void> _showImportSummary(
@@ -393,38 +406,45 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: AppStatCard(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth < 420 ? 1 : 3;
+              final spacing = AppSpacing.sm;
+              final itemWidth =
+                  (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+              final cards = [
+                AppStatCard(
                   label: 'ইমপোর্ট হয়েছে',
                   value: BanglaFormatters.count(outcome.importedCount),
                   icon: Icons.check_circle_rounded,
                   iconColor: AppColors.success,
                   valueColor: AppColors.success,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: AppStatCard(
+                AppStatCard(
                   label: 'ব্যর্থ',
                   value: BanglaFormatters.count(outcome.failedCount),
                   icon: Icons.error_outline_rounded,
                   iconColor: AppColors.error,
                   valueColor: AppColors.error,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: AppStatCard(
+                AppStatCard(
                   label: 'স্কিপ',
                   value: BanglaFormatters.count(outcome.skippedCount),
                   icon: Icons.remove_circle_outline_rounded,
                   iconColor: AppColors.warning,
                   valueColor: AppColors.warning,
                 ),
-              ),
-            ],
+              ];
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (final card in cards)
+                    SizedBox(width: itemWidth, child: card),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -453,15 +473,21 @@ class _StatusHero extends StatelessWidget {
     final subtitle = state.lastImportDate == null
         ? 'নতুন financial SMS scan করে category ও wallet suggestion সহ review করুন'
         : 'শেষ import ${BanglaFormatters.relativeDay(state.lastImportDate!)} · আবার scan করতে পারেন';
-
-    return AppHeroCard(
-      label: 'SMS Auto-Import',
-      amount: importedLabel,
-      subtitle: subtitle,
-      icon: Icons.sms_rounded,
-      gradient: AppGradients.primary,
-      trailing: _HeroBadge(permissionState: state.permissionState),
-      height: 164,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 400;
+        return AppHeroCard(
+          label: 'SMS Auto-Import',
+          amount: importedLabel,
+          subtitle: subtitle,
+          icon: Icons.sms_rounded,
+          gradient: AppGradients.primary,
+          trailing: isCompact
+              ? null
+              : _HeroBadge(permissionState: state.permissionState),
+          height: isCompact ? 182 : 164,
+        );
+      },
     );
   }
 }
@@ -511,43 +537,52 @@ class _ScanSummaryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: AppStatCard(
-            label: 'স্ক্যান',
-            value: BanglaFormatters.count(result.scannedCount),
-            icon: Icons.mark_chat_read_rounded,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: AppStatCard(
-            label: 'ফিন্যান্স',
-            value: BanglaFormatters.count(result.financialCount),
-            icon: Icons.account_balance_wallet_outlined,
-            iconColor: AppColors.success,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: AppStatCard(
-            label: 'ডুপ্লিকেট',
-            value: BanglaFormatters.count(result.duplicateCount),
-            icon: Icons.copy_all_rounded,
-            iconColor: AppColors.warning,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: AppStatCard(
-            label: 'প্রস্তুত',
-            value: BanglaFormatters.count(readyCount),
-            icon: Icons.playlist_add_check_circle_rounded,
-            iconColor: context.appColors.primary,
-          ),
-        ),
-      ],
+    final cards = [
+      AppStatCard(
+        label: 'স্ক্যান',
+        value: BanglaFormatters.count(result.scannedCount),
+        icon: Icons.mark_chat_read_rounded,
+      ),
+      AppStatCard(
+        label: 'ফিন্যান্স',
+        value: BanglaFormatters.count(result.financialCount),
+        icon: Icons.account_balance_wallet_outlined,
+        iconColor: AppColors.success,
+      ),
+      AppStatCard(
+        label: 'ডুপ্লিকেট',
+        value: BanglaFormatters.count(result.duplicateCount),
+        icon: Icons.copy_all_rounded,
+        iconColor: AppColors.warning,
+      ),
+      AppStatCard(
+        label: 'প্রস্তুত',
+        value: BanglaFormatters.count(readyCount),
+        icon: Icons.playlist_add_check_circle_rounded,
+        iconColor: context.appColors.primary,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 360
+            ? 1
+            : constraints.maxWidth < 720
+            ? 2
+            : 4;
+        final spacing = AppSpacing.sm;
+        final itemWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards)
+              SizedBox(width: itemWidth, child: card),
+          ],
+        );
+      },
     );
   }
 }
@@ -597,97 +632,123 @@ class _PendingAutoImportPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 440;
+        return AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.appColors.primary.withValues(alpha: 0.12),
-                  borderRadius: const BorderRadius.all(AppRadius.card),
-                ),
-                child: Icon(
-                  Icons.notification_important_rounded,
-                  color: context.appColors.primary,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: context.appColors.primary.withValues(alpha: 0.12),
+                      borderRadius: const BorderRadius.all(AppRadius.card),
+                    ),
+                    child: Icon(
+                      Icons.notification_important_rounded,
+                      color: context.appColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${BanglaFormatters.count(state.pendingTransactions.length)}টি auto-detected লেনদেন অপেক্ষায় আছে',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: context.primaryTextColor,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'নিশ্চিত করলে এগুলো expense বা income হিসেবে সংরক্ষণ হবে।',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.secondaryTextColor,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: AppSpacing.md),
+              if (isCompact)
+                Column(
                   children: [
-                    Text(
-                      '${BanglaFormatters.count(state.pendingTransactions.length)}টি auto-detected লেনদেন অপেক্ষায় আছে',
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: context.primaryTextColor,
+                    AppActionButton(
+                      label: 'সব সংরক্ষণ',
+                      size: AppActionButtonSize.small,
+                      fullWidth: true,
+                      onPressed: state.isBusy ? null : onSaveAll,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppActionButton(
+                      label: 'সব বাদ',
+                      size: AppActionButtonSize.small,
+                      fullWidth: true,
+                      variant: AppActionButtonVariant.ghost,
+                      onPressed: state.isBusy ? null : onDismissAll,
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppActionButton(
+                        label: 'সব সংরক্ষণ',
+                        size: AppActionButtonSize.small,
+                        onPressed: state.isBusy ? null : onSaveAll,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'নিশ্চিত করলে এগুলো expense বা income হিসেবে সংরক্ষণ হবে।',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: context.secondaryTextColor,
-                        height: 1.4,
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: AppActionButton(
+                        label: 'সব বাদ',
+                        size: AppActionButtonSize.small,
+                        variant: AppActionButtonVariant.ghost,
+                        onPressed: state.isBusy ? null : onDismissAll,
                       ),
                     ),
                   ],
                 ),
-              ),
+              const SizedBox(height: AppSpacing.md),
+              for (
+                var index = 0;
+                index < state.pendingTransactions.length && index < 3;
+                index++
+              ) ...[
+                if (index > 0)
+                  Divider(
+                    height: AppSpacing.lg,
+                    color: context.borderColor.withValues(alpha: 0.3),
+                  ),
+                _PendingAutoImportRow(
+                  entry: state.pendingTransactions[index],
+                  isBusy: state.isBusy,
+                  onSave: () => onSaveEntry(state.pendingTransactions[index]),
+                  onDismiss: () => onDismissEntry(state.pendingTransactions[index]),
+                ),
+              ],
+              if (state.pendingTransactions.length > 3) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'আরও ${BanglaFormatters.count(state.pendingTransactions.length - 3)}টি অপেক্ষায় আছে',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.secondaryTextColor,
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: AppActionButton(
-                  label: 'সব সংরক্ষণ',
-                  size: AppActionButtonSize.small,
-                  onPressed: state.isBusy ? null : onSaveAll,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: AppActionButton(
-                  label: 'সব বাদ',
-                  size: AppActionButtonSize.small,
-                  variant: AppActionButtonVariant.ghost,
-                  onPressed: state.isBusy ? null : onDismissAll,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (
-            var index = 0;
-            index < state.pendingTransactions.length && index < 3;
-            index++
-          ) ...[
-            if (index > 0)
-              Divider(
-                height: AppSpacing.lg,
-                color: context.borderColor.withValues(alpha: 0.3),
-              ),
-            _PendingAutoImportRow(
-              entry: state.pendingTransactions[index],
-              isBusy: state.isBusy,
-              onSave: () => onSaveEntry(state.pendingTransactions[index]),
-              onDismiss: () => onDismissEntry(state.pendingTransactions[index]),
-            ),
-          ],
-          if (state.pendingTransactions.length > 3) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'আরও ${BanglaFormatters.count(state.pendingTransactions.length - 3)}টি অপেক্ষায় আছে',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: context.secondaryTextColor,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -709,57 +770,87 @@ class _PendingAutoImportRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final amountColor = entry.isIncome ? AppColors.success : AppColors.error;
     final subtitle = entry.suggestedWallet?.name ?? 'Wallet মেলেনি';
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.transaction.counterparty?.trim().isNotEmpty == true
-                    ? entry.transaction.counterparty!.trim()
-                    : entry.transaction.source.label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: context.primaryTextColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${entry.transaction.source.label} · ${entry.mappedLabel} · $subtitle',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: context.secondaryTextColor,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                BanglaFormatters.preciseCurrency(entry.transaction.amount),
-                style: AppTextStyles.titleMedium.copyWith(color: amountColor),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 420;
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              tooltip: 'সংরক্ষণ',
-              onPressed: isBusy ? null : () => onSave(),
-              icon: const Icon(Icons.check_circle_rounded),
-              color: AppColors.success,
+            Text(
+              entry.transaction.counterparty?.trim().isNotEmpty == true
+                  ? entry.transaction.counterparty!.trim()
+                  : entry.transaction.source.label,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: context.primaryTextColor,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            IconButton(
-              tooltip: 'বাদ',
-              onPressed: isBusy ? null : () => onDismiss(),
-              icon: const Icon(Icons.close_rounded),
-              color: AppColors.warning,
+            const SizedBox(height: 2),
+            Text(
+              '${entry.transaction.source.label} · ${entry.mappedLabel} · $subtitle',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.secondaryTextColor,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              BanglaFormatters.preciseCurrency(entry.transaction.amount),
+              style: AppTextStyles.titleMedium.copyWith(color: amountColor),
             ),
           ],
-        ),
-      ],
+        );
+        final actions = isCompact
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: 'সংরক্ষণ',
+                    onPressed: isBusy ? null : () => onSave(),
+                    icon: const Icon(Icons.check_circle_rounded),
+                    color: AppColors.success,
+                  ),
+                  IconButton(
+                    tooltip: 'বাদ',
+                    onPressed: isBusy ? null : () => onDismiss(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: AppColors.warning,
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  IconButton(
+                    tooltip: 'সংরক্ষণ',
+                    onPressed: isBusy ? null : () => onSave(),
+                    icon: const Icon(Icons.check_circle_rounded),
+                    color: AppColors.success,
+                  ),
+                  IconButton(
+                    tooltip: 'বাদ',
+                    onPressed: isBusy ? null : () => onDismiss(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: AppColors.warning,
+                  ),
+                ],
+              );
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [content, const SizedBox(height: AppSpacing.xs), actions],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: content),
+            const SizedBox(width: AppSpacing.sm),
+            actions,
+          ],
+        );
+      },
     );
   }
 }
@@ -784,15 +875,10 @@ class _PermissionStateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenPadding,
-        AppSpacing.md,
-        AppSpacing.screenPadding,
-        AppSpacing.xl,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xl),
       child: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             AppEmptyState(
               icon: icon,
@@ -958,120 +1044,150 @@ class _CandidateRow extends ConsumerWidget {
           : () async {
               await onTap();
             },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 430;
+          final badges = Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _SourceBadge(label: candidate.transaction.sourceLabel),
+              if (candidate.transaction.confidence < 0.98)
+                _ConfidenceBadge(confidence: candidate.transaction.confidence),
+            ],
+          );
+          final amountText = Text(
+            BanglaFormatters.preciseCurrency(draft.amount),
+            style: AppTextStyles.titleMedium.copyWith(
+              color: candidate.isIncome
+                  ? AppColors.success
+                  : context.primaryTextColor,
+            ),
+          );
+          final editText = Text(
+            'Edit',
+            style: AppTextStyles.caption.copyWith(
+              color: context.appColors.primary,
+            ),
+          );
+
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Checkbox(
-                key: Key('sms-import-check-${candidate.sms.id}'),
-                value: isSelected,
-                onChanged: isLocked
-                    ? null
-                    : (value) => onSelectionChanged(value ?? false),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    key: Key('sms-import-check-${candidate.sms.id}'),
+                    value: isSelected,
+                    onChanged: isLocked
+                        ? null
+                        : (value) => onSelectionChanged(value ?? false),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _SourceBadge(label: candidate.transaction.sourceLabel),
-                        const SizedBox(width: AppSpacing.xs),
-                        if (candidate.transaction.confidence < 0.98)
-                          _ConfidenceBadge(
-                            confidence: candidate.transaction.confidence,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      label,
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: context.primaryTextColor,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Icon(leadingIcon, size: 14, color: accentColor),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '$secondary · ${BanglaFormatters.time(draft.date)}',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: context.secondaryTextColor,
+                        badges,
+                        const SizedBox(height: AppSpacing.sm),
+                        if (isCompact) ...[
+                          Text(
+                            label,
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: context.primaryTextColor,
                             ),
                           ),
+                          const SizedBox(height: AppSpacing.xs),
+                          amountText,
+                          const SizedBox(height: AppSpacing.xs),
+                          editText,
+                        ] else
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: AppTextStyles.titleMedium.copyWith(
+                                    color: context.primaryTextColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  amountText,
+                                  const SizedBox(height: AppSpacing.xs),
+                                  editText,
+                                ],
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(leadingIcon, size: 14, color: accentColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '$secondary · ${BanglaFormatters.time(draft.date)}',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: context.secondaryTextColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            _MetaPill(
+                              icon: Icons.account_balance_wallet_outlined,
+                              label: wallet == null
+                                  ? 'ওয়ালেট ঠিক হয়নি'
+                                  : '${wallet.emoji} ${wallet.name}',
+                            ),
+                            _MetaPill(
+                              icon: Icons.schedule_rounded,
+                              label: BanglaFormatters.fullDate(draft.date),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        _MetaPill(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: wallet == null
-                              ? 'ওয়ালেট ঠিক হয়নি'
-                              : '${wallet.emoji} ${wallet.name}',
-                        ),
-                        _MetaPill(
-                          icon: Icons.schedule_rounded,
-                          label: BanglaFormatters.fullDate(draft.date),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    BanglaFormatters.preciseCurrency(draft.amount),
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: candidate.isIncome
-                          ? AppColors.success
-                          : context.primaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Edit',
-                    style: AppTextStyles.caption.copyWith(
-                      color: context.appColors.primary,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-          if (errorText != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.all(AppRadius.card),
-                border: Border.all(
-                  color: AppColors.error.withValues(alpha: 0.2),
+              if (errorText != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.08),
+                    borderRadius: const BorderRadius.all(AppRadius.card),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Text(
+                    errorText!,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.error,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                errorText!,
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-              ),
-            ),
-          ],
-        ],
+              ],
+            ],
+          );
+        },
       ),
     );
   }

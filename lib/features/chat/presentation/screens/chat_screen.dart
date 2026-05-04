@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -869,6 +871,12 @@ class _MessageListState extends State<_MessageList> {
   final Set<String> _dismissedCards = <String>{};
 
   @override
+  void initState() {
+    super.initState();
+    _loadDismissedCards();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (widget.messages.isEmpty && !widget.isResponding) {
       return _ChatEmptyState(
@@ -917,14 +925,17 @@ class _MessageListState extends State<_MessageList> {
 
   Widget _buildStreamingItem() {
     final streamingText = widget.latestStreamText?.trim();
+    final visibleStreamingText = streamingText == null
+        ? ''
+        : _expenseParser.extractVisibleStreamingText(streamingText);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        streamingText == null || streamingText.isEmpty
+        visibleStreamingText.isEmpty
             ? const TypingIndicatorWidget()
             : MessageBubble(
                 key: const ValueKey('streaming-message-bubble'),
-                text: streamingText,
+                text: visibleStreamingText,
                 isUser: false,
                 createdAt: DateTime.now(),
                 isStreaming: true,
@@ -947,8 +958,21 @@ class _MessageListState extends State<_MessageList> {
 
       if (expenseResult.isExpense || expenseResult.isIncome) {
         final parts = <Widget>[];
-        final conversationalText =
-            expenseResult.conversationalText?.trim() ?? '';
+        final conversationalText = _expenseParser.extractVisibleReplyText(
+          expenseResult.conversationalText ?? '',
+        );
+        final hasSplitExpense =
+            expenseResult.isSplit ||
+            expenseResult.expenses.any((expense) => expense.isSplit);
+        var resolvedSplitPersons = expenseResult.splitPersons;
+        if (resolvedSplitPersons == null) {
+          for (final expense in expenseResult.expenses) {
+            if (expense.splitPersons != null) {
+              resolvedSplitPersons = expense.splitPersons;
+              break;
+            }
+          }
+        }
 
         if (conversationalText.isNotEmpty) {
           parts.add(
@@ -957,7 +981,7 @@ class _MessageListState extends State<_MessageList> {
               text: conversationalText,
               isUser: false,
               createdAt: message.createdAt,
-              onLongPress: () => widget.onCopyAiMessage(message.text),
+              onLongPress: () => widget.onCopyAiMessage(conversationalText),
               promptTokenCount: message.promptTokenCount,
               outputTokenCount: message.outputTokenCount,
               totalTokenCount: message.totalTokenCount,
@@ -977,16 +1001,18 @@ class _MessageListState extends State<_MessageList> {
                 receiptData: expenseResult.receiptData!,
                 onSave: (editedReceiptData, walletId) async {
                   await widget.onSaveReceipt(editedReceiptData, walletId);
-                  _dismissCard(messageKey);
+                  await _dismissCard(messageKey);
                 },
-                onCancel: () => _dismissCard(messageKey),
+                onCancel: () {
+                  unawaited(_dismissCard(messageKey));
+                },
               ),
             );
-          } else if (expenseResult.isSplit &&
+          } else if (hasSplitExpense &&
               expenseResult.expenses.isNotEmpty) {
             final splitExpense = expenseResult.expenses.first;
             final splitPersons =
-                (expenseResult.splitPersons ?? splitExpense.splitPersons ?? 2)
+                (resolvedSplitPersons ?? splitExpense.splitPersons ?? 2)
                     .clamp(2, 12);
             parts.add(
               SplitSuggestionWidget(
@@ -994,7 +1020,7 @@ class _MessageListState extends State<_MessageList> {
                 personCount: splitPersons,
                 onSaveOnly: () async {
                   await widget.onSaveExpense(splitExpense);
-                  _dismissCard(messageKey);
+                  await _dismissCard(messageKey);
                 },
                 onOpenSplit: () {
                   Navigator.of(context).push(
@@ -1019,9 +1045,11 @@ class _MessageListState extends State<_MessageList> {
                 expenses: expenseResult.expenses,
                 onSave: (selectedExpenses, walletId) async {
                   await widget.onSaveExpenseList(selectedExpenses, walletId);
-                  _dismissCard(messageKey);
+                  await _dismissCard(messageKey);
                 },
-                onCancel: () => _dismissCard(messageKey),
+                onCancel: () {
+                  unawaited(_dismissCard(messageKey));
+                },
               ),
             );
           } else if (expenseResult.expenses.isNotEmpty) {
@@ -1030,9 +1058,11 @@ class _MessageListState extends State<_MessageList> {
                 expense: expenseResult.expenses.first,
                 onSave: (editedExpense, walletId) async {
                   await widget.onSaveExpense(editedExpense, walletId);
-                  _dismissCard(messageKey);
+                  await _dismissCard(messageKey);
                 },
-                onCancel: () => _dismissCard(messageKey),
+                onCancel: () {
+                  unawaited(_dismissCard(messageKey));
+                },
               ),
             );
           }
@@ -1063,8 +1093,11 @@ class _MessageListState extends State<_MessageList> {
                   incomes: expenseResult.incomes,
                   onSave: (selectedIncomes, walletId) async {
                     await widget.onSaveIncomeList(selectedIncomes, walletId);
+                    await _dismissCard(messageKey);
                   },
-                  onCancel: () => _dismissCard(messageKey),
+                  onCancel: () {
+                    unawaited(_dismissCard(messageKey));
+                  },
                 ),
               );
             } else {
@@ -1073,8 +1106,11 @@ class _MessageListState extends State<_MessageList> {
                   income: expenseResult.incomes.first,
                   onSave: (editedIncome, walletId) async {
                     await widget.onSaveIncome(editedIncome, walletId);
+                    await _dismissCard(messageKey);
                   },
-                  onCancel: () => _dismissCard(messageKey),
+                  onCancel: () {
+                    unawaited(_dismissCard(messageKey));
+                  },
                 ),
               );
             }
@@ -1090,9 +1126,16 @@ class _MessageListState extends State<_MessageList> {
       }
     }
 
+    final visibleText = message.isUser || message.isError
+        ? message.text
+        : _expenseParser.extractVisibleReplyText(message.text);
+    if (!message.isUser && !message.isError && visibleText.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final bubble = MessageBubble(
       key: ValueKey(message.id ?? message.createdAt.microsecondsSinceEpoch),
-      text: message.text,
+      text: visibleText,
       isUser: message.isUser,
       isReceipt: message.isReceipt,
       isVoice: message.isVoice,
@@ -1106,7 +1149,7 @@ class _MessageListState extends State<_MessageList> {
       animationIdentity: message.id ?? message.createdAt.microsecondsSinceEpoch,
       onLongPress: message.isUser || message.isError
           ? null
-          : () => widget.onCopyAiMessage(message.text),
+          : () => widget.onCopyAiMessage(visibleText),
       onOpenAnalytics: widget.onOpenAnalytics,
     );
 
@@ -1125,10 +1168,21 @@ class _MessageListState extends State<_MessageList> {
     );
   }
 
-  void _dismissCard(String key) {
+  Future<void> _loadDismissedCards() async {
+    final storedKeys = await AppPreferences.handledChatCardKeys();
+    if (!mounted || storedKeys.isEmpty) {
+      return;
+    }
+    setState(() {
+      _dismissedCards.addAll(storedKeys);
+    });
+  }
+
+  Future<void> _dismissCard(String key) async {
     setState(() {
       _dismissedCards.add(key);
     });
+    await AppPreferences.addHandledChatCardKey(key);
   }
 
   String _messageKey(MessageEntity message) {

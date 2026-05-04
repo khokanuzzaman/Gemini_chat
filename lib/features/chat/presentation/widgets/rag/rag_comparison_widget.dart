@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/ai/rag_response_parser.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
+import '../chat_card_primitives.dart';
 import 'rag_card_shell.dart';
 
 class RagComparisonWidget extends StatelessWidget {
@@ -41,6 +42,35 @@ class RagComparisonWidget extends StatelessWidget {
                   '${data.lastMonthName ?? 'আগের মাস'} বনাম ${data.monthName}',
             ),
             const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChatStatChip(
+                  icon: difference == 0
+                      ? Icons.remove_rounded
+                      : difference > 0
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded,
+                  label: difference == 0
+                      ? 'খরচ অপরিবর্তিত'
+                      : difference > 0
+                      ? '${BanglaFormatters.currency(difference.abs())} বেশি'
+                      : '${BanglaFormatters.currency(difference.abs())} কম',
+                  accentColor: difference > 0
+                      ? const Color(0xFFDC2626)
+                      : difference < 0
+                      ? const Color(0xFF16A34A)
+                      : AppColors.warning,
+                ),
+                ChatStatChip(
+                  icon: Icons.category_rounded,
+                  label: '${BanglaFormatters.count(categories.length)}টি ক্যাটাগরি',
+                  accentColor: AppColors.warning,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -60,21 +90,16 @@ class RagComparisonWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
+            ChatSectionSurface(
+              accentColor: AppColors.warning,
+              backgroundColor: context.cardBackgroundColor,
+              borderColor: context.ragCardBorder(AppColors.warning),
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.cardBackgroundColor,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: context.ragCardBorder(AppColors.warning),
-                ),
-              ),
               child: Column(
                 children: [
                   const Row(
                     children: [
-                      Expanded(child: _TableHeading(text: 'Category')),
+                      Expanded(child: _TableHeading(text: 'ক্যাটাগরি')),
                       SizedBox(width: 12),
                       Expanded(child: _TableHeading(text: 'আগের মাস')),
                       SizedBox(width: 12),
@@ -136,13 +161,11 @@ class _AmountColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ChatSectionSurface(
+      accentColor: AppColors.warning,
+      backgroundColor: context.cardBackgroundColor,
+      borderColor: context.ragCardBorder(AppColors.warning),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.cardBackgroundColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.ragCardBorder(AppColors.warning)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -69,6 +69,55 @@ void main() {
     expect(result.conversationalText, response);
   });
 
+  test('extractVisibleReplyText returns conversational text from json payload', () {
+    const response =
+        '{"text":"খরচটা যোগ করব?","expenses":[{"amount":60,"category":"Transport","description":"রিকশা","date":"today"}],"incomes":[]}';
+
+    final visibleText = parser.extractVisibleReplyText(response);
+
+    expect(visibleText, 'খরচটা যোগ করব?');
+  });
+
+  test('extractVisibleReplyText removes invalid json and keeps plain text', () {
+    const response = '[{"amount":30,"category":"Food",]\nঠিক বুঝিনি';
+
+    final visibleText = parser.extractVisibleReplyText(response);
+
+    expect(visibleText, 'ঠিক বুঝিনি');
+  });
+
+  test('extractVisibleStreamingText hides partial json fragments', () {
+    const response = '{"expenses":[{"amount":30';
+
+    final visibleText = parser.extractVisibleStreamingText(response);
+
+    expect(visibleText, isEmpty);
+  });
+
+  test('extractVisibleStreamingText keeps natural text before partial json', () {
+    const response = 'ঠিক আছে\n{"expenses":[{"amount":30';
+
+    final visibleText = parser.extractVisibleStreamingText(response);
+
+    expect(visibleText, 'ঠিক আছে');
+  });
+
+  test('parseExpenseFromResponse preserves split metadata in object payloads', () {
+    const response =
+        '{"expenses":[{"amount":800,"category":"Food","description":"দলের খাবার","date":"2026-01-14","isSplit":true,"splitPersons":4}],"incomes":[],"text":"split bill বানাবো?"}';
+
+    final result = parser.parseExpenseFromResponse(response);
+
+    expect(result.isExpense, isTrue);
+    expect(result.isMultiple, isFalse);
+    expect(result.isSplit, isTrue);
+    expect(result.splitPersons, 4);
+    expect(result.expenses, hasLength(1));
+    expect(result.expenses.single.isSplit, isTrue);
+    expect(result.expenses.single.splitPersons, 4);
+    expect(result.conversationalText, 'split bill বানাবো?');
+  });
+
   test('ExpenseData parses past date strings correctly', () {
     final expense = ExpenseData.fromJson({
       'amount': 30,

@@ -18,6 +18,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/mlkit/ocr_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/premium/premium_providers.dart';
+import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/scanner/receipt_scanner_service.dart';
 import '../../../../core/scanner/scan_result.dart';
@@ -143,7 +144,7 @@ final limitReachedStatusProvider = StateProvider<UsageStatus?>((ref) => null);
 final openAiRateLimitSnapshotProvider = StateProvider<RateLimitSnapshot?>(
   (ref) => null,
 );
-final ragEnabledProvider = StateProvider<bool>((ref) => true);
+final ragEnabledProvider = StateProvider<bool>((ref) => false);
 final lastMessageUsedRagProvider = StateProvider<bool>((ref) => false);
 final latestRagStructuredDataProvider = StateProvider<RagStructuredData?>(
   (ref) => null,
@@ -431,6 +432,7 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     try {
       await _stopStreaming();
       await ref.read(chatRepositoryProvider).clearMessages();
+      await AppPreferences.clearHandledChatCardKeys();
       ref.read(ragResponseMapProvider.notifier).state = const {};
       ref.read(latestRagStructuredDataProvider.notifier).state = null;
       state = const AsyncData([]);

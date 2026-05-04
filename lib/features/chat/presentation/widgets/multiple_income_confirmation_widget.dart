@@ -8,6 +8,7 @@ import '../../../../core/utils/bangla_formatters.dart';
 import '../../../income/domain/entities/income_source.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
+import 'chat_card_primitives.dart';
 
 class MultipleIncomeConfirmationWidget extends ConsumerStatefulWidget {
   const MultipleIncomeConfirmationWidget({
@@ -48,99 +49,116 @@ class _MultipleIncomeConfirmationWidgetState
   Widget build(BuildContext context) {
     final activeWallet = ref.watch(activeWalletProvider);
     final effectiveWalletId = _selectedWalletId ?? activeWallet?.id;
-    final selectedTotal = _selectedIncomes.fold<double>(
+    final selectedIncomes = _selectedIncomes;
+    final selectedTotal = selectedIncomes.fold<double>(
       0,
       (sum, income) => sum + income.amount,
     );
     final hasFutureDates = _displayIncomes.any((income) => income.isFutureDate);
     final hasInvalidDates = _displayIncomes.any((income) => income.hasInvalidDate);
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.9,
-        ),
-        child: Card(
-          elevation: 0,
-          color: context.cardBackgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-            side: BorderSide(color: context.borderColor),
+    return ChatDataCardShell(
+      accentColor: AppColors.success,
+      maxWidthFactor: 0.9,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ChatCardHeader(
+            icon: Icons.savings_rounded,
+            title: 'একাধিক আয় draft',
+            subtitle: 'যেগুলো রাখতে চান সেগুলো বেছে নিন',
+            accentColor: AppColors.success,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChatStatChip(
+                icon: Icons.receipt_long_rounded,
+                label: '${BanglaFormatters.count(_displayIncomes.length)}টি আয়',
+                accentColor: AppColors.success,
+              ),
+              ChatStatChip(
+                icon: Icons.payments_rounded,
+                label: BanglaFormatters.currency(selectedTotal),
+                accentColor: AppColors.success,
+              ),
+            ],
+          ),
+          if (_hasOverflow) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text: 'অনেক বেশি item। প্রথম ১০টা দেখানো হচ্ছে।',
+              backgroundColor: Color(0xFFF0FDF4),
+              borderColor: Color(0xFFBBF7D0),
+              textColor: Color(0xFF15803D),
+            ),
+          ],
+          if (hasInvalidDates) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.info_outline_rounded,
+              text:
+                  'কিছু item-এর তারিখ বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে। চাইলে বদলান।',
+              backgroundColor: Color(0xFFF8FAFC),
+              borderColor: Color(0xFFE2E8F0),
+              textColor: Color(0xFF475569),
+            ),
+          ],
+          if (hasFutureDates) ...[
+            const SizedBox(height: 12),
+            const ChatInfoBanner(
+              icon: Icons.warning_amber_rounded,
+              text: 'এখানে ভবিষ্যতের তারিখ আছে। নিশ্চিত?',
+              backgroundColor: Color(0xFFF0FDF4),
+              borderColor: Color(0xFFBBF7D0),
+              textColor: Color(0xFF15803D),
+            ),
+          ],
+          const SizedBox(height: 14),
+          ChatSectionSurface(
+            padding: const EdgeInsets.all(12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: _displayIncomes.length > 4 ? 320 : 220,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (var index = 0; index < _displayIncomes.length; index++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _IncomeRow(
+                          income: _displayIncomes[index],
+                          checked: _checked[index],
+                          onChanged: (value) {
+                            setState(() {
+                              _checked[index] = value ?? false;
+                            });
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ChatSectionSurface(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_hasOverflow)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.info_outline_rounded,
-                      text: 'অনেক বেশি item। প্রথম ১০টা দেখানো হচ্ছে।',
-                      backgroundColor: Color(0xFFF0FDF4),
-                      borderColor: Color(0xFFBBF7D0),
-                      textColor: Color(0xFF15803D),
-                    ),
-                  ),
-                if (hasInvalidDates)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.info_outline_rounded,
-                      text:
-                          'কিছু item-এর তারিখ বোঝা যায়নি, আজকের তারিখ দেওয়া হয়েছে। চাইলে বদলান।',
-                      backgroundColor: Color(0xFFF8FAFC),
-                      borderColor: Color(0xFFE2E8F0),
-                      textColor: Color(0xFF475569),
-                    ),
-                  ),
-                if (hasFutureDates)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _Banner(
-                      icon: Icons.warning_amber_rounded,
-                      text: 'এখানে ভবিষ্যতের তারিখ আছে। নিশ্চিত?',
-                      backgroundColor: Color(0xFFF0FDF4),
-                      borderColor: Color(0xFFBBF7D0),
-                      textColor: Color(0xFF15803D),
-                    ),
-                  ),
                 Text(
-                  '${BanglaFormatters.count(_displayIncomes.length)}টি আয় পাওয়া গেছে',
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                  'কোন wallet-এ যাবে',
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 10),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: _displayIncomes.length > 4 ? 300 : 200,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        for (var index = 0; index < _displayIncomes.length; index++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _IncomeRow(
-                              income: _displayIncomes[index],
-                              checked: _checked[index],
-                              onChanged: (value) {
-                                setState(() {
-                                  _checked[index] = value ?? false;
-                                });
-                              },
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
                 WalletSelectorWidget(
                   selectedWalletId: effectiveWalletId,
                   onChanged: (walletId) {
@@ -149,77 +167,71 @@ class _MultipleIncomeConfirmationWidgetState
                     });
                   },
                 ),
-                const SizedBox(height: 14),
-                Divider(height: 1, color: context.borderColor),
-                const SizedBox(height: 14),
-                if (_isSaved)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.success.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: const Text(
-                      'আয় সংরক্ষণ হয়েছে',
-                      style: TextStyle(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'মোট: ${BanglaFormatters.currency(selectedTotal)}',
-                          style: TextStyle(
-                            color: context.primaryTextColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      OutlinedButton(
-                        onPressed: _isSaving ? null : widget.onCancel,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: const BorderSide(color: AppColors.error),
-                        ),
-                        child: const Text(AppStrings.cancelButton),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _isSaving || _selectedIncomes.isEmpty
-                            ? null
-                            : () => _save(effectiveWalletId),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text(AppStrings.saveButton),
-                      ),
-                    ],
-                  ),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          if (_isSaved)
+            const ChatInfoBanner(
+              icon: Icons.check_circle_rounded,
+              text: 'আয় সংরক্ষণ হয়েছে',
+              backgroundColor: Color(0xFFF0FDF4),
+              borderColor: Color(0xFFBBF7D0),
+              textColor: Color(0xFF15803D),
+            )
+          else ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChatStatChip(
+                  icon: Icons.checklist_rounded,
+                  label: '${BanglaFormatters.count(selectedIncomes.length)}টি বাছাই',
+                  accentColor: AppColors.success,
+                ),
+                ChatStatChip(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'মোট ${BanglaFormatters.currency(selectedTotal)}',
+                  accentColor: AppColors.success,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSaving ? null : widget.onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                    ),
+                    child: const Text(AppStrings.cancelButton),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _isSaving || selectedIncomes.isEmpty
+                        ? null
+                        : () => _save(effectiveWalletId),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(AppStrings.saveButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -275,88 +287,92 @@ class _IncomeRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: context.mutedSurfaceColor,
+        color: context.cardBackgroundColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.borderColor),
-      ),
-      child: Row(
-        children: [
-          Checkbox(value: checked, onChanged: onChanged),
-          const SizedBox(width: 4),
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  income.displayDate,
-                  style: AppTextStyles.caption.copyWith(
-                    color: context.secondaryTextColor,
-                  ),
-                ),
-              ],
-            ),
+        border: Border.all(
+          color: AppColors.success.withValues(
+            alpha: context.isDarkMode ? 0.28 : 0.14,
           ),
-          Text(
-            BanglaFormatters.currency(income.amount),
-            style: const TextStyle(
-              color: AppColors.success,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({
-    required this.icon,
-    required this.text,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.textColor,
-  });
-
-  final IconData icon;
-  final String text;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: textColor),
-          const SizedBox(width: 8),
+          Checkbox(value: checked, onChanged: onChanged),
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(emoji, style: const TextStyle(fontSize: 16)),
+          ),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        income.description.trim().isEmpty
+                            ? label
+                            : income.description.trim(),
+                        style: TextStyle(
+                          color: context.primaryTextColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      BanglaFormatters.currency(income.amount),
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: AppColors.success,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      income.displayDate,
+                      style: AppTextStyles.caption.copyWith(
+                        color: context.secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
