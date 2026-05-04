@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 
@@ -13,6 +14,7 @@ class AppChip extends StatelessWidget {
     this.onTap,
     this.color,
     this.compact = false,
+    this.enableHaptic = true,
   });
 
   final String label;
@@ -22,6 +24,7 @@ class AppChip extends StatelessWidget {
   final VoidCallback? onTap;
   final Color? color;
   final bool compact;
+  final bool enableHaptic;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +37,12 @@ class AppChip extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: onTap == null
+            ? null
+            : () {
+                if (enableHaptic) HapticFeedback.lightImpact();
+                onTap!();
+              },
         borderRadius: const BorderRadius.all(AppRadius.chip),
         child: AnimatedContainer(
           duration: AppMotion.fast,

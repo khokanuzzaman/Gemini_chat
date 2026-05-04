@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 
@@ -13,6 +14,7 @@ class AppCard extends StatelessWidget {
     this.onTap,
     this.gradient,
     this.borderRadius,
+    this.enableHaptic = true,
   });
 
   final Widget child;
@@ -22,6 +24,7 @@ class AppCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Gradient? gradient;
   final BorderRadius? borderRadius;
+  final bool enableHaptic;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +52,12 @@ class AppCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: onTap == null
+                ? null
+                : () {
+                    if (enableHaptic) HapticFeedback.lightImpact();
+                    onTap!();
+                  },
             borderRadius: radius,
             child: Padding(padding: padding, child: child),
           ),
