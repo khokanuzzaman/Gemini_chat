@@ -848,6 +848,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
     final selected = monthly ?? packages.first;
+    // TODO: append yearly savings hint when both monthly and yearly packages
+    // exist. Skipped because PremiumPackage exposes only priceString (formatted
+    // Bangla/USD) without a numeric priceAmount. Adding numeric pricing would
+    // require changing PremiumPackage to surface rcPackage.storeProduct.price,
+    // which is out of scope for this dashboard polish pass.
     return 'Premium-এ আপগ্রেড করুন · ${selected.priceString}';
   }
 

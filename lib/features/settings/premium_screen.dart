@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
@@ -50,17 +51,16 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
               gradient: AppGradients.primary,
               height: 188,
             ),
-            if (configurationWarning != null) ...[
+            if (configurationWarning != null &&
+                (kDebugMode ||
+                    premiumService.keyMode == RevenueCatKeyMode.missing ||
+                    premiumService.keyMode == RevenueCatKeyMode.invalid)) ...[
               const SizedBox(height: AppSpacing.md),
               _RevenueCatWarningCard(
                 message: configurationWarning,
                 isTestStore: isTestStore,
               ),
             ],
-            const SizedBox(height: AppSpacing.sectionGap),
-            const AppSectionHeader(title: 'কী পাবেন'),
-            const SizedBox(height: AppSpacing.md),
-            const _FeatureComparisonCard(),
             const SizedBox(height: AppSpacing.sectionGap),
             if (isPremium && premiumStatus != null)
               _ActivePremiumCard(status: premiumStatus)
@@ -187,6 +187,10 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
                 },
               ),
             ],
+            const SizedBox(height: AppSpacing.sectionGap),
+            const AppSectionHeader(title: 'কী পাবেন'),
+            const SizedBox(height: AppSpacing.md),
+            const _FeatureComparisonCard(),
           ],
         ),
       ),
@@ -653,15 +657,13 @@ class _PricingCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            if (package.currencyCode.toUpperCase() != 'BDT') ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'স্টোর মুদ্রা: ${package.currencyCode}',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: context.secondaryTextColor,
-                ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'স্টোর মুদ্রা: ${package.currencyCode}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.secondaryTextColor,
               ),
-            ],
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               package.isYearly ? 'প্রতি বছরে' : 'প্রতি মাসে',
