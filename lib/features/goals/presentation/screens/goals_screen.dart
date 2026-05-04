@@ -28,9 +28,17 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
     return AppPageScaffold(
       title: 'লক্ষ্য',
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showAddEditGoalSheet(context),
-        child: const Icon(Icons.add_rounded),
+      floatingActionButton: IgnorePointer(
+        ignoring: _selectedIndex != 0,
+        child: AnimatedScale(
+          scale: _selectedIndex == 0 ? 1 : 0,
+          duration: AppMotion.fast,
+          curve: AppMotion.standard,
+          child: FloatingActionButton(
+            onPressed: () => showAddEditGoalSheet(context),
+            child: const Icon(Icons.add_rounded),
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -139,6 +147,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             ),
             AppActionButton(
               label: 'বাতিল করুন',
+              variant: AppActionButtonVariant.danger,
               onPressed: () => Navigator.of(dialogContext).pop(true),
             ),
           ],

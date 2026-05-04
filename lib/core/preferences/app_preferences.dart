@@ -10,6 +10,8 @@ class AppPreferences {
   static const currencySymbolKey = 'currency_symbol';
   static const dateFormatKey = 'date_format';
   static const aiGuidePromptSeenKey = 'ai_guide_prompt_seen';
+  static const handledChatCardKeysKey = 'handled_chat_card_keys';
+  static const firstWalletPromptSeenKey = 'first_wallet_prompt_seen';
   static const _activeWalletIdKey = 'active_wallet_id';
 
   static Future<SharedPreferences> get _prefs async =>
@@ -24,7 +26,7 @@ class AppPreferences {
   }
 
   static Future<bool> isRagEnabled() async {
-    return (await _prefs).getBool(ragEnabledKey) ?? true;
+    return (await _prefs).getBool(ragEnabledKey) ?? false;
   }
 
   static Future<void> setRagEnabled(bool value) async {
@@ -69,6 +71,34 @@ class AppPreferences {
 
   static Future<void> setAiGuidePromptSeen(bool value) async {
     await (await _prefs).setBool(aiGuidePromptSeenKey, value);
+  }
+
+  static Future<bool> isFirstWalletPromptSeen() async {
+    return (await _prefs).getBool(firstWalletPromptSeenKey) ?? false;
+  }
+
+  static Future<void> setFirstWalletPromptSeen(bool value) async {
+    await (await _prefs).setBool(firstWalletPromptSeenKey, value);
+  }
+
+  static Future<Set<String>> handledChatCardKeys() async {
+    final values = (await _prefs).getStringList(handledChatCardKeysKey);
+    return values == null ? <String>{} : values.toSet();
+  }
+
+  static Future<void> addHandledChatCardKey(String key) async {
+    final prefs = await _prefs;
+    final keys =
+        prefs.getStringList(handledChatCardKeysKey)?.toSet() ?? <String>{};
+    keys.add(key);
+    await prefs.setStringList(
+      handledChatCardKeysKey,
+      keys.toList(growable: false),
+    );
+  }
+
+  static Future<void> clearHandledChatCardKeys() async {
+    await (await _prefs).remove(handledChatCardKeysKey);
   }
 
   static Future<int?> activeWalletId() async {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/navigation/app_page_route.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../wallet/presentation/screens/wallet_management_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onComplete});
@@ -120,16 +122,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     Row(
                       children: [
-                        AnimatedOpacity(
-                          opacity: isLastPage ? 0 : 1,
+                        AnimatedSwitcher(
                           duration: AppMotion.fast,
-                          child: IgnorePointer(
-                            ignoring: isLastPage,
-                            child: TextButton(
-                              onPressed: _complete,
-                              child: const Text('এড়িয়ে যান'),
-                            ),
-                          ),
+                          child: isLastPage
+                              ? const SizedBox.shrink(
+                                  key: ValueKey('skip-hidden'),
+                                )
+                              : TextButton(
+                                  key: const ValueKey('skip-visible'),
+                                  onPressed: () => _complete(),
+                                  child: const Text('এড়িয়ে যান'),
+                                ),
                         ),
                         const Spacer(),
                         AppActionButton(
@@ -137,7 +140,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           icon: isLastPage
                               ? Icons.check_rounded
                               : Icons.arrow_forward_rounded,
-                          onPressed: isLastPage ? _complete : _nextPage,
+                          onPressed: isLastPage
+                              ? () => _complete(showWalletPrompt: true)
+                              : _nextPage,
                           variant: AppActionButtonVariant.primary,
                         ),
                       ],
@@ -152,12 +157,55 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Future<void> _complete() async {
+  Future<void> _complete({bool showWalletPrompt = false}) async {
     await AppPreferences.setOnboardingComplete(true);
+    final shouldShowWalletPrompt =
+        showWalletPrompt && !await AppPreferences.isFirstWalletPromptSeen();
     if (!mounted) {
       return;
     }
+    final navigator = Navigator.of(context);
     widget.onComplete();
+    if (!shouldShowWalletPrompt) {
+      return;
+    }
+
+    final action = await showDialog<_WalletPromptAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('প্রথম ওয়ালেট যোগ করবেন?'),
+          content: const Text(
+            'শুরু করার আগে একটি ওয়ালেট যোগ করলে খরচ ট্র্যাক করা সহজ হবে।',
+          ),
+          actions: [
+            AppActionButton(
+              label: 'পরে করব',
+              variant: AppActionButtonVariant.ghost,
+              onPressed: () => Navigator.of(
+                dialogContext,
+              ).pop(_WalletPromptAction.skip),
+            ),
+            AppActionButton(
+              label: 'এখন যোগ করুন',
+              onPressed: () => Navigator.of(
+                dialogContext,
+              ).pop(_WalletPromptAction.addNow),
+            ),
+          ],
+        );
+      },
+    );
+
+    await AppPreferences.setFirstWalletPromptSeen(true);
+    if (!navigator.mounted || action != _WalletPromptAction.addNow) {
+      return;
+    }
+
+    await navigator.push(
+      AppSlideRoute(builder: (_) => const WalletManagementScreen()),
+    );
   }
 
   Future<void> _nextPage() async {
@@ -284,3 +332,5 @@ class _OnboardingData {
   final LinearGradient gradient;
   final List<({String emoji, String text})> bullets;
 }
+
+enum _WalletPromptAction { addNow, skip }

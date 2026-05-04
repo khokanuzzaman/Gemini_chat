@@ -31,7 +31,17 @@ class BankSmsParser extends FinancialSmsMessageParser {
   ];
 
   static final RegExp _hasDirectionKeyword = RegExp(
-    r'\b(debit(?:ed)?|credit(?:ed)?|withdraw(?:n|al)?|purchase|pos|transfer|deposit(?:ed)?|salary)\b',
+    r'\b(debit(?:ed)?|credit(?:ed)?|withdraw(?:n|al)?|purchase|pos|transfer|deposit(?:ed)?|salary|dr|cr)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _creditKeyword = RegExp(
+    r'\b(credited?|deposit(?:ed)?|received|salary|cr)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _debitKeyword = RegExp(
+    r'\b(debited?|withdraw(?:n|al)?|purchase|pos|dr)\b',
     caseSensitive: false,
   );
 
@@ -92,10 +102,10 @@ class BankSmsParser extends FinancialSmsMessageParser {
   }
 
   SmsTransactionDirection _resolveDirection(String body) {
-    if (_contains(body, const ['credited', 'credit', 'deposit', 'received'])) {
+    if (_creditKeyword.hasMatch(body)) {
       return SmsTransactionDirection.credit;
     }
-    if (_contains(body, const ['debited', 'debit', 'withdraw', 'purchase'])) {
+    if (_debitKeyword.hasMatch(body)) {
       return SmsTransactionDirection.debit;
     }
     if (body.contains('transfer')) {

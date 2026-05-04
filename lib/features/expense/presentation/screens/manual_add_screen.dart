@@ -41,16 +41,26 @@ class ManualAddScreen extends ConsumerStatefulWidget {
 class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _descriptionFocusNode = FocusNode();
 
   String _selectedCategory = 'Food';
   int? _selectedWalletId;
   DateTime _selectedDate = DateTime.now();
+  String? _amountErrorText;
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _amountController.addListener(_syncAmountValidation);
+  }
+
+  @override
   void dispose() {
+    _amountController.removeListener(_syncAmountValidation);
     _amountController.dispose();
     _descriptionController.dispose();
+    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
@@ -87,34 +97,22 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
               _AmountFieldCard(
                 controller: _amountController,
                 accentColor: context.appColors.primary,
+                errorText: _amountErrorText,
+                onSubmitted: () {
+                  _descriptionFocusNode.requestFocus();
+                },
               ),
               const SizedBox(height: AppSpacing.sectionGap),
               _SectionBlock(
                 title: 'ক্যাটাগরি',
-                child: SizedBox(
-                  height: 44,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categoryNames.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: AppSpacing.sm),
-                    itemBuilder: (context, index) {
-                      final category = categoryNames[index];
-                      final meta = resolveExpenseCategory(category);
-                      final isSelected = _selectedCategory == category;
-                      return AppChip(
-                        label: _categoryDisplayName(category),
-                        emoji: _categoryEmoji(category),
-                        color: meta.color,
-                        selected: isSelected,
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = category;
-                          });
-                        },
-                      );
-                    },
-                  ),
+                child: _CategoryChipScroller(
+                  categories: categoryNames,
+                  selectedCategory: _selectedCategory,
+                  onSelected: (category) {
+                    setState(() {
+                      _selectedCategory = category;
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: AppSpacing.sectionGap),
@@ -122,6 +120,7 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
                 title: 'বিবরণ',
                 child: TextField(
                   controller: _descriptionController,
+                  focusNode: _descriptionFocusNode,
                   maxLength: 100,
                   maxLines: 3,
                   style: AppTextStyles.bodyLarge.copyWith(
@@ -176,13 +175,18 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
       return;
     }
 
+    final today = DateTime.now();
+    final pickedDate = DateTime(picked.year, picked.month, picked.day);
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final shouldUseEndOfDay = pickedDate.isBefore(todayDate);
+
     setState(() {
       _selectedDate = DateTime(
         picked.year,
         picked.month,
         picked.day,
-        _selectedDate.hour,
-        _selectedDate.minute,
+        shouldUseEndOfDay ? 23 : _selectedDate.hour,
+        shouldUseEndOfDay ? 59 : _selectedDate.minute,
       );
     });
   }
@@ -194,7 +198,9 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
         _selectedWalletId ?? ref.read(activeWalletProvider)?.id;
 
     if (amount == null || amount <= 0) {
-      _showMessage('সঠিক পরিমাণ লিখুন');
+      setState(() {
+        _amountErrorText = 'সঠিক পরিমাণ লিখুন';
+      });
       return;
     }
 
@@ -244,6 +250,30 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _syncAmountValidation() {
+    final nextError = _validateAmount(_amountController.text);
+    if (nextError == _amountErrorText) {
+      return;
+    }
+
+    setState(() {
+      _amountErrorText = nextError;
+    });
+  }
+
+  String? _validateAmount(String raw) {
+    if (raw.trim().isEmpty) {
+      return null;
+    }
+
+    final amount = _parseAmount(raw);
+    if (amount == null || amount <= 0) {
+      return 'সঠিক পরিমাণ লিখুন';
+    }
+
+    return null;
   }
 
   double? _parseAmount(String? raw) {
@@ -300,10 +330,17 @@ class _SectionBlock extends StatelessWidget {
 }
 
 class _AmountFieldCard extends StatelessWidget {
-  const _AmountFieldCard({required this.controller, required this.accentColor});
+  const _AmountFieldCard({
+    required this.controller,
+    required this.accentColor,
+    required this.errorText,
+    required this.onSubmitted,
+  });
 
   final TextEditingController controller;
   final Color accentColor;
+  final String? errorText;
+  final VoidCallback onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -326,36 +363,102 @@ class _AmountFieldCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '৳',
-                style: AppTextStyles.heroAmount.copyWith(color: accentColor),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.heroAmount.copyWith(color: accentColor),
-                  decoration: const InputDecoration(
-                    hintText: '0',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    counterText: '',
-                  ),
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => onSubmitted(),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.heroAmount.copyWith(color: accentColor),
+              decoration: InputDecoration(
+                hintText: '0',
+                prefixText: '৳ ',
+                prefixStyle: AppTextStyles.heroAmount.copyWith(
+                  color: accentColor,
                 ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                counterText: '',
               ),
-            ],
+            ),
+          ),
+          AnimatedSwitcher(
+            duration: AppMotion.fast,
+            child: errorText == null
+                ? const SizedBox(height: AppSpacing.sm)
+                : Padding(
+                    key: const ValueKey('amount-error'),
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: Text(
+                      errorText!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CategoryChipScroller extends StatelessWidget {
+  const _CategoryChipScroller({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onSelected,
+  });
+
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ShaderMask(
+        shaderCallback: (bounds) {
+          return const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.transparent,
+              Colors.black,
+              Colors.black,
+              Colors.transparent,
+            ],
+            stops: [0, 0.08, 0.92, 1],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.dstIn,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            final meta = resolveExpenseCategory(category);
+            final isSelected = selectedCategory == category;
+            return AppChip(
+              label: _categoryDisplayName(category),
+              emoji: _categoryEmoji(category),
+              color: meta.color,
+              selected: isSelected,
+              onTap: () => onSelected(category),
+            );
+          },
+        ),
       ),
     );
   }

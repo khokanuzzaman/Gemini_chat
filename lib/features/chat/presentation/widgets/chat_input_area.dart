@@ -22,7 +22,6 @@ class ChatInputArea extends ConsumerWidget {
     required this.isRecording,
     required this.isScanning,
     required this.recordingDuration,
-    required this.onMessageChanged,
     required this.onSubmitMessage,
     required this.onScanFromCamera,
     required this.onScanFromGallery,
@@ -42,7 +41,6 @@ class ChatInputArea extends ConsumerWidget {
   final bool isRecording;
   final bool isScanning;
   final String recordingDuration;
-  final ValueChanged<String> onMessageChanged;
   final VoidCallback onSubmitMessage;
   final Future<void> Function() onScanFromCamera;
   final Future<void> Function() onScanFromGallery;
@@ -145,7 +143,6 @@ class ChatInputArea extends ConsumerWidget {
                                 style: AppTextStyles.bodyLarge.copyWith(
                                   color: context.primaryTextColor,
                                 ),
-                                onChanged: onMessageChanged,
                                 decoration: InputDecoration(
                                   hintText: 'একটি বার্তা লিখুন...',
                                   hintStyle: AppTextStyles.bodyLarge.copyWith(

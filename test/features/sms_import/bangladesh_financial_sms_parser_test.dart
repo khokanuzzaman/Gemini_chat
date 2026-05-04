@@ -145,6 +145,27 @@ void main() {
     expect(parsed.balanceAfter, 78000);
   });
 
+  test('parses bank DR style debit sms', () {
+    final parsed = parser.parseMessage(
+      message(
+        id: 11,
+        address: 'SCB',
+        body:
+            'SCB: A/C XX1234 DR by BDT 1,250.00 on 27/04/2026 15:45 at DARAZ. Avl Bal BDT 45,500.75. Ref 998877',
+        date: DateTime(2026, 4, 27, 15, 46),
+      ),
+    );
+
+    expect(parsed, isNotNull);
+    expect(parsed!.source, SmsSenderBrand.bank);
+    expect(parsed.kind, SmsTransactionKind.bankDebit);
+    expect(parsed.direction, SmsTransactionDirection.debit);
+    expect(parsed.amount, 1250);
+    expect(parsed.accountMask, 'XX1234');
+    expect(parsed.balanceAfter, 45500.75);
+    expect(parsed.reference, '998877');
+  });
+
   test('returns null for non financial sms', () {
     final parsed = parser.parseMessage(
       message(

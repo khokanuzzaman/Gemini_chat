@@ -92,7 +92,7 @@ class AppShellNavigation {
         openDashboard();
         break;
       case 'anomaly_alert':
-        openAnalytics(tabIndex: 1);
+        openAnalytics(tabIndex: 4);
         break;
       case 'weekly_report':
         openAnalytics();

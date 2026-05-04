@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:isar_community/isar.dart';
@@ -483,7 +484,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
             elevation: 0,
             backgroundColor: Colors.transparent,
             indicatorColor: Colors.transparent,
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
               _setCurrentIndex(index);
@@ -529,17 +530,33 @@ class _MainShellState extends ConsumerState<_MainShell> {
                 label: 'খরচ',
               ),
               NavigationDestination(
-                icon: _NavIcon(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'বিশ্লেষণ',
-                  active: false,
-                  badgeCount: highSeverityAnomalyCount,
+                icon: Badge(
+                  isLabelVisible: highSeverityAnomalyCount > 0,
+                  backgroundColor: AppColors.error,
+                  label: Text(
+                    highSeverityAnomalyCount > 9
+                        ? '9+'
+                        : '$highSeverityAnomalyCount',
+                  ),
+                  child: const _NavIcon(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'বিশ্লেষণ',
+                    active: false,
+                  ),
                 ),
-                selectedIcon: _NavIcon(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'বিশ্লেষণ',
-                  active: true,
-                  badgeCount: highSeverityAnomalyCount,
+                selectedIcon: Badge(
+                  isLabelVisible: highSeverityAnomalyCount > 0,
+                  backgroundColor: AppColors.error,
+                  label: Text(
+                    highSeverityAnomalyCount > 9
+                        ? '9+'
+                        : '$highSeverityAnomalyCount',
+                  ),
+                  child: const _NavIcon(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'বিশ্লেষণ',
+                    active: true,
+                  ),
                 ),
                 label: 'বিশ্লেষণ',
               ),
@@ -592,6 +609,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
       return;
     }
 
+    HapticFeedback.selectionClick();
     setState(() {
       _currentIndex = index;
     });
@@ -606,13 +624,11 @@ class _NavIcon extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.active,
-    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final bool active;
-  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -635,39 +651,7 @@ class _NavIcon extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(icon, color: active ? activeColor : inactiveColor),
-            if (badgeCount > 0)
-              Positioned(
-                right: -8,
-                top: -8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: context.cardBackgroundColor,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Text(
-                    badgeCount > 9 ? '9+' : '$badgeCount',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 9,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+        Icon(icon, color: active ? activeColor : inactiveColor),
       ],
     );
   }

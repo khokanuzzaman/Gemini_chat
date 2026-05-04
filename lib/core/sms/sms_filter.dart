@@ -14,21 +14,56 @@ class SmsFilter {
     '16216',
     'bracbank',
     'citybank',
+    'ebl',
     'eblbank',
+    'easternbank',
     'dutchbangla',
     'dbbl',
     'islamibank',
     'ucb',
     'mtbl',
+    'mutualtrust',
+    'mutualtrustbank',
+    'pubalibank',
+    'onebank',
+    'primebank',
+    'southeastbank',
+    'southeast',
+    'scb',
+    'standardchar',
+    'standardchartered',
+    'standardcharteredbank',
+    'trustbank',
+    'bankasia',
+    'hsbc',
+    'hsbcbd',
+  };
+
+  static const List<String> _containsSenderIds = [
+    'bkash',
+    'nagad',
+    'rocket',
+    'bracbank',
+    'citybank',
+    'ebl',
+    'easternbank',
+    'dbbl',
+    'dutchbangla',
+    'islamibank',
+    'ucb',
+    'mtbl',
+    'mutualtrust',
     'pubalibank',
     'onebank',
     'primebank',
     'southeast',
+    'scb',
     'standardchar',
-    'hsbcbd',
-  };
-
-  static const List<String> _containsSenderIds = ['bkash', 'nagad', 'rocket'];
+    'standardchartered',
+    'trustbank',
+    'bankasia',
+    'hsbc',
+  ];
 
   static const List<String> _amountIndicators = [
     'tk',
@@ -53,8 +88,13 @@ class SmsFilter {
     'deposit',
     'purchase',
     'refund',
+    'credit',
     'credited',
+    'debit',
     'debited',
+    'withdrawal',
+    'atm',
+    'pos',
     'add money',
     'salary',
     'disbursement',
@@ -65,6 +105,50 @@ class SmsFilter {
     'উত্তোলন',
     'জমা',
   ];
+
+  static const List<String> _bankContextKeywords = [
+    'a/c',
+    'acct',
+    'account',
+    'card',
+    'avl bal',
+    'available balance',
+    'current balance',
+    'brac bank',
+    'city bank',
+    'ebl',
+    'eastern bank',
+    'dutch-bangla',
+    'hsbc',
+    'standard chartered',
+    'trust bank',
+    'mutual trust',
+    'bank asia',
+    'islami bank',
+    'one bank',
+    'prime bank',
+    'southeast bank',
+    'pubali bank',
+  ];
+
+  static const List<String> _bankTransactionKeywords = [
+    'credit',
+    'credited',
+    'debit',
+    'debited',
+    'withdraw',
+    'withdrawal',
+    'purchase',
+    'pos',
+    'transfer',
+    'deposit',
+    'salary',
+  ];
+
+  static final RegExp _bankDrCrPattern = RegExp(
+    r'\b(?:dr|cr)\b',
+    caseSensitive: false,
+  );
 
   static const List<String> _rejectKeywords = [
     'otp',
@@ -94,7 +178,9 @@ class SmsFilter {
       return false;
     }
 
-    if (!_isKnownFinancialSender(sender)) {
+    final looksLikeBankMessage = _looksLikeBankMessage(lowerBody);
+
+    if (!_isKnownFinancialSender(sender) && !looksLikeBankMessage) {
       return false;
     }
 
@@ -106,7 +192,11 @@ class SmsFilter {
       return false;
     }
 
-    if (!_containsAny(lowerBody, _transactionKeywords)) {
+    final hasTransactionKeyword =
+        _containsAny(lowerBody, _transactionKeywords) ||
+        _bankDrCrPattern.hasMatch(lowerBody);
+
+    if (!hasTransactionKeyword && !looksLikeBankMessage) {
       return false;
     }
 
@@ -122,6 +212,14 @@ class SmsFilter {
 
   bool _containsAny(String body, List<String> keywords) {
     return keywords.any(body.contains);
+  }
+
+  bool _looksLikeBankMessage(String body) {
+    if (!_containsAny(body, _bankContextKeywords)) {
+      return false;
+    }
+    return _containsAny(body, _bankTransactionKeywords) ||
+        _bankDrCrPattern.hasMatch(body);
   }
 
   String _normalizeSender(String sender) {

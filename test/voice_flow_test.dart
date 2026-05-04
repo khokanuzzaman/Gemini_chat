@@ -152,6 +152,7 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(chatProvider.future);
+    container.read(ragEnabledProvider.notifier).state = true;
     container.read(isRecordingProvider.notifier).state = true;
 
     await container.read(chatProvider.notifier).stopAndSendVoice();

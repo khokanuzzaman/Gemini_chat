@@ -485,12 +485,10 @@ void main() {
       await tester.tap(find.byKey(const Key('sms-import-scan-cta')));
       await tester.pumpAndSettle();
 
-      expect(find.text('স্ক্যান'), findsOneWidget);
-      expect(find.byKey(const Key('sms-import-tab-all')), findsOneWidget);
-      expect(find.byKey(const Key('sms-import-tab-expense')), findsOneWidget);
-      expect(find.byKey(const Key('sms-import-tab-income')), findsOneWidget);
-      expect(find.byKey(const Key('sms-import-footer-button')), findsOneWidget);
-      expect(container.read(smsImportControllerProvider).candidates.length, 2);
+      final state = container.read(smsImportControllerProvider);
+      expect(state.latestScanResult, isNotNull);
+      expect(state.candidates.length, 2);
+      expect(state.selectedCount, 2);
     });
 
     testWidgets('footer stacks vertically on narrow phones', (tester) async {

@@ -76,7 +76,7 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
     yield* _streamCompletion(
       messages: messages,
       maxTokens: 1024,
-      temperature: 0.7,
+      temperature: 0.2,
     );
   }
 

@@ -14,6 +14,7 @@ import 'package:gemini_chat/features/chat/domain/entities/message_entity.dart';
 import 'package:gemini_chat/features/chat/domain/repositories/chat_repository.dart';
 import 'package:gemini_chat/features/chat/presentation/providers/chat_provider.dart';
 import 'package:gemini_chat/features/chat/presentation/screens/chat_screen.dart';
+import 'package:gemini_chat/features/chat/presentation/widgets/chat_mode_toggle_chip.dart';
 import 'package:gemini_chat/features/chat/presentation/widgets/message_bubble.dart';
 
 class _FakeChatRepository implements ChatRepository {
@@ -103,23 +104,23 @@ void main() {
     );
     await _pumpChatFrames(tester);
 
-    expect(container.read(ragEnabledProvider), isTrue);
-    expect(find.byIcon(Icons.psychology_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.psychology_outlined), findsNothing);
-
-    await tester.tap(find.byIcon(Icons.psychology_rounded));
+    container.read(ragEnabledProvider.notifier).state = false;
     await _pumpChatFrames(tester);
 
     expect(container.read(ragEnabledProvider), isFalse);
-    expect(find.byIcon(Icons.psychology_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.psychology_rounded), findsNothing);
+    expect(find.text('সাধারণ'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.psychology_outlined));
+    await tester.tap(find.byType(ChatModeToggleChip));
     await _pumpChatFrames(tester);
 
     expect(container.read(ragEnabledProvider), isTrue);
-    expect(find.byIcon(Icons.psychology_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.psychology_outlined), findsNothing);
+    expect(find.text('স্মার্ট'), findsOneWidget);
+
+    await tester.tap(find.byType(ChatModeToggleChip));
+    await _pumpChatFrames(tester);
+
+    expect(container.read(ragEnabledProvider), isFalse);
+    expect(find.text('সাধারণ'), findsOneWidget);
   });
 
   testWidgets('send message respects current RAG toggle state', (tester) async {
@@ -142,8 +143,6 @@ void main() {
     );
     await _pumpChatFrames(tester);
 
-    await tester.tap(find.byIcon(Icons.psychology_rounded));
-    await _pumpChatFrames(tester);
     expect(container.read(ragEnabledProvider), isFalse);
 
     await container
@@ -153,7 +152,7 @@ void main() {
 
     expect(fakeRepository.lastUseRag, isFalse);
 
-    await tester.tap(find.byIcon(Icons.psychology_outlined));
+    await tester.tap(find.byType(ChatModeToggleChip));
     await _pumpChatFrames(tester);
     expect(container.read(ragEnabledProvider), isTrue);
 
@@ -248,7 +247,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Category বিশ্লেষণ'), findsOneWidget);
+    expect(find.text('ক্যাটাগরি বিশ্লেষণ'), findsOneWidget);
     expect(find.text('Food'), findsWidgets);
     expect(find.text('সাম্প্রতিক খরচ'), findsOneWidget);
   });

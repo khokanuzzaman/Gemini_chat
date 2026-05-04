@@ -22,7 +22,6 @@ class DebtListScreen extends ConsumerStatefulWidget {
 class _DebtListScreenState extends ConsumerState<DebtListScreen> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _emiSectionKey = GlobalKey();
-  bool _showSettled = false;
 
   @override
   void dispose() {
@@ -177,27 +176,44 @@ class _DebtListScreenState extends ConsumerState<DebtListScreen> {
 
     if (settledDebts.isNotEmpty) {
       children.add(
-        AppSectionHeader(
-          title: 'পরিশোধিত (${BanglaFormatters.count(settledDebts.length)})',
-          action: TextButton(
-            onPressed: () {
-              setState(() {
-                _showSettled = !_showSettled;
-              });
-            },
-            child: Text(_showSettled ? 'লুকান' : 'দেখুন'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              collapsedIconColor: context.secondaryTextColor,
+              iconColor: context.appColors.primary,
+              shape: const RoundedRectangleBorder(side: BorderSide.none),
+              collapsedShape: const RoundedRectangleBorder(
+                side: BorderSide.none,
+              ),
+              title: Text(
+                'পরিশোধিত (${BanglaFormatters.count(settledDebts.length)})',
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: context.primaryTextColor,
+                ),
+              ),
+              children: [
+                for (var index = 0; index < settledDebts.length; index++) ...[
+                  _DebtListCard(debt: settledDebts[index]),
+                  if (index != settledDebts.length - 1)
+                    const SizedBox(height: AppSpacing.md),
+                ],
+              ],
+            ),
           ),
         ),
       );
-      if (_showSettled) {
-        children.add(const SizedBox(height: AppSpacing.sm));
-        for (var index = 0; index < settledDebts.length; index++) {
-          children.add(_DebtListCard(debt: settledDebts[index]));
-          if (index != settledDebts.length - 1) {
-            children.add(const SizedBox(height: AppSpacing.md));
-          }
-        }
-      }
       children.add(const SizedBox(height: AppSpacing.sectionGap));
     }
 

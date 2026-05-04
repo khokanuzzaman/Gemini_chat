@@ -21,20 +21,39 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   final TextEditingController _incomeController = TextEditingController();
   bool _showGenerationForm = false;
+  String? _incomeErrorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _incomeController.addListener(_syncIncomeValidation);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _syncIncomeInput(ref.read(budgetProvider));
+    });
+  }
 
   @override
   void dispose() {
+    _incomeController.removeListener(_syncIncomeValidation);
     _incomeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<BudgetState>(
+      budgetProvider,
+      (previous, next) {
+        _syncIncomeInput(next);
+      },
+    );
+
     final budgetState = ref.watch(budgetProvider);
     final activeBudget = budgetState.activeBudget;
     final showForm = activeBudget == null || _showGenerationForm;
-
-    _syncIncomeInput(budgetState);
 
     return AppPageScaffold(
       title: 'বাজেট প্ল্যানার',
@@ -84,6 +103,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 selectedRule: budgetState.selectedRule,
                 incomeInput: budgetState.incomeInput,
                 error: budgetState.error,
+                incomeErrorText: _incomeErrorText,
                 hasExistingBudget: activeBudget != null,
                 onSelectRule: (rule) {
                   ref.read(budgetProvider.notifier).setRule(rule);
@@ -99,7 +119,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 onIncomeChanged: (value) {
                   ref
                       .read(budgetProvider.notifier)
-                      .setIncome(double.tryParse(value.trim()));
+                      .setIncome(_parseIncomeInput(value));
                 },
                 onSelectPreset: (amount) {
                   _incomeController.text = amount.toStringAsFixed(0);
@@ -159,6 +179,52 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       text: text,
       selection: TextSelection.collapsed(offset: text.length),
     );
+  }
+
+  void _syncIncomeValidation() {
+    final nextError = _validateIncome(_incomeController.text);
+    if (nextError == _incomeErrorText) {
+      return;
+    }
+
+    setState(() {
+      _incomeErrorText = nextError;
+    });
+  }
+
+  String? _validateIncome(String raw) {
+    if (raw.trim().isEmpty) {
+      return null;
+    }
+
+    final parsedIncome = _parseIncomeInput(raw);
+    if (parsedIncome == null || parsedIncome <= 0) {
+      return 'সঠিক আয়ের পরিমাণ লিখুন';
+    }
+
+    return null;
+  }
+
+  double? _parseIncomeInput(String raw) {
+    final normalized = raw
+        .trim()
+        .replaceAll('৳', '')
+        .replaceAll(',', '')
+        .replaceAll(' ', '')
+        .replaceAll('০', '0')
+        .replaceAll('১', '1')
+        .replaceAll('২', '2')
+        .replaceAll('৩', '3')
+        .replaceAll('৪', '4')
+        .replaceAll('৫', '5')
+        .replaceAll('৬', '6')
+        .replaceAll('৭', '7')
+        .replaceAll('৮', '8')
+        .replaceAll('৯', '9');
+    if (normalized.isEmpty) {
+      return null;
+    }
+    return double.tryParse(normalized);
   }
 
   Future<void> _showHistorySheet(
@@ -300,6 +366,7 @@ class _BudgetSetupForm extends StatelessWidget {
     required this.selectedRule,
     required this.incomeInput,
     required this.error,
+    required this.incomeErrorText,
     required this.onSelectRule,
     required this.onGenerate,
     required this.onIncomeChanged,
@@ -312,6 +379,7 @@ class _BudgetSetupForm extends StatelessWidget {
   final BudgetRule selectedRule;
   final double? incomeInput;
   final String? error;
+  final String? incomeErrorText;
   final ValueChanged<BudgetRule> onSelectRule;
   final VoidCallback onGenerate;
   final ValueChanged<String> onIncomeChanged;
@@ -368,6 +436,24 @@ class _BudgetSetupForm extends StatelessWidget {
                     ),
                   ),
                   onChanged: onIncomeChanged,
+                ),
+                AnimatedSwitcher(
+                  duration: AppMotion.fast,
+                  child: incomeErrorText == null
+                      ? const SizedBox(height: AppSpacing.sm)
+                      : Padding(
+                          key: const ValueKey('budget-income-error'),
+                          padding: const EdgeInsets.only(
+                            top: AppSpacing.sm,
+                          ),
+                          child: Text(
+                            incomeErrorText!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
