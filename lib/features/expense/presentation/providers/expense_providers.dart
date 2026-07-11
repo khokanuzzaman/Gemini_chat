@@ -339,6 +339,7 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
 
   void _notifyExpenseChanged() {
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.read(predictionRefreshTokenProvider.notifier).state++;
   }
 
   ExpenseEntity? _findExpenseInState(List<ExpenseEntity>? expenses, int id) {
@@ -802,6 +803,7 @@ class ExpenseMutationController {
 
   Future<void> _notifyExpenseChanged({int addedCount = 0}) async {
     _ref.read(expenseRefreshTokenProvider.notifier).state++;
+    _ref.read(predictionRefreshTokenProvider.notifier).state++;
     _ref.invalidate(dashboardControllerProvider);
     _ref.invalidate(expenseListControllerProvider);
     _ref.invalidate(analyticsControllerProvider);

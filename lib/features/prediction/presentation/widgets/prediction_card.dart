@@ -35,7 +35,15 @@ class _PredictionCardState extends ConsumerState<PredictionCard> {
   Widget build(BuildContext context) {
     final state = ref.watch(predictionProvider);
 
-    if (state.isLoading) {
+    if (state.isStale && !state.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(predictionProvider.notifier)
+            .loadPrediction(forceRefresh: true);
+      });
+    }
+
+    if (state.isLoading || state.isStale) {
       return const AppFadeSlideIn(child: AppLoadingState.card(height: 160));
     }
 

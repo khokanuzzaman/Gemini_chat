@@ -49,6 +49,17 @@ class PredictionRepositoryImpl implements PredictionRepository {
   }
 
   @override
+  Future<void> clearCache() async {
+    try {
+      await _isar.writeTxn(() async {
+        await _isar.predictionCacheModels.clear();
+      });
+    } catch (_) {
+      // Silent fail — cache clearing is non-critical
+    }
+  }
+
+  @override
   Future<bool> shouldRefreshPrediction() async {
     final cached = await getCachedPrediction();
     if (cached == null) {

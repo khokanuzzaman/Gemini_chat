@@ -16,5 +16,7 @@ abstract class PredictionRepository {
 
   Future<void> savePrediction(PredictionEntity prediction);
 
+  Future<void> clearCache();
+
   Future<bool> shouldRefreshPrediction();
 }

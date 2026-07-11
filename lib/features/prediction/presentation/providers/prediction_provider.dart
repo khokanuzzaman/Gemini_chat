@@ -20,6 +20,11 @@ import '../../domain/entities/prediction_entity.dart';
 import '../../domain/repositories/prediction_repository.dart';
 import '../../domain/usecases/get_prediction_usecase.dart';
 
+/// Incremented whenever expense data changes in a way that could affect
+/// end-of-month prediction accuracy. Watched by predictionProvider and
+/// the RAG context builder to trigger prediction invalidation.
+final predictionRefreshTokenProvider = StateProvider<int>((ref) => 0);
+
 final predictionDataSourceProvider = Provider<PredictionDataSource>((ref) {
   return PredictionDataSourceImpl(
     connectivityService: ref.watch(connectivityServiceProvider),
@@ -51,7 +56,10 @@ class PredictionState {
     this.streamingText = '',
     this.error,
     this.fromCache = false,
+    this.isStale = false,
   });
+
+  const PredictionState.initial() : this();
 
   final PredictionEntity? prediction;
   final bool isLoading;
@@ -59,6 +67,7 @@ class PredictionState {
   final String streamingText;
   final String? error;
   final bool fromCache;
+  final bool isStale;
 
   PredictionState copyWith({
     PredictionEntity? prediction,
@@ -69,6 +78,7 @@ class PredictionState {
     String? error,
     bool clearError = false,
     bool? fromCache,
+    bool? isStale,
   }) {
     return PredictionState(
       prediction: clearPrediction ? null : prediction ?? this.prediction,
@@ -77,6 +87,7 @@ class PredictionState {
       streamingText: streamingText ?? this.streamingText,
       error: clearError ? null : error ?? this.error,
       fromCache: fromCache ?? this.fromCache,
+      isStale: isStale ?? this.isStale,
     );
   }
 }
@@ -88,10 +99,36 @@ final predictionProvider =
 
 class PredictionNotifier extends Notifier<PredictionState> {
   static const _expensesSincePredictKey = 'expenses_since_predict';
+  int? _lastSeenRefreshToken;
+  PredictionEntity? _cachedPrediction;
+  String? _cachedError;
 
   @override
   PredictionState build() {
-    return const PredictionState();
+    final refreshToken = ref.watch(predictionRefreshTokenProvider);
+
+    if (_lastSeenRefreshToken == null) {
+      _lastSeenRefreshToken = refreshToken;
+      Future.microtask(_loadCachedPrediction);
+      return const PredictionState.initial();
+    }
+
+    if (_lastSeenRefreshToken != refreshToken) {
+      _lastSeenRefreshToken = refreshToken;
+      return PredictionState(
+        prediction: _cachedPrediction,
+        isLoading: false,
+        error: _cachedError,
+        isStale: true,
+      );
+    }
+
+    return PredictionState(
+      prediction: _cachedPrediction,
+      isLoading: false,
+      error: _cachedError,
+      isStale: false,
+    );
   }
 
   Future<void> loadPrediction({bool forceRefresh = false}) async {
@@ -99,28 +136,35 @@ class PredictionNotifier extends Notifier<PredictionState> {
       return;
     }
 
+    final refreshTokenAtStart = ref.read(predictionRefreshTokenProvider);
     final repository = ref.read(predictionRepositoryProvider);
     final connectivityService = ref.read(connectivityServiceProvider);
     final isConnected = await connectivityService.isConnected();
+    final shouldForceRefresh = forceRefresh || state.isStale;
 
     if (!isConnected) {
       final cached = await repository.getCachedPrediction();
+      _cachedPrediction = cached;
+      _cachedError = 'ইন্টারনেট নেই — prediction আপডেট করা যাচ্ছে না';
       state = state.copyWith(
         prediction: cached,
         isLoading: false,
         isStreaming: false,
         streamingText: '',
-        error: 'ইন্টারনেট নেই — prediction আপডেট করা যাচ্ছে না',
+        error: _cachedError,
         fromCache: cached != null,
+        isStale: false,
       );
       return;
     }
 
-    if (!forceRefresh) {
+    if (!shouldForceRefresh) {
       final shouldRefresh = await repository.shouldRefreshPrediction();
       if (!shouldRefresh) {
         final cached = await repository.getCachedPrediction();
         if (cached != null) {
+          _cachedPrediction = cached;
+          _cachedError = null;
           state = state.copyWith(
             prediction: cached,
             isLoading: false,
@@ -128,18 +172,21 @@ class PredictionNotifier extends Notifier<PredictionState> {
             streamingText: '',
             fromCache: true,
             clearError: true,
+            isStale: false,
           );
           return;
         }
       }
     }
 
+    _cachedError = null;
     state = state.copyWith(
       isLoading: true,
       isStreaming: false,
       streamingText: '',
       fromCache: false,
       clearError: true,
+      isStale: false,
     );
 
     try {
@@ -166,10 +213,22 @@ class PredictionNotifier extends Notifier<PredictionState> {
             lastMonthExpenses: lastMonth,
             currentDay: now.day,
             daysInMonth: daysInMonth,
-            forceRefresh: forceRefresh,
+            forceRefresh: shouldForceRefresh,
           );
 
       if (loadResult case CachedPredictionResult(:final prediction)) {
+        if (ref.read(predictionRefreshTokenProvider) != refreshTokenAtStart) {
+          state = state.copyWith(
+            isLoading: false,
+            isStreaming: false,
+            streamingText: '',
+            fromCache: false,
+            isStale: true,
+          );
+          return;
+        }
+        _cachedPrediction = prediction;
+        _cachedError = null;
         state = state.copyWith(
           prediction: prediction,
           isLoading: false,
@@ -177,10 +236,12 @@ class PredictionNotifier extends Notifier<PredictionState> {
           streamingText: '',
           fromCache: true,
           clearError: true,
+          isStale: false,
         );
         return;
       }
 
+      _cachedError = null;
       state = state.copyWith(
         isLoading: false,
         isStreaming: true,
@@ -195,6 +256,17 @@ class PredictionNotifier extends Notifier<PredictionState> {
         state = state.copyWith(streamingText: fullResponse);
       }
 
+      if (ref.read(predictionRefreshTokenProvider) != refreshTokenAtStart) {
+        state = state.copyWith(
+          isLoading: false,
+          isStreaming: false,
+          streamingText: '',
+          fromCache: false,
+          isStale: true,
+        );
+        return;
+      }
+
       final entity = _parseResponse(
         fullResponse,
         thisMonth,
@@ -203,6 +275,8 @@ class PredictionNotifier extends Notifier<PredictionState> {
         daysInMonth,
       );
       await repository.savePrediction(entity);
+      _cachedPrediction = entity;
+      _cachedError = null;
       state = state.copyWith(
         prediction: entity,
         isLoading: false,
@@ -210,16 +284,20 @@ class PredictionNotifier extends Notifier<PredictionState> {
         streamingText: '',
         fromCache: false,
         clearError: true,
+        isStale: false,
       );
     } catch (_) {
       final cached = await repository.getCachedPrediction();
+      _cachedPrediction = cached;
+      _cachedError = 'Prediction করতে সমস্যা হয়েছে';
       state = state.copyWith(
         prediction: cached,
         isLoading: false,
         isStreaming: false,
         streamingText: '',
-        error: 'Prediction করতে সমস্যা হয়েছে',
+        error: _cachedError,
         fromCache: cached != null,
+        isStale: false,
       );
     }
   }
@@ -241,6 +319,50 @@ class PredictionNotifier extends Notifier<PredictionState> {
 
   Future<PredictionEntity?> getCachedPrediction() {
     return ref.read(predictionRepositoryProvider).getCachedPrediction();
+  }
+
+  Future<void> reset() async {
+    try {
+      final repository = ref.read(predictionRepositoryProvider);
+      await repository.clearCache();
+    } catch (_) {}
+
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.remove(_expensesSincePredictKey);
+    } catch (_) {}
+
+    _lastSeenRefreshToken = null;
+    _cachedPrediction = null;
+    _cachedError = null;
+    state = const PredictionState.initial();
+  }
+
+  Future<void> _loadCachedPrediction() async {
+    try {
+      if (state.isLoading || state.isStreaming) {
+        return;
+      }
+
+      final cached = await ref
+          .read(predictionRepositoryProvider)
+          .getCachedPrediction();
+      if (cached == null) {
+        return;
+      }
+
+      _cachedPrediction = cached;
+      _cachedError = null;
+      state = state.copyWith(
+        prediction: cached,
+        isLoading: false,
+        isStreaming: false,
+        streamingText: '',
+        fromCache: true,
+        clearError: true,
+        isStale: false,
+      );
+    } catch (_) {}
   }
 
   PredictionEntity _parseResponse(

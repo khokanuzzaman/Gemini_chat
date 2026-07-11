@@ -51,6 +51,8 @@ import '../goals/presentation/providers/goal_provider.dart';
 import '../goals/presentation/screens/goals_screen.dart';
 import '../income/presentation/providers/income_providers.dart';
 import '../income/presentation/screens/income_list_screen.dart';
+import '../prediction/presentation/providers/prediction_provider.dart';
+import '../prediction/data/models/prediction_cache_model.dart';
 import '../recurring/presentation/screens/recurring_screen.dart';
 import '../sms_import/presentation/providers/sms_import_provider.dart';
 import '../sms_import/presentation/widgets/sms_import_entry_widgets.dart';
@@ -925,6 +927,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).budgetPlanModels.clear();
       await ref.read(isarProvider).goalModels.clear();
       await ref.read(isarProvider).goalSavingModels.clear();
+      await ref.read(isarProvider).predictionCacheModels.clear();
       await ref.read(isarProvider).recurringExpenseModels.clear();
       await ref.read(isarProvider).splitBillModels.clear();
       await ref.read(isarProvider).debtModels.clear();
@@ -934,18 +937,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).smsLedgerSyncStateModels.clear();
     });
 
+    await ref.read(predictionProvider.notifier).reset();
+    await ref.read(anomalyProvider.notifier).clear();
     await AppPreferences.setActiveWalletId(0);
     await ref.read(smsSettingsProvider).resetAll();
     await ref.read(budgetSettingsProvider.notifier).clearBudgets();
-    await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
     ref.read(incomeRefreshTokenProvider.notifier).state++;
     ref.read(debtRefreshTokenProvider.notifier).state++;
+    ref.read(anomalyForceRedetectTokenProvider.notifier).state++;
+    ref.read(predictionRefreshTokenProvider.notifier).state++;
     ref.invalidate(budgetProvider);
     ref.invalidate(goalsProvider);
     ref.invalidate(walletProvider);
+    ref.invalidate(dashboardControllerProvider);
+    ref.invalidate(expenseListControllerProvider);
+    ref.invalidate(analyticsControllerProvider);
     ref.invalidate(incomeListControllerProvider);
     ref.invalidate(debtListProvider);
+    ref.invalidate(cashFlowProvider);
+    ref.invalidate(thisMonthIncomeProvider);
+    ref.invalidate(lastMonthIncomeProvider);
     if (!mounted) {
       return;
     }
@@ -959,7 +971,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(isarProvider).expenseRecordModels.clear();
     });
     await ExpenseSeedData.forceSeed(ref.read(expenseLocalDataSourceProvider));
+    await ref.read(predictionProvider.notifier).reset();
+    await ref.read(anomalyProvider.notifier).clear();
     ref.read(expenseRefreshTokenProvider.notifier).state++;
+    ref.read(anomalyForceRedetectTokenProvider.notifier).state++;
+    ref.read(predictionRefreshTokenProvider.notifier).state++;
     if (!mounted) {
       return;
     }

@@ -57,7 +57,14 @@ final ragContextBuilderProvider = Provider<RagContextBuilder>((ref) {
     recurringLocalDataSource: ref.watch(recurringLocalDataSourceProvider),
     anomalyLoader: () => ref.read(anomalyProvider.notifier).getActiveAlerts(),
     predictionLoader: () async {
-      final currentPrediction = ref.read(predictionProvider).prediction;
+      final predictionState = ref.read(predictionProvider);
+      if (!predictionState.isStale && predictionState.prediction != null) {
+        return predictionState.prediction;
+      }
+      if (predictionState.isStale) {
+        return null;
+      }
+      final currentPrediction = predictionState.prediction;
       if (currentPrediction != null) {
         return currentPrediction;
       }
