@@ -57,15 +57,6 @@ class WalletRepositoryImpl implements WalletRepository {
       throw const StorageFailure();
     }
   }
-
-  @override
-  Future<void> adjustBalance(int walletId, double delta) async {
-    try {
-      await _localDataSource.adjustBalance(walletId, delta);
-    } catch (_) {
-      throw const StorageFailure();
-    }
-  }
 }
 
 extension on WalletEntity {

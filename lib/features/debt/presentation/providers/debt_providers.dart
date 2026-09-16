@@ -3,14 +3,22 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/database/models/expense_record_model.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/ledger/wallet_ledger_service.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/utils/bangla_formatters.dart';
+import '../../../expense/domain/entities/expense_source.dart';
+import '../../../expense/presentation/providers/expense_refresh_provider.dart';
+import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../data/datasources/debt_local_datasource.dart';
+import '../../data/mappers/debt_mapper.dart';
+import '../../data/models/debt_model.dart';
+import '../../data/models/debt_payment_model.dart';
 import '../../data/repositories/debt_repository_impl.dart';
 import '../../domain/entities/debt_entity.dart';
 import '../../domain/entities/debt_payment_entity.dart';
@@ -373,15 +381,29 @@ class DebtMutationController {
         resolvedWalletId: resolvedWalletId,
       );
 
-      final savedDebt = await _ref
-          .read(saveDebtUseCaseProvider)
-          .call(preparedDebt);
-
-      await _runWalletSideEffect(
-        walletId: savedDebt.walletId,
-        delta: _originalWalletDelta(savedDebt.type, savedDebt.originalAmount),
-        warnings: warnings,
+      // Wallet-only ledger op: write the debt and move the wallet by the
+      // principal atomically (no expense record — borrowing/lending is a
+      // transfer, not spending).
+      final debtDataSource = _ref.read(debtLocalDataSourceProvider);
+      DebtModel? savedModel;
+      await _ref.read(walletLedgerServiceProvider).execute(
+        walletId: preparedDebt.walletId,
+        delta: preparedDebt.walletId == null
+            ? 0
+            : _originalWalletDelta(
+                preparedDebt.type,
+                preparedDebt.originalAmount,
+              ),
+        writeRecords: (txn) async {
+          savedModel = await debtDataSource.saveDebtInTxn(
+            txn,
+            preparedDebt.toModel(),
+          );
+          return LedgerRecordIds(originatingId: savedModel!.id);
+        },
       );
+      _ref.invalidate(walletProvider);
+      final savedDebt = savedModel!.toEntity();
       await _syncDebtReminder(savedDebt, warnings);
 
       _notifyDebtChanged();
@@ -456,15 +478,35 @@ class DebtMutationController {
     try {
       final warnings = <String>[];
 
-      await _ref.read(deleteDebtUseCaseProvider).call(id);
-
-      if (debt.walletId != null && isOpenDebtStatus(resolveDebtStatus(debt))) {
-        await _runWalletSideEffect(
+      // Wallet-only ledger op: delete the debt (cascades its payments), remove
+      // any linked debtPayment expense records, and reverse the creation
+      // principal — atomically. Wallet reversal only for OPEN debts (a settled
+      // debt's principal was already offset by its payments).
+      final debtDataSource = _ref.read(debtLocalDataSourceProvider);
+      final expenseDataSource = _ref.read(expenseLocalDataSourceProvider);
+      final reverseWallet =
+          debt.walletId != null && isOpenDebtStatus(resolveDebtStatus(debt));
+      await _ref.read(walletLedgerServiceProvider).reverse(
+        entry: WalletLedgerEntry(
           walletId: debt.walletId,
-          delta: -_originalWalletDelta(debt.type, debt.originalAmount),
-          warnings: warnings,
-        );
-      }
+          appliedDelta: reverseWallet
+              ? _originalWalletDelta(debt.type, debt.originalAmount)
+              : 0,
+          recordIds: const LedgerRecordIds(),
+        ),
+        deleteRecords: (txn) async {
+          final payments = await debtDataSource.getPaymentsForDebt(id);
+          for (final payment in payments) {
+            await expenseDataSource.deleteBySourceInTxn(
+              txn,
+              ExpenseSource.debtPayment,
+              payment.id,
+            );
+          }
+          await debtDataSource.deleteDebtInTxn(txn, id);
+        },
+      );
+      _ref.invalidate(walletProvider);
       await _cancelDebtReminder(id, warnings);
 
       _notifyDebtChanged();
@@ -509,20 +551,49 @@ class DebtMutationController {
 
     try {
       final warnings = <String>[];
-      await _ref
-          .read(addDebtPaymentUseCaseProvider)
-          .call(
-            debtId: debtId,
-            amount: amount,
-            walletId: resolvedWalletId,
-            note: _normalizeText(note),
-          );
-
-      await _runWalletSideEffect(
+      // One atomic ledger op: write the DebtPaymentModel (+ debt math), the
+      // linked spending record for an iOwe repayment, and the wallet delta.
+      // The payment is written ONLY here (no separate addDebtPaymentUseCase),
+      // so the wallet moves exactly once.
+      final debtDataSource = _ref.read(debtLocalDataSourceProvider);
+      final expenseDataSource = _ref.read(expenseLocalDataSourceProvider);
+      final walletDelta = resolvedWalletId == null
+          ? 0.0
+          : _paymentWalletDelta(debt.type, amount);
+      await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
-        delta: _paymentWalletDelta(debt.type, amount),
-        warnings: warnings,
+        delta: walletDelta,
+        writeRecords: (txn) async {
+          final payment = DebtPaymentModel()
+            ..debtId = debtId
+            ..amount = amount
+            ..walletId = resolvedWalletId
+            ..note = _normalizeText(note)
+            ..paidAt = DateTime.now();
+          final savedPayment = await debtDataSource.addPaymentInTxn(txn, payment);
+          if (savedPayment == null) {
+            throw const StorageFailure('ধার-দেনার রেকর্ডটি খুঁজে পাওয়া যায়নি');
+          }
+          // iOwe = repaying your own debt (money out) => spending record.
+          // theyOwe = a receipt (money in) => no expense record.
+          if (debt.type != DebtType.iOwe || resolvedWalletId == null) {
+            return LedgerRecordIds(originatingId: savedPayment.id);
+          }
+          final expenseId = await expenseDataSource.putExpenseInTxn(
+            txn,
+            _debtPaymentExpense(
+              debt: debt,
+              payment: savedPayment,
+              walletId: resolvedWalletId,
+            ),
+          );
+          return LedgerRecordIds(
+            originatingId: savedPayment.id,
+            expenseRecordId: expenseId,
+          );
+        },
       );
+      _ref.invalidate(walletProvider);
 
       final refreshedDebt = await _loadDebt(debtId);
       if (refreshedDebt != null) {
@@ -566,15 +637,44 @@ class DebtMutationController {
 
     try {
       final warnings = <String>[];
-      await _ref
-          .read(recordInstallmentPaidUseCaseProvider)
-          .call(debtId, walletId: resolvedWalletId);
-
-      await _runWalletSideEffect(
+      // One atomic ledger op — same shape as addPayment. installmentAmount
+      // equals what recordInstallmentPaidInTxn writes (min(emiAmount, remaining)),
+      // so the pre-computed wallet delta matches the persisted payment.
+      final debtDataSource = _ref.read(debtLocalDataSourceProvider);
+      final expenseDataSource = _ref.read(expenseLocalDataSourceProvider);
+      final walletDelta = resolvedWalletId == null
+          ? 0.0
+          : _paymentWalletDelta(debt.type, installmentAmount);
+      await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
-        delta: _paymentWalletDelta(debt.type, installmentAmount),
-        warnings: warnings,
+        delta: walletDelta,
+        writeRecords: (txn) async {
+          final savedPayment = await debtDataSource.recordInstallmentPaidInTxn(
+            txn,
+            debtId,
+            walletId: resolvedWalletId,
+          );
+          if (savedPayment == null) {
+            throw const StorageFailure('এই কিস্তিতে আর পরিশোধ যোগ করা যাবে না');
+          }
+          if (debt.type != DebtType.iOwe || resolvedWalletId == null) {
+            return LedgerRecordIds(originatingId: savedPayment.id);
+          }
+          final expenseId = await expenseDataSource.putExpenseInTxn(
+            txn,
+            _debtPaymentExpense(
+              debt: debt,
+              payment: savedPayment,
+              walletId: resolvedWalletId,
+            ),
+          );
+          return LedgerRecordIds(
+            originatingId: savedPayment.id,
+            expenseRecordId: expenseId,
+          );
+        },
       );
+      _ref.invalidate(walletProvider);
 
       final refreshedDebt = await _loadDebt(debtId);
       if (refreshedDebt != null) {
@@ -583,6 +683,58 @@ class DebtMutationController {
 
       _notifyDebtChanged();
       return MutationResult.success('কিস্তি পরিশোধ হয়েছে', warnings: warnings);
+    } on Failure catch (failure) {
+      return MutationResult.failure(failure.message);
+    } catch (error) {
+      return MutationResult.failure('$error');
+    }
+  }
+
+  Future<MutationResult> deletePayment(int paymentId) async {
+    final debtDataSource = _ref.read(debtLocalDataSourceProvider);
+    final payment = await debtDataSource.getPaymentById(paymentId);
+    if (payment == null) {
+      return MutationResult.failure('পরিশোধের রেকর্ডটি খুঁজে পাওয়া যায়নি');
+    }
+    final debt = await _ref
+        .read(getDebtByIdUseCaseProvider)
+        .call(payment.debtId);
+    if (debt == null) {
+      return MutationResult.failure('ধার-দেনার রেকর্ডটি খুঁজে পাওয়া যায়নি');
+    }
+
+    try {
+      final warnings = <String>[];
+      final expenseDataSource = _ref.read(expenseLocalDataSourceProvider);
+      final walletId = payment.walletId ?? debt.walletId;
+      // Reverse atomically: delete the DebtPaymentModel (rolls back the debt
+      // math), delete the linked expense IF present (legacy payments have none —
+      // a no-op, not a failure), and undo the payment's wallet effect once.
+      await _ref.read(walletLedgerServiceProvider).reverse(
+        entry: WalletLedgerEntry(
+          walletId: walletId,
+          appliedDelta: walletId == null
+              ? 0
+              : _paymentWalletDelta(debt.type, payment.amount),
+          recordIds: const LedgerRecordIds(),
+        ),
+        deleteRecords: (txn) async {
+          await debtDataSource.deletePaymentInTxn(txn, paymentId);
+          await expenseDataSource.deleteBySourceInTxn(
+            txn,
+            ExpenseSource.debtPayment,
+            paymentId,
+          );
+        },
+      );
+      _ref.invalidate(walletProvider);
+
+      final refreshedDebt = await _loadDebt(payment.debtId);
+      if (refreshedDebt != null) {
+        await _syncDebtReminder(refreshedDebt, warnings);
+      }
+      _notifyDebtChanged();
+      return MutationResult.success('পরিশোধ মুছে গেছে', warnings: warnings);
     } on Failure catch (failure) {
       return MutationResult.failure(failure.message);
     } catch (error) {
@@ -780,6 +932,30 @@ class DebtMutationController {
     return trimmed.isEmpty ? null : trimmed;
   }
 
+  // Description for the linked debtPayment expense record: the debt's name so
+  // the expense list reads "EMI — <name>" (category stays the single 'EMI'
+  // slice). Falls back to 'EMI' when the debt is untitled.
+  String _debtExpenseDescription(DebtEntity debt) {
+    final name = debt.personName.trim();
+    return name.isEmpty ? 'EMI' : name;
+  }
+
+  // Builds the linked spending record for an iOwe debt payment.
+  ExpenseRecordModel _debtPaymentExpense({
+    required DebtEntity debt,
+    required DebtPaymentModel payment,
+    required int walletId,
+  }) {
+    return ExpenseRecordModel()
+      ..amount = payment.amount.round()
+      ..category = 'EMI'
+      ..description = _debtExpenseDescription(debt)
+      ..walletId = walletId
+      ..date = payment.paidAt
+      ..sourceType = ExpenseSource.debtPayment
+      ..sourceId = payment.id;
+  }
+
   Future<int?> _resolveWalletId() async {
     final activeWallet = _ref.read(activeWalletProvider);
     if (activeWallet != null) {
@@ -815,26 +991,6 @@ class DebtMutationController {
 
   double _paymentWalletDelta(DebtType type, double amount) {
     return type == DebtType.theyOwe ? amount : -amount;
-  }
-
-  Future<void> _runWalletSideEffect({
-    required int? walletId,
-    required double delta,
-    required List<String> warnings,
-  }) async {
-    if (walletId == null || delta == 0) {
-      return;
-    }
-
-    try {
-      await _ref
-          .read(walletLocalDataSourceProvider)
-          .adjustBalance(walletId, delta);
-      _ref.invalidate(walletProvider);
-    } catch (error, stackTrace) {
-      debugPrint('Debt wallet side effect failed: $error\n$stackTrace');
-      warnings.add('ওয়ালেটের ব্যালেন্স ঠিকভাবে সমন্বয় করা যায়নি');
-    }
   }
 
   Future<void> _syncDebtReminder(DebtEntity debt, List<String> warnings) async {
@@ -894,6 +1050,10 @@ class DebtMutationController {
 
   void _notifyDebtChanged() {
     _ref.read(debtRefreshTokenProvider.notifier).state++;
+    // iOwe payments write a linked expense record, so expense-derived views
+    // (dashboard/analytics/cash flow) and prediction must refresh too.
+    _ref.read(expenseRefreshTokenProvider.notifier).state++;
+    _ref.read(predictionRefreshTokenProvider.notifier).state++;
   }
 }
 

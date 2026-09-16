@@ -34,6 +34,7 @@ class CategoryIcon {
     'celebration': Icons.celebration_rounded,
     'card_giftcard': Icons.card_giftcard_rounded,
     'savings': Icons.savings_rounded,
+    'account_balance': Icons.account_balance_rounded,
     'work': Icons.work_rounded,
     'handyman': Icons.handyman_rounded,
     'travel_explore': Icons.travel_explore_rounded,

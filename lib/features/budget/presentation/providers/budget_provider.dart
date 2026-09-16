@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/premium/premium_providers.dart';
@@ -14,6 +15,7 @@ import '../../../../core/usage/usage_limits.dart';
 import '../../../../core/usage/usage_providers.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/datasources/budget_plan_local_datasource.dart';
 import '../../data/datasources/budget_planner_datasource.dart';
@@ -37,6 +39,7 @@ final budgetPlannerDataSourceProvider = Provider<BudgetPlannerDataSource>((
   ref,
 ) {
   return BudgetPlannerDataSource(
+    gateway: ref.watch(aiGatewayProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
   );
 });
@@ -481,7 +484,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         .read(expenseRepositoryProvider)
         .getExpensesByDateRange(start, now);
     final byCategory = <String, double>{};
-    for (final expense in expenses) {
+    for (final expense in expenses.inCategoryBudget) {
       byCategory.update(
         expense.category,
         (value) => value + expense.amount,

@@ -1,4 +1,5 @@
 import '../../features/expense/domain/entities/expense_entity.dart';
+import '../../features/expense/domain/entities/expense_source_filters.dart';
 import '../../features/category/domain/category_registry.dart';
 import '../../features/anomaly/data/services/anomaly_detection_service.dart';
 import '../../features/anomaly/domain/entities/anomaly_alert.dart';
@@ -118,10 +119,17 @@ class RagContextBuilder {
     final comparisonBaseMonth =
         requestedMonth ?? DateTime(now.year, now.month, 1);
     final lastMonthDate = _previousMonth(comparisonBaseMonth);
-    final primaryEntities = _toEntities(primaryExpenses);
-    final thisMonthEntities = _toEntities(thisMonthExpenses);
-    final todayEntities = _toEntities(todayExpenses);
-    final lastMonthEntities = _toEntities(lastMonthExpenses);
+    // RAG spending context sees debt payments as spending (matrix) but not goal
+    // deposits — so the spending-facing entity lists apply the spending filter.
+    // (The anomaly path below filters separately inside AnomalyDetectionService.)
+    final primaryEntities =
+        _toEntities(primaryExpenses).inSpendingTotals.toList(growable: false);
+    final thisMonthEntities =
+        _toEntities(thisMonthExpenses).inSpendingTotals.toList(growable: false);
+    final todayEntities =
+        _toEntities(todayExpenses).inSpendingTotals.toList(growable: false);
+    final lastMonthEntities =
+        _toEntities(lastMonthExpenses).inSpendingTotals.toList(growable: false);
     final primaryCategoryTotals = _buildCategoryTotals(primaryEntities);
     final lastMonthCategoryTotals = _buildCategoryTotals(lastMonthEntities);
     final periodTotal = _sumExpenses(primaryEntities);

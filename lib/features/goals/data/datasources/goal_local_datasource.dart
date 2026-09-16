@@ -14,10 +14,16 @@ class GoalLocalDataSource {
     return goals;
   }
 
+  // Public methods own the transaction; the `*InTxn` internals are the SINGLE
+  // write path, callable by a caller that already holds a writeTxn (the ledger).
+
   Future<void> saveGoal(GoalModel model) async {
-    await _isar.writeTxn(() async {
-      await _isar.goalModels.put(model);
-    });
+    await _isar.writeTxn(() => saveGoalInTxn(_isar, model));
+  }
+
+  /// Transaction-free goal write; assumes it is already inside a [Isar.writeTxn].
+  Future<int> saveGoalInTxn(Isar isar, GoalModel model) {
+    return isar.goalModels.put(model);
   }
 
   Future<void> saveGoals(List<GoalModel> models) async {
@@ -38,9 +44,25 @@ class GoalLocalDataSource {
   }
 
   Future<void> saveSaving(GoalSavingModel model) async {
-    await _isar.writeTxn(() async {
-      await _isar.goalSavingModels.put(model);
-    });
+    await _isar.writeTxn(() => saveSavingInTxn(_isar, model));
+  }
+
+  /// Transaction-free saving write; assumes it is already inside a
+  /// [Isar.writeTxn]. Returns the record id.
+  Future<int> saveSavingInTxn(Isar isar, GoalSavingModel model) {
+    return isar.goalSavingModels.put(model);
+  }
+
+  /// Sum of goal deposits in [start, end] (inclusive) — the cash-flow savings
+  /// figure. Reads GoalSaving directly; goal deposits have no expense record.
+  Future<double> getTotalSavingsForRange(DateTime start, DateTime end) async {
+    final savings = await _isar.goalSavingModels.where().findAll();
+    return savings
+        .where(
+          (saving) =>
+              !saving.date.isBefore(start) && !saving.date.isAfter(end),
+        )
+        .fold<double>(0, (sum, saving) => sum + saving.amount);
   }
 
   Future<List<GoalSavingModel>> getSavingsForGoal(int goalId) async {

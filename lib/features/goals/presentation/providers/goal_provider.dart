@@ -5,8 +5,15 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/database/models/goal_model.dart';
+import '../../../../core/database/models/goal_saving_model.dart';
+import '../../../../core/ledger/wallet_ledger_service.dart';
 import '../../../../core/notifications/notification_service.dart';
+import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../expense/presentation/providers/expense_refresh_provider.dart';
+import '../../../wallet/domain/entities/wallet_entity.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../data/datasources/goal_local_datasource.dart';
 import '../../data/repositories/goal_repository_impl.dart';
 import '../../domain/entities/goal_entity.dart';
@@ -177,14 +184,22 @@ class GoalNotifier extends Notifier<GoalState> {
     await _load();
   }
 
-  Future<void> addSaving({
+  Future<String?> addSaving({
     required int goalId,
     required double amount,
     String? note,
+    int? walletId,
   }) async {
     final goal = state.goals.where((item) => item.id == goalId).firstOrNull;
     if (goal == null) {
-      return;
+      return 'লক্ষ্যটি খুঁজে পাওয়া যায়নি';
+    }
+
+    // Goal deposits debit a source wallet now — resolve it the same way expense/
+    // debt do; a deposit with no resolvable wallet hard-fails (nothing persists).
+    final resolvedWalletId = await _resolveWalletId(walletId);
+    if (resolvedWalletId == null) {
+      return 'কোনো ওয়ালেট পাওয়া যায়নি';
     }
 
     final saving = GoalSaving(
@@ -193,21 +208,74 @@ class GoalNotifier extends Notifier<GoalState> {
       amount: amount,
       date: DateTime.now(),
       note: note,
+      walletId: resolvedWalletId,
     );
-    await ref.read(addSavingUseCaseProvider).call(saving);
-
     final updated = goal.copyWith(
       savedAmount: goal.savedAmount + amount,
       status: goal.savedAmount + amount >= goal.targetAmount
           ? GoalStatus.achieved
           : goal.status,
     );
-    await ref.read(updateGoalUseCaseProvider).call(updated);
+
+    try {
+      // One atomic ledger op: debit the source wallet ONCE, write the GoalSaving
+      // (with walletId), and bump savedAmount — all in one txn. A failed debit
+      // rolls back the saving AND the savedAmount (no savings that never left
+      // the wallet).
+      final dataSource = ref.read(goalLocalDataSourceProvider);
+      await ref.read(walletLedgerServiceProvider).execute(
+        walletId: resolvedWalletId,
+        delta: -amount,
+        writeRecords: (txn) async {
+          final savingId = await dataSource.saveSavingInTxn(
+            txn,
+            GoalSavingModel.fromEntity(saving),
+          );
+          await dataSource.saveGoalInTxn(txn, GoalModel.fromEntity(updated));
+          return LedgerRecordIds(originatingId: savingId);
+        },
+      );
+    } catch (error) {
+      return '$error';
+    }
+
+    ref.invalidate(walletProvider);
+    // A goal deposit changes the wallet + the cash-flow savings line.
+    ref.read(expenseRefreshTokenProvider.notifier).state++;
     if (updated.status == GoalStatus.achieved) {
       await NotificationService.cancelGoalReminder(_goalReminderId(updated));
     }
     ref.invalidate(goalSavingsProvider(goalId));
     await _load();
+    return null;
+  }
+
+  Future<int?> _resolveWalletId(int? explicit) async {
+    if (explicit != null) {
+      return explicit;
+    }
+    final active = ref.read(activeWalletProvider);
+    if (active != null) {
+      return active.id;
+    }
+    final saved = await AppPreferences.activeWalletId();
+    final wallets = await ref.read(walletProvider.future);
+    if (wallets.isEmpty) {
+      return null;
+    }
+    if (saved != null) {
+      for (final wallet in wallets) {
+        if (wallet.id == saved) {
+          return wallet.id;
+        }
+      }
+    }
+    for (final wallet in wallets) {
+      if (wallet.type == WalletType.cash) {
+        return wallet.id;
+      }
+    }
+    return wallets.first.id;
   }
 
   Future<void> cancelGoal(int id) async {

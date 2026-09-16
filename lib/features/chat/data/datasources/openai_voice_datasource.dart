@@ -8,6 +8,7 @@ import '../../../../core/ai/rate_limit_snapshot.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_service.dart';
 
 abstract class OpenAiVoiceDataSource {
@@ -19,11 +20,12 @@ abstract class OpenAiVoiceDataSource {
 class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
   OpenAiVoiceDataSourceImpl({
     http.Client? client,
+    AiGateway? gateway,
     ConnectivityService? connectivityService,
-  }) : _client = client ?? http.Client(),
+  }) : _gateway = gateway ?? AiGateway(client: client),
        _connectivityService = connectivityService ?? ConnectivityService();
 
-  final http.Client _client;
+  final AiGateway _gateway;
   final ConnectivityService _connectivityService;
   RateLimitSnapshot? _latestRateLimitSnapshot;
 
@@ -37,9 +39,8 @@ class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
       throw const NoInternetException();
     }
 
-    final apiKey = ApiConstants.openAiApiKey.trim();
-    if (apiKey.isEmpty) {
-      throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
+    if (!_gateway.isConfigured) {
+      throw const GeneralException(AppStrings.aiBackendNotConfigured);
     }
 
     final file = File(audioFilePath);
@@ -56,10 +57,9 @@ class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse(ApiConstants.voiceUrl),
+      _gateway.transcriptionsUri(),
     );
-    request.headers[HttpHeaders.authorizationHeader] =
-        'Bearer ${ApiConstants.openAiApiKey}';
+    request.headers.addAll(_gateway.authHeaders());
     request.files.add(
       http.MultipartFile.fromBytes(
         'file',
@@ -86,7 +86,7 @@ class OpenAiVoiceDataSourceImpl implements OpenAiVoiceDataSource {
     _latestRateLimitSnapshot = null;
 
     try {
-      final response = await _client
+      final response = await _gateway
           .send(request)
           .timeout(const Duration(seconds: 30));
       _latestRateLimitSnapshot = RateLimitSnapshot.tryParse(

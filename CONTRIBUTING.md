@@ -7,6 +7,55 @@
 4. Run `flutter analyze` and `flutter test`.
 5. Submit a pull request with a short description and screenshots for UI changes.
 
+## Code generation (Isar)
+Models under `lib/**/models/*.dart` use Isar codegen (`*.g.dart`). Regenerate with:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs --force-jit
+```
+
+`--force-jit` is required on this toolchain (Dart 3.10.x + build_runner 2.14): the
+default AOT build-script step fails because a native-build-hook dependency makes
+`dart compile aot-snapshot` bail (`'dart compile' does not support build hooks`).
+JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
+
+## Known issues (deliberate deferrals)
+- **`ExpenseSource.goalDeposit` is reserved / currently unused.** Goal deposits
+  (task 5) are modelled as wallet→goal transfers recorded on `GoalSaving`
+  (with `walletId`), NOT as `ExpenseRecordModel` rows — so no `goalDeposit`
+  expense record is ever written, and the `goalDeposit` branches of the
+  `countsIn*` filters are harmless no-ops. The enum value and its policy are
+  kept as documented intent (and because pruning would touch the ordinal-lock
+  test — `goalDeposit == 2`, `values.length == 3`). A later cleanup can remove
+  it deliberately.
+- **A debt/EMI payment to a deleted wallet now HARD-FAILS (behavior change).**
+  Under the ledger the payment is one atomic transaction, so a missing target
+  wallet makes the whole op fail — nothing persists (correct C1 direction; it
+  used to silently succeed with a warning). Today the failure surfaces the raw
+  `WalletLedgerException` message. The debt-payment UI should catch this and
+  prompt the user to pick a valid wallet rather than showing a technical error —
+  a follow-up for the UI task, for users who deleted a wallet a debt pointed at.
+- **`deletePayment` is correct-but-unwired.** `DebtMutationController.deletePayment`
+  reverses a payment atomically (deletes the payment + linked expense, refunds
+  the wallet, rolls back the debt) and is fully tested, but no UI entry point
+  calls it yet. Wiring a "delete payment" control is a later UI task.
+- **Editing a debt principal does not reconcile the wallet.** `updateDebt` changes
+  the debt's amount but never adjusts the wallet for the difference (it never
+  did — only create/delete/payment move the wallet). Pre-existing and arguably
+  correct (editing a record shouldn't retroactively move cash); left as-is.
+- **Logging a pre-existing debt inflates the wallet.** Creating a debt applies the
+  full principal to the wallet (`_originalWalletDelta` — an "I owe" debt credits
+  the wallet by the borrowed amount). So recording a debt you already spent/hold
+  overstates your wallet balance. This is preserved as-is (creation is a true
+  behavior-preserving migration onto the ledger); fixing it (e.g. an
+  "already received?" toggle) is a separate product decision.
+- **Expense dedupe is a TOCTOU race.** `ExpenseMutationController._isDuplicateExpense`
+  runs as a read *before* the write (outside the ledger transaction), so two
+  rapid identical saves can both pass the check and then both write. The ledger
+  migration (task 3) deliberately preserves this as-is — it is a behavior-
+  preserving refactor, not a dedupe fix. Closing the race (e.g. a uniqueness
+  guard inside the write transaction) is a separate follow-up.
+
 ## Commit Style
 - `feat:` new feature
 - `fix:` bug fix

@@ -1,12 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../../../../core/ledger/wallet_ledger_service.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../data/datasources/income_local_datasource.dart';
+import '../../data/mappers/income_record_mapper.dart';
 import '../../data/repositories/income_repository_impl.dart';
 import '../../domain/entities/income_entity.dart';
 import '../../domain/repositories/income_repository.dart';
@@ -151,12 +152,22 @@ class IncomeMutationController {
         walletId: resolvedWalletId,
         isManual: false,
       );
-      final savedIncome = await _ref.read(saveIncomeUseCaseProvider).call(
-        normalized,
-      );
-      await _adjustWalletBalance(
+      // Income credits the wallet (+amount) and writes only an IncomeRecordModel
+      // (no expense record). Its id is carried as the ledger entry's
+      // originatingId (the primary row this op wrote).
+      final entry = await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
         delta: normalized.amount,
+        writeRecords: (txn) async {
+          final id = await _ref
+              .read(incomeLocalDataSourceProvider)
+              .putIncomeInTxn(txn, normalized.toModel());
+          return LedgerRecordIds(originatingId: id);
+        },
+      );
+      _ref.invalidate(walletProvider);
+      final savedIncome = normalized.copyWith(
+        id: entry.recordIds.originatingId,
       );
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyIncomeChanged();
@@ -182,11 +193,17 @@ class IncomeMutationController {
         walletId: resolvedWalletId,
         isManual: true,
       );
-      await _ref.read(saveIncomeUseCaseProvider).call(normalized);
-      await _adjustWalletBalance(
+      await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
         delta: normalized.amount,
+        writeRecords: (txn) async {
+          final id = await _ref
+              .read(incomeLocalDataSourceProvider)
+              .putIncomeInTxn(txn, normalized.toModel());
+          return LedgerRecordIds(originatingId: id);
+        },
       );
+      _ref.invalidate(walletProvider);
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyIncomeChanged();
       return null;
@@ -227,13 +244,24 @@ class IncomeMutationController {
           )
           .toList(growable: false);
 
-      await _ref.read(saveIncomeUseCaseProvider).saveMany(normalized);
-      for (final entry in normalized) {
-        await _adjustWalletBalance(
-          walletId: resolvedWalletId,
-          delta: entry.amount,
-        );
-      }
+      // One atomic ledger op for the whole batch: all N income rows + a single
+      // summed credit commit together (deliberate C1 fix — no partial apply).
+      final batchTotal = normalized.fold<double>(
+        0,
+        (sum, entry) => sum + entry.amount,
+      );
+      await _ref.read(walletLedgerServiceProvider).execute(
+        walletId: resolvedWalletId,
+        delta: batchTotal,
+        writeRecords: (txn) async {
+          await _ref.read(incomeLocalDataSourceProvider).putIncomesInTxn(
+            txn,
+            normalized.map((entry) => entry.toModel()).toList(growable: false),
+          );
+          return const LedgerRecordIds();
+        },
+      );
+      _ref.invalidate(walletProvider);
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyIncomeChanged();
       return null;
@@ -250,15 +278,24 @@ class IncomeMutationController {
     }
 
     try {
-      final refundWalletId = income.walletId;
-      final refundAmount = income.amount;
-      await _ref.read(deleteIncomeUseCaseProvider).call(income.id!);
-      if (refundWalletId != null) {
-        await _adjustWalletBalance(
-          walletId: refundWalletId,
-          delta: -refundAmount,
-        );
-      }
+      // Delete the income row and debit the wallet atomically (reverse of the
+      // original credit +amount => -amount).
+      await _ref.read(walletLedgerServiceProvider).reverse(
+        entry: WalletLedgerEntry(
+          walletId: income.walletId,
+          appliedDelta: income.amount,
+          recordIds: LedgerRecordIds(originatingId: income.id),
+        ),
+        deleteRecords: (txn) async {
+          final deleted = await _ref
+              .read(incomeLocalDataSourceProvider)
+              .deleteIncomeInTxn(txn, income.id!);
+          if (!deleted) {
+            throw const StorageFailure('আয়টি খুঁজে পাওয়া যায়নি');
+          }
+        },
+      );
+      _ref.invalidate(walletProvider);
       await _notifyIncomeChanged();
       return null;
     } on Failure catch (failure) {
@@ -277,37 +314,26 @@ class IncomeMutationController {
     }
 
     try {
-      await _ref.read(updateIncomeUseCaseProvider).call(newIncome);
-
-      final oldWalletId = oldIncome.walletId;
-      final newWalletId = newIncome.walletId;
-      if (oldWalletId != null && newWalletId != null) {
-        if (oldWalletId == newWalletId) {
-          final delta = newIncome.amount - oldIncome.amount;
-          if (delta != 0) {
-            await _adjustWalletBalance(walletId: newWalletId, delta: delta);
+      // Record update + wallet move in one atomic ledger op. Income credit that
+      // was applied for the old version (+old.amount) is undone and the new
+      // credit (+new.amount) applied — same wallet nets to (new - old),
+      // cross-wallet debits the old and credits the new.
+      await _ref.read(walletLedgerServiceProvider).amend(
+        updateRecords: (txn) async {
+          final ok = await _ref
+              .read(incomeLocalDataSourceProvider)
+              .updateIncomeInTxn(txn, newIncome.toModel());
+          if (!ok) {
+            throw const StorageFailure('আয়টি খুঁজে পাওয়া যায়নি');
           }
-        } else {
-          await _adjustWalletBalance(
-            walletId: oldWalletId,
-            delta: -oldIncome.amount,
-          );
-          await _adjustWalletBalance(
-            walletId: newWalletId,
-            delta: newIncome.amount,
-          );
-        }
-      } else if (oldWalletId != null) {
-        await _adjustWalletBalance(
-          walletId: oldWalletId,
-          delta: -oldIncome.amount,
-        );
-      } else if (newWalletId != null) {
-        await _adjustWalletBalance(
-          walletId: newWalletId,
-          delta: newIncome.amount,
-        );
-      }
+          return LedgerRecordIds(originatingId: newIncome.id);
+        },
+        oldWalletId: oldIncome.walletId,
+        oldAppliedDelta: oldIncome.amount,
+        newWalletId: newIncome.walletId,
+        newAppliedDelta: newIncome.amount,
+      );
+      _ref.invalidate(walletProvider);
 
       await _notifyIncomeChanged();
       return null;
@@ -364,19 +390,6 @@ class IncomeMutationController {
     await AppPreferences.setActiveWalletId(walletId);
   }
 
-  Future<void> _adjustWalletBalance({
-    required int walletId,
-    required double delta,
-  }) async {
-    try {
-      await _ref
-          .read(walletLocalDataSourceProvider)
-          .adjustBalance(walletId, delta);
-      _ref.invalidate(walletProvider);
-    } catch (error, stackTrace) {
-      debugPrint('Wallet balance sync failed: $error\n$stackTrace');
-    }
-  }
 }
 
 class DetectedIncomeSaveResult {

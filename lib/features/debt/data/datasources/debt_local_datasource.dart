@@ -45,36 +45,65 @@ class DebtLocalDataSource {
         .toList(growable: false);
   }
 
+  // Public methods own the transaction; the `*InTxn` internals are the SINGLE
+  // write path, callable by a caller that already holds a writeTxn (the ledger).
+
   Future<DebtModel> saveDebt(DebtModel debt) async {
-    final normalizedDebt = _normalizeDebtForSave(debt);
+    late DebtModel saved;
     await _isar.writeTxn(() async {
-      await _isar.debtModels.put(normalizedDebt);
+      saved = await saveDebtInTxn(_isar, debt);
     });
+    return saved;
+  }
+
+  /// Transaction-free debt write; assumes it is already inside a [Isar.writeTxn].
+  /// Returns the normalized, persisted debt.
+  Future<DebtModel> saveDebtInTxn(Isar isar, DebtModel debt) async {
+    final normalizedDebt = _normalizeDebtForSave(debt);
+    await isar.debtModels.put(normalizedDebt);
     return normalizedDebt;
   }
 
   Future<bool> updateDebt(DebtModel debt) async {
-    final existingDebt = await _isar.debtModels.get(debt.id);
+    late bool updated;
+    await _isar.writeTxn(() async {
+      updated = await updateDebtInTxn(_isar, debt);
+    });
+    return updated;
+  }
+
+  /// Transaction-free debt update-in-place; assumes it is already inside a
+  /// [Isar.writeTxn]. Returns false if the debt no longer exists.
+  Future<bool> updateDebtInTxn(Isar isar, DebtModel debt) async {
+    final existingDebt = await isar.debtModels.get(debt.id);
     if (existingDebt == null) {
       return false;
     }
-
     final normalizedDebt = _normalizeDebtForSave(debt);
-    await _isar.writeTxn(() async {
-      await _isar.debtModels.put(normalizedDebt);
-    });
+    await isar.debtModels.put(normalizedDebt);
     return true;
   }
 
   Future<bool> deleteDebt(int id) async {
-    bool deleted = false;
+    late bool deleted;
     await _isar.writeTxn(() async {
-      deleted = await _isar.debtModels.delete(id);
-      if (deleted) {
-        await _isar.debtPaymentModels.filter().debtIdEqualTo(id).deleteAll();
-      }
+      deleted = await deleteDebtInTxn(_isar, id);
     });
     return deleted;
+  }
+
+  /// Transaction-free debt delete (cascades its payments); assumes it is already
+  /// inside a [Isar.writeTxn].
+  Future<bool> deleteDebtInTxn(Isar isar, int id) async {
+    final deleted = await isar.debtModels.delete(id);
+    if (deleted) {
+      await isar.debtPaymentModels.filter().debtIdEqualTo(id).deleteAll();
+    }
+    return deleted;
+  }
+
+  Future<DebtPaymentModel?> getPaymentById(int id) {
+    return _isar.debtPaymentModels.get(id);
   }
 
   Future<List<DebtPaymentModel>> getPaymentsForDebt(int debtId) async {
@@ -88,114 +117,137 @@ class DebtLocalDataSource {
 
   Future<DebtPaymentModel?> addPayment(DebtPaymentModel payment) async {
     DebtPaymentModel? savedPayment;
-
     await _isar.writeTxn(() async {
-      final debt = await _isar.debtModels.get(payment.debtId);
-      if (debt == null) {
-        return;
-      }
-
-      payment.amount = math.max(0.0, payment.amount).toDouble();
-      _applyPaymentToDebt(debt, payment);
-
-      await _isar.debtPaymentModels.put(payment);
-      await _isar.debtModels.put(debt);
-      savedPayment = payment;
+      savedPayment = await addPaymentInTxn(_isar, payment);
     });
-
     return savedPayment;
+  }
+
+  /// Transaction-free payment write (writes the payment AND applies it to the
+  /// debt); assumes it is already inside a [Isar.writeTxn]. Returns the saved
+  /// payment (with id), or null if the debt no longer exists.
+  Future<DebtPaymentModel?> addPaymentInTxn(
+    Isar isar,
+    DebtPaymentModel payment,
+  ) async {
+    final debt = await isar.debtModels.get(payment.debtId);
+    if (debt == null) {
+      return null;
+    }
+
+    payment.amount = math.max(0.0, payment.amount).toDouble();
+    _applyPaymentToDebt(debt, payment);
+
+    await isar.debtPaymentModels.put(payment);
+    await isar.debtModels.put(debt);
+    return payment;
   }
 
   Future<void> recordInstallmentPaid(int debtId, {int? walletId}) async {
     await _isar.writeTxn(() async {
-      final debt = await _isar.debtModels.get(debtId);
-      if (debt == null || !debt.isEMI) {
-        return;
-      }
-
-      if (debt.status == DebtStatus.settled ||
-          debt.status == DebtStatus.cancelled) {
-        return;
-      }
-
-      final installmentNumber = math.min(
-        debt.totalInstallments,
-        debt.paidInstallments + 1,
-      );
-      final payment = DebtPaymentModel()
-        ..debtId = debtId
-        ..amount = math
-            .min(
-              math.max(0.0, debt.emiAmount),
-              math.max(0.0, debt.remainingAmount),
-            )
-            .toDouble()
-        ..walletId = walletId
-        ..paidAt = DateTime.now()
-        ..isInstallment = true
-        ..installmentNumber = installmentNumber;
-
-      _applyPaymentToDebt(debt, payment);
-      await _isar.debtPaymentModels.put(payment);
-      await _isar.debtModels.put(debt);
+      await recordInstallmentPaidInTxn(_isar, debtId, walletId: walletId);
     });
   }
 
+  /// Transaction-free EMI installment write; assumes it is already inside a
+  /// [Isar.writeTxn]. Returns the saved installment payment (with id), or null
+  /// if the debt is missing / not an active EMI.
+  Future<DebtPaymentModel?> recordInstallmentPaidInTxn(
+    Isar isar,
+    int debtId, {
+    int? walletId,
+  }) async {
+    final debt = await isar.debtModels.get(debtId);
+    if (debt == null || !debt.isEMI) {
+      return null;
+    }
+
+    if (debt.status == DebtStatus.settled ||
+        debt.status == DebtStatus.cancelled) {
+      return null;
+    }
+
+    final installmentNumber = math.min(
+      debt.totalInstallments,
+      debt.paidInstallments + 1,
+    );
+    final payment = DebtPaymentModel()
+      ..debtId = debtId
+      ..amount = math
+          .min(
+            math.max(0.0, debt.emiAmount),
+            math.max(0.0, debt.remainingAmount),
+          )
+          .toDouble()
+      ..walletId = walletId
+      ..paidAt = DateTime.now()
+      ..isInstallment = true
+      ..installmentNumber = installmentNumber;
+
+    _applyPaymentToDebt(debt, payment);
+    await isar.debtPaymentModels.put(payment);
+    await isar.debtModels.put(debt);
+    return payment;
+  }
+
   Future<bool> deletePayment(int paymentId) async {
-    bool deleted = false;
-
+    late bool deleted;
     await _isar.writeTxn(() async {
-      final payment = await _isar.debtPaymentModels.get(paymentId);
-      if (payment == null) {
-        deleted = false;
-        return;
-      }
-
-      final debt = await _isar.debtModels.get(payment.debtId);
-      if (debt != null) {
-        debt.remainingAmount = math
-            .min(_maxPayableAmount(debt), debt.remainingAmount + payment.amount)
-            .toDouble();
-
-        if (debt.isEMI && payment.isInstallment) {
-          debt.paidInstallments = math.max(0, debt.paidInstallments - 1);
-          final day = debt.installmentDayOfMonth;
-          final nextDate =
-              debt.nextInstallmentDate ??
-              (day == null
-                  ? null
-                  : _nextInstallmentFromReference(DateTime.now(), day));
-          if (day != null && nextDate != null) {
-            debt.nextInstallmentDate = _subtractMonthKeepingDay(nextDate, day);
-          }
-        }
-
-        if (debt.remainingAmount <= 0) {
-          debt.remainingAmount = 0;
-          debt.status = DebtStatus.settled;
-          debt.settledAt ??= DateTime.now();
-          debt.nextInstallmentDate = null;
-        } else if (debt.status != DebtStatus.cancelled) {
-          debt.status = _resolveOpenStatus(debt);
-          debt.settledAt = null;
-          if (debt.isEMI &&
-              debt.nextInstallmentDate == null &&
-              debt.installmentDayOfMonth != null &&
-              debt.paidInstallments < debt.totalInstallments) {
-            debt.nextInstallmentDate = _nextInstallmentFromReference(
-              DateTime.now(),
-              debt.installmentDayOfMonth!,
-            );
-          }
-        }
-
-        await _isar.debtModels.put(debt);
-      }
-
-      deleted = await _isar.debtPaymentModels.delete(paymentId);
+      deleted = await deletePaymentInTxn(_isar, paymentId);
     });
-
     return deleted;
+  }
+
+  /// Transaction-free payment delete (rolls the debt math back); assumes it is
+  /// already inside a [Isar.writeTxn].
+  Future<bool> deletePaymentInTxn(Isar isar, int paymentId) async {
+    final payment = await isar.debtPaymentModels.get(paymentId);
+    if (payment == null) {
+      return false;
+    }
+
+    final debt = await isar.debtModels.get(payment.debtId);
+    if (debt != null) {
+      debt.remainingAmount = math
+          .min(_maxPayableAmount(debt), debt.remainingAmount + payment.amount)
+          .toDouble();
+
+      if (debt.isEMI && payment.isInstallment) {
+        debt.paidInstallments = math.max(0, debt.paidInstallments - 1);
+        final day = debt.installmentDayOfMonth;
+        final nextDate =
+            debt.nextInstallmentDate ??
+            (day == null
+                ? null
+                : _nextInstallmentFromReference(DateTime.now(), day));
+        if (day != null && nextDate != null) {
+          debt.nextInstallmentDate = _subtractMonthKeepingDay(nextDate, day);
+        }
+      }
+
+      if (debt.remainingAmount <= 0) {
+        debt.remainingAmount = 0;
+        debt.status = DebtStatus.settled;
+        debt.settledAt ??= DateTime.now();
+        debt.nextInstallmentDate = null;
+      } else if (debt.status != DebtStatus.cancelled) {
+        debt.status = _resolveOpenStatus(debt);
+        debt.settledAt = null;
+        if (debt.isEMI &&
+            debt.nextInstallmentDate == null &&
+            debt.installmentDayOfMonth != null &&
+            debt.paidInstallments < debt.totalInstallments) {
+          debt.nextInstallmentDate = _nextInstallmentFromReference(
+            DateTime.now(),
+            debt.installmentDayOfMonth!,
+          );
+        }
+      }
+
+      await isar.debtModels.put(debt);
+    }
+
+    return await isar.debtPaymentModels.delete(paymentId);
   }
 
   Future<List<DebtModel>> getActiveDebts() async {

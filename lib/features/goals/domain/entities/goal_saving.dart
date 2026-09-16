@@ -8,6 +8,7 @@ class GoalSaving {
     required this.amount,
     required this.date,
     this.note,
+    this.walletId,
   });
 
   final int id;
@@ -16,6 +17,10 @@ class GoalSaving {
   final DateTime date;
   final String? note;
 
+  /// Source wallet this deposit was debited from. Null for legacy savings
+  /// (recorded before deposits debited the wallet) — those are never refunded.
+  final int? walletId;
+
   GoalSaving copyWith({
     int? id,
     int? goalId,
@@ -23,6 +28,7 @@ class GoalSaving {
     DateTime? date,
     String? note,
     bool clearNote = false,
+    int? walletId,
   }) {
     return GoalSaving(
       id: id ?? this.id,
@@ -30,6 +36,7 @@ class GoalSaving {
       amount: amount ?? this.amount,
       date: date ?? this.date,
       note: clearNote ? null : (note ?? this.note),
+      walletId: walletId ?? this.walletId,
     );
   }
 }

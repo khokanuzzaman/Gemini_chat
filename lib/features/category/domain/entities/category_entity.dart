@@ -110,4 +110,17 @@ final defaultCategories = <CategoryEntity>[
     sortOrder: 7,
     createdAt: _defaultCreatedAt,
   ),
+  // Debt/loan repayment (EMI). Carries the linked ExpenseRecordModel written for
+  // an "I owe" debt payment (sourceType=debtPayment). The stable, language-neutral
+  // key for code/filters is sourceType, not this category string; seeded
+  // non-destructively for existing users via the missing-defaults seed.
+  CategoryEntity(
+    id: 8,
+    name: 'EMI',
+    icon: 'account_balance',
+    colorValue: 0xFF5E35B1,
+    isDefault: true,
+    sortOrder: 8,
+    createdAt: _defaultCreatedAt,
+  ),
 ];

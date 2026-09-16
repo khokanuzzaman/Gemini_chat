@@ -10,6 +10,7 @@ import '../../../../core/utils/category_icon.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../domain/entities/budget_plan_entity.dart';
 
@@ -37,7 +38,9 @@ class BudgetDashboard extends ConsumerWidget {
           );
         }
 
-        final expenses = snapshot.data ?? const <ExpenseEntity>[];
+        final expenses = (snapshot.data ?? const <ExpenseEntity>[])
+            .inCategoryBudget
+            .toList(growable: false);
         final totalSpent = expenses.fold<double>(
           0,
           (sum, expense) => sum + expense.amount,

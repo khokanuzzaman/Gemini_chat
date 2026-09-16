@@ -1,0 +1,19 @@
+{
+  "name": "pocketpilot-openai-proxy",
+  "description": "Firebase Cloud Functions proxy for OpenAI with server-side per-user quota, Firebase Auth + App Check, and a global daily spend cap.",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions,firestore,auth",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.1"
+  }
+}

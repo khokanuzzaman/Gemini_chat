@@ -1,5 +1,6 @@
 import '../entities/analytics_data.dart';
 import '../entities/expense_entity.dart';
+import '../entities/expense_source_filters.dart';
 import '../repositories/expense_repository.dart';
 
 class GetAnalyticsUseCase {
@@ -8,13 +9,17 @@ class GetAnalyticsUseCase {
   final ExpenseRepository _repository;
 
   Future<AnalyticsData> call(DateTime month) async {
-    final currentMonthExpenses = await _repository.getExpensesForMonth(month);
+    // Analytics is a pure spending surface — filter to spending-total rows so
+    // every downstream sum/chart/count reflects the policy matrix.
+    final currentMonthExpenses = (await _repository.getExpensesForMonth(month))
+        .inSpendingTotals
+        .toList(growable: false);
     final previousMonth = month.month == 1
         ? DateTime(month.year - 1, 12, 1)
         : DateTime(month.year, month.month - 1, 1);
-    final lastMonthExpenses = await _repository.getExpensesForMonth(
+    final lastMonthExpenses = (await _repository.getExpensesForMonth(
       previousMonth,
-    );
+    )).inSpendingTotals.toList(growable: false);
 
     final thisMonthByCategory = _categoryTotals(currentMonthExpenses);
     final lastMonthByCategory = _categoryTotals(lastMonthExpenses);

@@ -74,18 +74,4 @@ class WalletLocalDataSource {
       await _isar.walletModels.put(wallet);
     });
   }
-
-  Future<void> adjustBalance(int walletId, double delta) async {
-    await _isar.writeTxn(() async {
-      final wallet = await _isar.walletModels.get(walletId);
-      if (wallet == null) {
-        return;
-      }
-
-      wallet
-        ..currentBalance += delta
-        ..updatedAt = DateTime.now();
-      await _isar.walletModels.put(wallet);
-    });
-  }
 }

@@ -1,16 +1,13 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 class ApiConstants {
   const ApiConstants._();
 
-  static String get openAiApiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
-
+  // AI requests are routed through the backend proxy (see
+  // lib/core/network/ai_gateway.dart), never to api.openai.com directly, and
+  // the OpenAI key never ships in the app. Only the model names and prompt
+  // templates live here; the backend mirrors OpenAI's request/response shapes.
   static const String chatModel = 'gpt-4o-mini';
-  static const String chatUrl = 'https://api.openai.com/v1/chat/completions';
 
   static const String voiceModel = 'whisper-1';
-  static const String voiceUrl =
-      'https://api.openai.com/v1/audio/transcriptions';
 
   static const String chatSystemPrompt = '''
 You are a personal finance assistant for Bangladesh.

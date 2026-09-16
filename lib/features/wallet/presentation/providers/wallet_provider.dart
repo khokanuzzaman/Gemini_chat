@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/database_providers.dart';
 import '../../../expense/data/repositories/expense_repository_impl.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_refresh_provider.dart';
 import '../../data/datasources/wallet_local_datasource.dart';
 import '../../data/repositories/wallet_repository_impl.dart';
@@ -107,7 +108,7 @@ final walletMonthlySpentProvider = FutureProvider.family<double, int>((
   final now = DateTime.now();
   final startOfMonth = DateTime(now.year, now.month, 1);
   final expenses = await repository.getExpensesByWallet(walletId);
-  final thisMonth = expenses.where(
+  final thisMonth = expenses.inSpendingTotals.where(
     (expense) => !expense.date.isBefore(startOfMonth),
   );
   return thisMonth.fold<double>(0, (sum, expense) => sum + expense.amount);
@@ -134,7 +135,7 @@ final walletBreakdownForMonthProvider =
       final expenses = await repository.getExpensesByDateRange(start, end);
 
       final totals = <int, double>{};
-      for (final expense in expenses) {
+      for (final expense in expenses.inSpendingTotals) {
         final walletId = expense.walletId;
         if (walletId == null) {
           continue;

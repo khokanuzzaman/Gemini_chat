@@ -6,5 +6,4 @@ abstract class WalletRepository {
   Future<WalletEntity> saveWallet(WalletEntity wallet);
   Future<void> deleteWallet(int id);
   Future<void> archiveWallet(int id);
-  Future<void> adjustBalance(int walletId, double delta);
 }

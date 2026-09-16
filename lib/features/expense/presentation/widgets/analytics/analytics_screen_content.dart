@@ -1290,7 +1290,9 @@ class _IncomeTabContent extends ConsumerWidget {
             final bundle = _IncomeAnalyticsBundle.fromData(
               month: selectedMonth,
               allIncomes: allIncomes,
-              allExpenses: snapshot.data ?? const <ExpenseEntity>[],
+              allExpenses: (snapshot.data ?? const <ExpenseEntity>[])
+                  .inSpendingTotals
+                  .toList(growable: false),
             );
 
             if (bundle.allIncomes.isEmpty) {

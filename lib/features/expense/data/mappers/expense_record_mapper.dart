@@ -11,6 +11,8 @@ extension ExpenseRecordModelMapper on ExpenseRecordModel {
       date: date,
       walletId: walletId,
       isManual: isManual,
+      sourceType: sourceType,
+      sourceId: sourceId,
     );
   }
 }
@@ -23,7 +25,9 @@ extension ExpenseEntityMapper on ExpenseEntity {
       ..description = description
       ..walletId = walletId
       ..isManual = isManual
-      ..date = date;
+      ..date = date
+      ..sourceType = sourceType
+      ..sourceId = sourceId;
     if (id != null && id! > 0) {
       model.id = id!;
     }

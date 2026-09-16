@@ -15,6 +15,10 @@ class GoalSavingModel {
   late DateTime date;
   String? note;
 
+  /// Source wallet this deposit debited. Legacy rows deserialize to null (never
+  /// wallet-debited, never refunded on goal deletion).
+  int? walletId;
+
   GoalSaving toEntity() {
     return GoalSaving(
       id: id,
@@ -22,6 +26,7 @@ class GoalSavingModel {
       amount: amount,
       date: date,
       note: note,
+      walletId: walletId,
     );
   }
 
@@ -30,7 +35,8 @@ class GoalSavingModel {
       ..goalId = entity.goalId
       ..amount = entity.amount
       ..date = entity.date
-      ..note = entity.note;
+      ..note = entity.note
+      ..walletId = entity.walletId;
     if (entity.id > 0) {
       model.id = entity.id;
     }

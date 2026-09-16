@@ -1,4 +1,5 @@
 import '../entities/dashboard_data.dart';
+import '../entities/expense_source_filters.dart';
 import '../repositories/expense_repository.dart';
 
 class GetDashboardDataUseCase {
@@ -24,17 +25,22 @@ class GetDashboardDataUseCase {
       now,
     );
 
-    final thisMonthTotal = thisMonthExpenses.fold<double>(
+    // Totals/category/count are spending surfaces; the recent/today LISTS show
+    // every money movement (debtPayment appears there as an EMI line).
+    final thisMonthSpending = thisMonthExpenses.inSpendingTotals.toList(
+      growable: false,
+    );
+    final thisMonthTotal = thisMonthSpending.fold<double>(
       0,
       (sum, expense) => sum + expense.amount,
     );
-    final lastMonthTotal = lastMonthExpenses.fold<double>(
+    final lastMonthTotal = lastMonthExpenses.inSpendingTotals.fold<double>(
       0,
       (sum, expense) => sum + expense.amount,
     );
 
     final categoryTotals = <String, double>{};
-    for (final expense in thisMonthExpenses) {
+    for (final expense in thisMonthSpending) {
       categoryTotals.update(
         expense.category,
         (value) => value + expense.amount,
@@ -45,11 +51,11 @@ class GetDashboardDataUseCase {
     return DashboardData(
       thisMonthTotal: thisMonthTotal,
       lastMonthTotal: lastMonthTotal,
-      thisWeekTotal: thisWeekExpenses.fold<double>(
+      thisWeekTotal: thisWeekExpenses.inSpendingTotals.fold<double>(
         0,
         (sum, expense) => sum + expense.amount,
       ),
-      transactionCount: thisMonthExpenses.length,
+      transactionCount: thisMonthSpending.length,
       manualEntryCount: thisMonthExpenses
           .where((expense) => expense.isManual)
           .length,

@@ -213,11 +213,12 @@ class _AddSavingSheetState extends ConsumerState<AddSavingSheet> {
           fullWidth: true,
           onPressed: () async {
             final navigator = Navigator.of(context);
+            final messenger = ScaffoldMessenger.of(context);
             final amount = double.tryParse(_amountController.text.trim()) ?? 0;
             if (amount <= 0) {
               return;
             }
-            await ref
+            final error = await ref
                 .read(goalProvider.notifier)
                 .addSaving(
                   goalId: widget.goal.id,
@@ -227,6 +228,12 @@ class _AddSavingSheetState extends ConsumerState<AddSavingSheet> {
                       : _noteController.text.trim(),
                 );
             if (!mounted) {
+              return;
+            }
+            if (error != null) {
+              // Deposit hard-failed atomically (e.g. no source wallet) — keep the
+              // sheet open and surface it rather than reporting a false success.
+              messenger.showSnackBar(SnackBar(content: Text(error)));
               return;
             }
             navigator.pop(

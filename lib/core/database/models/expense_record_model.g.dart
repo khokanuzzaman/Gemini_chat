@@ -31,7 +31,14 @@ const ExpenseRecordModelSchema = CollectionSchema(
       type: IsarType.string,
     ),
     r'isManual': PropertySchema(id: 4, name: r'isManual', type: IsarType.bool),
-    r'walletId': PropertySchema(id: 5, name: r'walletId', type: IsarType.long),
+    r'sourceId': PropertySchema(id: 5, name: r'sourceId', type: IsarType.long),
+    r'sourceType': PropertySchema(
+      id: 6,
+      name: r'sourceType',
+      type: IsarType.byte,
+      enumMap: _ExpenseRecordModelsourceTypeEnumValueMap,
+    ),
+    r'walletId': PropertySchema(id: 7, name: r'walletId', type: IsarType.long),
   },
 
   estimateSize: _expenseRecordModelEstimateSize,
@@ -85,7 +92,9 @@ void _expenseRecordModelSerialize(
   writer.writeDateTime(offsets[2], object.date);
   writer.writeString(offsets[3], object.description);
   writer.writeBool(offsets[4], object.isManual);
-  writer.writeLong(offsets[5], object.walletId);
+  writer.writeLong(offsets[5], object.sourceId);
+  writer.writeByte(offsets[6], object.sourceType.index);
+  writer.writeLong(offsets[7], object.walletId);
 }
 
 ExpenseRecordModel _expenseRecordModelDeserialize(
@@ -101,7 +110,13 @@ ExpenseRecordModel _expenseRecordModelDeserialize(
   object.description = reader.readString(offsets[3]);
   object.id = id;
   object.isManual = reader.readBool(offsets[4]);
-  object.walletId = reader.readLongOrNull(offsets[5]);
+  object.sourceId = reader.readLongOrNull(offsets[5]);
+  object.sourceType =
+      _ExpenseRecordModelsourceTypeValueEnumMap[reader.readByteOrNull(
+        offsets[6],
+      )] ??
+      ExpenseSource.expense;
+  object.walletId = reader.readLongOrNull(offsets[7]);
   return object;
 }
 
@@ -124,10 +139,29 @@ P _expenseRecordModelDeserializeProp<P>(
       return (reader.readBool(offset)) as P;
     case 5:
       return (reader.readLongOrNull(offset)) as P;
+    case 6:
+      return (_ExpenseRecordModelsourceTypeValueEnumMap[reader.readByteOrNull(
+                offset,
+              )] ??
+              ExpenseSource.expense)
+          as P;
+    case 7:
+      return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
+
+const _ExpenseRecordModelsourceTypeEnumValueMap = {
+  'expense': 0,
+  'debtPayment': 1,
+  'goalDeposit': 2,
+};
+const _ExpenseRecordModelsourceTypeValueEnumMap = {
+  0: ExpenseSource.expense,
+  1: ExpenseSource.debtPayment,
+  2: ExpenseSource.goalDeposit,
+};
 
 Id _expenseRecordModelGetId(ExpenseRecordModel object) {
   return object.id;
@@ -793,6 +827,134 @@ extension ExpenseRecordModelQueryFilter
   }
 
   QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'sourceId'),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'sourceId'),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'sourceId', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdGreaterThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'sourceId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdLessThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'sourceId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'sourceId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceTypeEqualTo(ExpenseSource value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'sourceType', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceTypeGreaterThan(ExpenseSource value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'sourceType',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceTypeLessThan(ExpenseSource value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'sourceType',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
+  sourceTypeBetween(
+    ExpenseSource lower,
+    ExpenseSource upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'sourceType',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterFilterCondition>
   walletIdIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -945,6 +1107,34 @@ extension ExpenseRecordModelQuerySortBy
   }
 
   QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  sortBySourceId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  sortBySourceIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  sortBySourceType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  sortBySourceTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceType', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
   sortByWalletId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'walletId', Sort.asc);
@@ -1046,6 +1236,34 @@ extension ExpenseRecordModelQuerySortThenBy
   }
 
   QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  thenBySourceId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  thenBySourceIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  thenBySourceType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
+  thenBySourceTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sourceType', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QAfterSortBy>
   thenByWalletId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'walletId', Sort.asc);
@@ -1098,6 +1316,20 @@ extension ExpenseRecordModelQueryWhereDistinct
   }
 
   QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QDistinct>
+  distinctBySourceId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sourceId');
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QDistinct>
+  distinctBySourceType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sourceType');
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseRecordModel, QDistinct>
   distinctByWalletId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'walletId');
@@ -1142,6 +1374,19 @@ extension ExpenseRecordModelQueryProperty
   QueryBuilder<ExpenseRecordModel, bool, QQueryOperations> isManualProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isManual');
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, int?, QQueryOperations> sourceIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sourceId');
+    });
+  }
+
+  QueryBuilder<ExpenseRecordModel, ExpenseSource, QQueryOperations>
+  sourceTypeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sourceType');
     });
   }
 

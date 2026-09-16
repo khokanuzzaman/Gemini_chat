@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/ledger/wallet_ledger_service.dart';
 import '../../../../core/notifications/notification_provider.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
@@ -14,11 +14,14 @@ import '../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../goals/presentation/providers/goal_provider.dart';
 import '../../../income/presentation/providers/income_providers.dart';
+import '../../data/mappers/expense_record_mapper.dart';
 import '../../data/repositories/expense_repository_impl.dart';
 import '../../domain/entities/analytics_data.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
+import '../../domain/entities/expense_source_filters.dart';
 import '../../domain/entities/expense_list_filter.dart';
 import '../../domain/repositories/expense_repository.dart';
 import '../../domain/usecases/delete_expense_usecase.dart';
@@ -90,12 +93,18 @@ class CashFlowData {
     required this.expense,
     required this.lastMonthIncome,
     required this.lastMonthExpense,
+    this.savings = 0,
   });
 
   final double income;
   final double expense;
   final double lastMonthIncome;
   final double lastMonthExpense;
+
+  /// Goal deposits this month (wallet→goal transfers). Not consumption, so it is
+  /// separate from [expense]: the wallet change for the month is
+  /// `netFlow - savings` (income − expense − savings).
+  final double savings;
 
   double get netFlow => income - expense;
   double get lastMonthNetFlow => lastMonthIncome - lastMonthExpense;
@@ -154,12 +163,21 @@ final cashFlowProvider = FutureProvider<CashFlowData>((ref) async {
     lastMonthStart,
     lastMonthEnd,
   );
+  // Savings = goal deposits this month, read straight from GoalSaving rows
+  // (goal deposits are transfers, not expenses — they carry no expense record).
+  final thisMonthSavings = await ref
+      .read(goalLocalDataSourceProvider)
+      .getTotalSavingsForRange(thisMonthStart, thisMonthEnd);
 
   return CashFlowData(
     income: thisMonthIncome,
-    expense: thisMonthExpenses.fold<double>(0, (sum, e) => sum + e.amount),
+    expense: thisMonthExpenses.inCashFlow.fold<double>(
+      0,
+      (sum, e) => sum + e.amount,
+    ),
+    savings: thisMonthSavings,
     lastMonthIncome: lastMonthIncome,
-    lastMonthExpense: lastMonthExpenses.fold<double>(
+    lastMonthExpense: lastMonthExpenses.inCashFlow.fold<double>(
       0,
       (sum, e) => sum + e.amount,
     ),
@@ -261,8 +279,6 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     }
 
     try {
-      final refundWalletId = expense.walletId;
-      final refundAmount = expense.amount;
       final currentState = state.valueOrNull;
       if (currentState != null) {
         final updatedExpenses = currentState.expenses
@@ -271,8 +287,24 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
         state = AsyncData(currentState.copyWith(expenses: updatedExpenses));
       }
 
-      await ref.read(deleteExpenseUseCaseProvider).call(expense.id!);
-      await _adjustWalletBalance(walletId: refundWalletId, delta: refundAmount);
+      // Delete the record and refund the wallet atomically (reverse of the
+      // original outflow -amount => +amount refund).
+      await ref.read(walletLedgerServiceProvider).reverse(
+        entry: WalletLedgerEntry(
+          walletId: expense.walletId,
+          appliedDelta: -expense.amount,
+          recordIds: LedgerRecordIds(expenseRecordId: expense.id),
+        ),
+        deleteRecords: (txn) async {
+          final deleted = await ref
+              .read(expenseLocalDataSourceProvider)
+              .deleteExpenseInTxn(txn, expense.id!);
+          if (!deleted) {
+            throw const StorageFailure('খরচটি খুঁজে পাওয়া যায়নি');
+          }
+        },
+      );
+      ref.invalidate(walletProvider);
       await ref.read(anomalyProvider.notifier).reDetect();
       ref.invalidate(dashboardControllerProvider);
       ref.invalidate(analyticsControllerProvider);
@@ -306,11 +338,26 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
         );
       }
 
-      await ref.read(updateExpenseUseCaseProvider).call(expense);
-      await _syncWalletBalanceAfterUpdate(
-        previousExpense: previousExpense,
-        updatedExpense: expense,
+      // Record update + wallet move in one atomic ledger op. The expense
+      // outflow that was applied for the old version (-previous.amount) is
+      // undone and the new outflow (-updated.amount) applied — same wallet nets
+      // to one delta, cross-wallet refunds old and charges new.
+      await ref.read(walletLedgerServiceProvider).amend(
+        updateRecords: (txn) async {
+          final ok = await ref
+              .read(expenseLocalDataSourceProvider)
+              .updateExpenseInTxn(txn, expense.toModel());
+          if (!ok) {
+            throw const StorageFailure('খরচটি খুঁজে পাওয়া যায়নি');
+          }
+          return LedgerRecordIds(expenseRecordId: expense.id);
+        },
+        oldWalletId: previousExpense?.walletId,
+        oldAppliedDelta: -(previousExpense?.amount ?? 0),
+        newWalletId: expense.walletId,
+        newAppliedDelta: -expense.amount,
       );
+      ref.invalidate(walletProvider);
       await ref.read(anomalyProvider.notifier).reDetect();
       await _checkBudgetAlertsAfterUpdate(
         previousExpense: previousExpense,
@@ -366,42 +413,6 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     return null;
   }
 
-  Future<void> _syncWalletBalanceAfterUpdate({
-    required ExpenseEntity? previousExpense,
-    required ExpenseEntity updatedExpense,
-  }) async {
-    final previousWalletId = previousExpense?.walletId;
-    final updatedWalletId = updatedExpense.walletId;
-    var shouldRefreshWallets = false;
-
-    if (previousWalletId != null && previousWalletId == updatedWalletId) {
-      final delta = (previousExpense?.amount ?? 0) - updatedExpense.amount;
-      if (delta != 0) {
-        await _adjustWalletBalance(walletId: previousWalletId, delta: delta);
-        shouldRefreshWallets = true;
-      }
-    } else {
-      if (previousWalletId != null && previousExpense != null) {
-        await _adjustWalletBalance(
-          walletId: previousWalletId,
-          delta: previousExpense.amount,
-        );
-        shouldRefreshWallets = true;
-      }
-      if (updatedWalletId != null) {
-        await _adjustWalletBalance(
-          walletId: updatedWalletId,
-          delta: -updatedExpense.amount,
-        );
-        shouldRefreshWallets = true;
-      }
-    }
-
-    if (shouldRefreshWallets) {
-      ref.invalidate(walletProvider);
-    }
-  }
-
   Future<void> _checkBudgetAlertsAfterUpdate({
     required ExpenseEntity? previousExpense,
     required ExpenseEntity updatedExpense,
@@ -423,24 +434,6 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
           .read(notificationProvider.notifier)
           .checkBudgetAlert(previousCategory);
     } catch (_) {}
-  }
-
-  Future<void> _adjustWalletBalance({
-    required int? walletId,
-    required double delta,
-  }) async {
-    if (walletId == null || delta == 0) {
-      return;
-    }
-
-    try {
-      await ref
-          .read(walletLocalDataSourceProvider)
-          .adjustBalance(walletId, delta);
-      ref.invalidate(walletProvider);
-    } catch (error, stackTrace) {
-      debugPrint('Wallet balance sync failed: $error\n$stackTrace');
-    }
   }
 
   List<ExpenseEntity> _applyUpdatedExpense(
@@ -612,12 +605,19 @@ class ExpenseMutationController {
           error: 'একই খরচ আগেই যোগ করা আছে',
         );
       }
-      final savedExpense = await _ref.read(saveExpenseUseCaseProvider).call(
-        expense,
-      );
-      await _adjustWalletBalance(
+      final entry = await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
         delta: -expense.amount,
+        writeRecords: (txn) async {
+          final id = await _ref
+              .read(expenseLocalDataSourceProvider)
+              .putExpenseInTxn(txn, expense.toModel());
+          return LedgerRecordIds(expenseRecordId: id);
+        },
+      );
+      _ref.invalidate(walletProvider);
+      final savedExpense = expense.copyWith(
+        id: entry.recordIds.expenseRecordId,
       );
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyExpenseChanged(addedCount: 1);
@@ -689,13 +689,27 @@ class ExpenseMutationController {
         return 'একই খরচ আগেই যোগ করা আছে';
       }
 
-      await _ref.read(saveExpenseUseCaseProvider).saveMany(dedupedExpenses);
-      for (final expense in dedupedExpenses) {
-        await _adjustWalletBalance(
-          walletId: resolvedWalletId,
-          delta: -expense.amount,
-        );
-      }
+      // One atomic ledger op for the whole batch: all N records + a single
+      // summed wallet delta commit together (deliberate C1 fix — no partial
+      // application; replaces the old per-row swallowed adjust loop).
+      final batchTotal = dedupedExpenses.fold<double>(
+        0,
+        (sum, expense) => sum + expense.amount,
+      );
+      await _ref.read(walletLedgerServiceProvider).execute(
+        walletId: resolvedWalletId,
+        delta: -batchTotal,
+        writeRecords: (txn) async {
+          await _ref.read(expenseLocalDataSourceProvider).putExpensesInTxn(
+            txn,
+            dedupedExpenses
+                .map((expense) => expense.toModel())
+                .toList(growable: false),
+          );
+          return const LedgerRecordIds();
+        },
+      );
+      _ref.invalidate(walletProvider);
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyExpenseChanged(addedCount: dedupedExpenses.length);
       final categories = dedupedExpenses
@@ -745,11 +759,17 @@ class ExpenseMutationController {
       if (await _isDuplicateExpense(expense)) {
         return 'একই খরচ আগেই যোগ করা আছে';
       }
-      await _ref.read(saveExpenseUseCaseProvider).call(expense);
-      await _adjustWalletBalance(
+      await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
         delta: -expense.amount,
+        writeRecords: (txn) async {
+          final id = await _ref
+              .read(expenseLocalDataSourceProvider)
+              .putExpenseInTxn(txn, expense.toModel());
+          return LedgerRecordIds(expenseRecordId: id);
+        },
       );
+      _ref.invalidate(walletProvider);
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyExpenseChanged(addedCount: 1);
       await _ref
@@ -783,11 +803,17 @@ class ExpenseMutationController {
         walletId: resolvedWalletId,
         isManual: true,
       );
-      await _ref.read(saveExpenseUseCaseProvider).call(normalizedExpense);
-      await _adjustWalletBalance(
+      await _ref.read(walletLedgerServiceProvider).execute(
         walletId: resolvedWalletId,
         delta: -normalizedExpense.amount,
+        writeRecords: (txn) async {
+          final id = await _ref
+              .read(expenseLocalDataSourceProvider)
+              .putExpenseInTxn(txn, normalizedExpense.toModel());
+          return LedgerRecordIds(expenseRecordId: id);
+        },
       );
+      _ref.invalidate(walletProvider);
       await _rememberActiveWallet(resolvedWalletId);
       await _notifyExpenseChanged(addedCount: 1);
       await _ref
@@ -851,20 +877,6 @@ class ExpenseMutationController {
   Future<void> _rememberActiveWallet(int walletId) async {
     _ref.read(activeWalletIdProvider.notifier).state = walletId;
     await AppPreferences.setActiveWalletId(walletId);
-  }
-
-  Future<void> _adjustWalletBalance({
-    required int walletId,
-    required double delta,
-  }) async {
-    try {
-      await _ref
-          .read(walletLocalDataSourceProvider)
-          .adjustBalance(walletId, delta);
-      _ref.invalidate(walletProvider);
-    } catch (error, stackTrace) {
-      debugPrint('Wallet balance sync failed: $error\n$stackTrace');
-    }
   }
 
   Future<bool> _isDuplicateExpense(ExpenseEntity candidate) async {

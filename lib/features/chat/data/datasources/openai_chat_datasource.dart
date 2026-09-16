@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/ai/prompt_builder.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_service.dart';
 import '../../../../core/ai/rag_prompt_builder.dart';
 import '../../../../core/ai/rate_limit_snapshot.dart';
@@ -29,13 +30,14 @@ abstract class OpenAiChatDataSource {
 class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
   OpenAiChatDataSourceImpl({
     http.Client? client,
+    AiGateway? gateway,
     ConnectivityService? connectivityService,
     Future<List<CategoryEntity>> Function()? categoryLoader,
-  }) : _client = client ?? http.Client(),
+  }) : _gateway = gateway ?? AiGateway(client: client),
        _connectivityService = connectivityService ?? ConnectivityService(),
        _categoryLoader = categoryLoader;
 
-  final http.Client _client;
+  final AiGateway _gateway;
   final ConnectivityService _connectivityService;
   final Future<List<CategoryEntity>> Function()? _categoryLoader;
 
@@ -59,9 +61,8 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
       throw const NoInternetException();
     }
 
-    final apiKey = ApiConstants.openAiApiKey.trim();
-    if (apiKey.isEmpty) {
-      throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
+    if (!_gateway.isConfigured) {
+      throw const GeneralException(AppStrings.aiBackendNotConfigured);
     }
 
     final messages = _buildMessages(
@@ -135,9 +136,9 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
     required int maxTokens,
     required double temperature,
   }) async* {
-    final request = http.Request('POST', Uri.parse(ApiConstants.chatUrl));
+    final request = http.Request('POST', _gateway.chatCompletionsUri());
     request.headers.addAll({
-      HttpHeaders.authorizationHeader: 'Bearer ${ApiConstants.openAiApiKey}',
+      ..._gateway.authHeaders(),
       HttpHeaders.contentTypeHeader: 'application/json',
     });
     request.body = jsonEncode({
@@ -154,7 +155,7 @@ class OpenAiChatDataSourceImpl implements OpenAiChatDataSource {
     final buffer = StringBuffer();
 
     try {
-      final response = await _client
+      final response = await _gateway
           .send(request)
           .timeout(const Duration(seconds: 30));
       _latestRateLimitSnapshot = RateLimitSnapshot.tryParse(

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/models/recurring_expense_model.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/datasources/recurring_local_datasource.dart';
 import '../../data/services/recurring_detection_service.dart';
@@ -47,7 +48,9 @@ class RecurringNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
   Future<void> _detectAndSave() async {
     final expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
     final cutoff = DateTime.now().subtract(const Duration(days: 90));
-    final last90Days = expenses
+    // Only ordinary expenses feed recurring detection — debtPayment EMIs are
+    // already modeled as debt; goalDeposit is a transfer.
+    final last90Days = expenses.forRecurringDetection
         .where((expense) => expense.date.isAfter(cutoff))
         .toList(growable: false);
     final detected = await const RecurringDetectionService().detectPatterns(

@@ -16,6 +16,7 @@ import '../../../../core/database/models/sms_ledger_entry_model.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/mlkit/ocr_service.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/preferences/app_preferences.dart';
@@ -97,6 +98,7 @@ final receiptScannerServiceProvider = Provider<ReceiptScannerService>((ref) {
 
 final openAiChatDataSourceProvider = Provider<OpenAiChatDataSource>((ref) {
   return OpenAiChatDataSourceImpl(
+    gateway: ref.watch(aiGatewayProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
     categoryLoader: () => ref.read(getCategoriesUseCaseProvider).call(),
   );
@@ -104,6 +106,7 @@ final openAiChatDataSourceProvider = Provider<OpenAiChatDataSource>((ref) {
 
 final openAiVoiceDataSourceProvider = Provider<OpenAiVoiceDataSource>((ref) {
   return OpenAiVoiceDataSourceImpl(
+    gateway: ref.watch(aiGatewayProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
   );
 });
@@ -112,6 +115,7 @@ final openAiReceiptDataSourceProvider = Provider<OpenAiReceiptDataSource>((
   ref,
 ) {
   return OpenAiReceiptDataSourceImpl(
+    gateway: ref.watch(aiGatewayProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
     categoryLoader: () => ref.read(getCategoriesUseCaseProvider).call(),
   );

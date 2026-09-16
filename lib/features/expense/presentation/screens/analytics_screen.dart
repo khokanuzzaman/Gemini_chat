@@ -19,6 +19,7 @@ import '../../../prediction/presentation/widgets/prediction_card.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';
 import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../domain/entities/expense_entity.dart';
+import '../../domain/entities/expense_source_filters.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
 

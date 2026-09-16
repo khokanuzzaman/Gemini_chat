@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/providers/shared_preferences_provider.dart';
 import '../../../expense/data/repositories/expense_repository_impl.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/domain/repositories/expense_repository.dart';
 import '../../data/datasources/prediction_datasource.dart';
 import '../../data/repositories/prediction_repository_impl.dart';
@@ -27,6 +29,7 @@ final predictionRefreshTokenProvider = StateProvider<int>((ref) => 0);
 
 final predictionDataSourceProvider = Provider<PredictionDataSource>((ref) {
   return PredictionDataSourceImpl(
+    gateway: ref.watch(aiGatewayProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
   );
 });
@@ -196,14 +199,14 @@ class PredictionNotifier extends Notifier<PredictionState> {
       final endOfLastMonth = startOfMonth.subtract(const Duration(days: 1));
 
       final expenseRepository = ref.read(predictionExpenseRepositoryProvider);
-      final thisMonth = await expenseRepository.getExpensesByDateRange(
+      final thisMonth = (await expenseRepository.getExpensesByDateRange(
         startOfMonth,
         now,
-      );
-      final lastMonth = await expenseRepository.getExpensesByDateRange(
+      )).inPrediction.toList(growable: false);
+      final lastMonth = (await expenseRepository.getExpensesByDateRange(
         startOfLastMonth,
         endOfLastMonth,
-      );
+      )).inPrediction.toList(growable: false);
       final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
 
       final loadResult = await ref

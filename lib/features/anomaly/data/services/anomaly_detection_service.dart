@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:intl/intl.dart';
 
 import '../../../expense/domain/entities/expense_entity.dart';
+import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../domain/entities/anomaly_alert.dart';
 
 class AnomalyDetectionService {
@@ -16,6 +17,12 @@ class AnomalyDetectionService {
     required List<ExpenseEntity> last30Days,
     required List<ExpenseEntity> previous90Days,
   }) {
+    // Single-point anomaly filter (covers AnomalyNotifier AND RAG's own
+    // _buildAnomalies): scheduled debt/EMI payments (and goal deposits) must not
+    // fire false spike anomalies.
+    last30Days = last30Days.inAnomaly.toList(growable: false);
+    previous90Days = previous90Days.inAnomaly.toList(growable: false);
+
     final alerts = <AnomalyAlert>[];
     var alertId = 1;
     final detectedAt = DateTime.now();

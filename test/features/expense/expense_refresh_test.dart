@@ -7,158 +7,16 @@ import 'package:isar_community/isar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/ai/expense_result.dart';
+import 'package:gemini_chat/core/database/models/expense_record_model.dart';
 import 'package:gemini_chat/core/database/models/wallet_model.dart';
+import 'package:gemini_chat/core/providers/database_providers.dart';
 import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
-import 'package:gemini_chat/features/expense/domain/entities/expense_entity.dart';
-import 'package:gemini_chat/features/expense/domain/repositories/expense_repository.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
-import 'package:gemini_chat/features/wallet/data/datasources/wallet_local_datasource.dart';
 import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
-import 'package:gemini_chat/features/wallet/presentation/providers/wallet_provider.dart';
-
-class _FakeExpenseRepository implements ExpenseRepository {
-  final List<ExpenseEntity> _expenses;
-  int _nextId = 1;
-
-  _FakeExpenseRepository(List<ExpenseEntity> seedExpenses)
-    : _expenses = seedExpenses
-          .map(
-            (expense) => expense.copyWith(
-              id: expense.id ?? seedExpenses.indexOf(expense) + 1,
-            ),
-          )
-          .toList(growable: true) {
-    if (_expenses.isNotEmpty) {
-      _nextId =
-          _expenses
-              .map((expense) => expense.id ?? 0)
-              .reduce((value, element) => value > element ? value : element) +
-          1;
-    }
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getAllExpenses() async {
-    final expenses = [..._expenses]
-      ..sort((first, second) => second.date.compareTo(first.date));
-    return expenses;
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getThisMonthExpenses() async {
-    final now = DateTime.now();
-    return _expenses
-        .where(
-          (expense) =>
-              expense.date.year == now.year && expense.date.month == now.month,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getLastMonthExpenses() async {
-    final now = DateTime.now();
-    final lastMonth = now.month == 1 ? 12 : now.month - 1;
-    final year = now.month == 1 ? now.year - 1 : now.year;
-    return _expenses
-        .where(
-          (expense) =>
-              expense.date.year == year && expense.date.month == lastMonth,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getTodayExpenses() async {
-    final now = DateTime.now();
-    return _expenses
-        .where(
-          (expense) =>
-              expense.date.year == now.year &&
-              expense.date.month == now.month &&
-              expense.date.day == now.day,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getExpensesForMonth(DateTime month) async {
-    return _expenses
-        .where(
-          (expense) =>
-              expense.date.year == month.year &&
-              expense.date.month == month.month,
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getExpensesByCategory(String category) async {
-    return _expenses
-        .where((expense) => expense.category == category)
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getExpensesByWallet(int walletId) async {
-    return _expenses
-        .where((expense) => expense.walletId == walletId)
-        .toList(growable: false);
-  }
-
-  @override
-  Future<List<ExpenseEntity>> getExpensesByDateRange(
-    DateTime start,
-    DateTime end,
-  ) async {
-    return _expenses
-        .where(
-          (expense) =>
-              !expense.date.isBefore(start) && !expense.date.isAfter(end),
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Future<ExpenseEntity> saveExpense(ExpenseEntity expense) async {
-    final saved = expense.copyWith(id: _nextId++);
-    _expenses.add(saved);
-    return saved;
-  }
-
-  @override
-  Future<List<ExpenseEntity>> saveExpenses(List<ExpenseEntity> expenses) async {
-    final saved = expenses
-        .map((expense) => expense.copyWith(id: _nextId++))
-        .toList(growable: false);
-    _expenses.addAll(saved);
-    return saved;
-  }
-
-  @override
-  Future<void> deleteExpense(int id) async {
-    _expenses.removeWhere((expense) => expense.id == id);
-  }
-
-  @override
-  Future<void> updateExpense(ExpenseEntity expense) async {
-    final index = _expenses.indexWhere((item) => item.id == expense.id);
-    if (index >= 0) {
-      _expenses[index] = expense;
-    }
-  }
-
-  @override
-  Future<Map<DateTime, double>> getDailyTotals(int days) async => {};
-
-  @override
-  Future<Map<String, double>> getCategoryTotals(
-    DateTime start,
-    DateTime end,
-  ) async => {};
-}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'chat-style expense save refreshes dashboard, expense list, and analytics providers',
     () async {
@@ -173,12 +31,22 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp(
         'pocketpilot-ai-wallet-refresh-',
       );
+      // Real Isar end to end: the ledger write path and the dashboard/list/
+      // analytics read path share one store, so a save is actually observable.
       final isar = await Isar.open(
-        [WalletModelSchema],
+        [WalletModelSchema, ExpenseRecordModelSchema],
         directory: tempDir.path,
         name: 'wallet_refresh_test',
       );
+      final now = DateTime.now();
       final walletId = await isar.writeTxn(() async {
+        await isar.expenseRecordModels.put(
+          ExpenseRecordModel()
+            ..amount = 120
+            ..category = 'Food'
+            ..description = 'নাস্তা'
+            ..date = DateTime(now.year, now.month, now.day, 9, 0),
+        );
         final wallet = WalletModel()
           ..name = 'Cash'
           ..type = WalletType.cash
@@ -187,8 +55,8 @@ void main() {
           ..currentBalance = 1000
           ..sortOrder = 1
           ..isArchived = false
-          ..createdAt = DateTime.now()
-          ..updatedAt = DateTime.now();
+          ..createdAt = now
+          ..updatedAt = now;
         return isar.walletModels.put(wallet);
       });
       addTearDown(() async {
@@ -198,22 +66,10 @@ void main() {
         }
       });
 
-      final now = DateTime.now();
-      final seedExpense = ExpenseEntity(
-        id: 1,
-        amount: 120,
-        category: 'Food',
-        description: 'নাস্তা',
-        date: DateTime(now.year, now.month, now.day, 9, 0),
-      );
-      final fakeRepository = _FakeExpenseRepository([seedExpense]);
       final container = ProviderContainer(
         overrides: [
-          expenseRepositoryProvider.overrideWithValue(fakeRepository),
+          isarProvider.overrideWithValue(isar),
           sharedPreferencesProvider.overrideWithValue(prefs),
-          walletLocalDataSourceProvider.overrideWithValue(
-            WalletLocalDataSource(isar),
-          ),
         ],
       );
       addTearDown(container.dispose);
@@ -265,6 +121,8 @@ void main() {
       expect(updatedList.expenses, hasLength(2));
       expect(updatedAnalytics.data.totalSpent, 180);
       expect(container.read(expenseRefreshTokenProvider), 1);
+      // The ledger actually moved the wallet, too: 1000 - 60.
+      expect((await isar.walletModels.get(walletId))!.currentBalance, 940);
     },
   );
 }

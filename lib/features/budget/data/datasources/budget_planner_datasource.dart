@@ -7,17 +7,19 @@ import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_service.dart';
 import '../../domain/entities/budget_plan_entity.dart';
 
 class BudgetPlannerDataSource {
   BudgetPlannerDataSource({
     http.Client? client,
+    AiGateway? gateway,
     ConnectivityService? connectivityService,
-  }) : _client = client ?? http.Client(),
+  }) : _gateway = gateway ?? AiGateway(client: client),
        _connectivityService = connectivityService ?? ConnectivityService();
 
-  final http.Client _client;
+  final AiGateway _gateway;
   final ConnectivityService _connectivityService;
 
   Stream<String> generateBudget({
@@ -31,9 +33,8 @@ class BudgetPlannerDataSource {
       throw const NoInternetException();
     }
 
-    final apiKey = ApiConstants.openAiApiKey.trim();
-    if (apiKey.isEmpty) {
-      throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
+    if (!_gateway.isConfigured) {
+      throw const GeneralException(AppStrings.aiBackendNotConfigured);
     }
 
     final spendingHistory = avgMonthlyByCategory.entries
@@ -82,9 +83,9 @@ After JSON, write in Bengali (3-4 sentences):
 4. One specific money-saving tip for Bangladesh
 ''';
 
-    final request = http.Request('POST', Uri.parse(ApiConstants.chatUrl));
+    final request = http.Request('POST', _gateway.chatCompletionsUri());
     request.headers.addAll({
-      HttpHeaders.authorizationHeader: 'Bearer $apiKey',
+      ..._gateway.authHeaders(),
       HttpHeaders.contentTypeHeader: 'application/json',
     });
     request.body = jsonEncode({
@@ -104,7 +105,7 @@ After JSON, write in Bengali (3-4 sentences):
     });
 
     try {
-      final response = await _client
+      final response = await _gateway
           .send(request)
           .timeout(const Duration(seconds: 30));
 

@@ -62,39 +62,64 @@ class IncomeLocalDataSource {
     return _isar.incomeRecordModels.get(id);
   }
 
+  // Public methods own the transaction; the `*InTxn` internals are the SINGLE
+  // write path, callable by a caller that already holds a writeTxn (the ledger).
+
   Future<IncomeRecordModel> saveIncome(IncomeRecordModel income) async {
-    await _isar.writeTxn(() async {
-      await _isar.incomeRecordModels.put(income);
-    });
+    await _isar.writeTxn(() => putIncomeInTxn(_isar, income));
     return income;
+  }
+
+  /// Transaction-free write; assumes it is already inside a [Isar.writeTxn].
+  /// Returns the record id.
+  Future<int> putIncomeInTxn(Isar isar, IncomeRecordModel income) {
+    return isar.incomeRecordModels.put(income);
   }
 
   Future<List<IncomeRecordModel>> saveIncomeBatch(
     List<IncomeRecordModel> incomes,
   ) async {
-    await _isar.writeTxn(() async {
-      await _isar.incomeRecordModels.putAll(incomes);
-    });
+    await _isar.writeTxn(() => putIncomesInTxn(_isar, incomes));
     return incomes;
+  }
+
+  /// Transaction-free batch write; assumes it is already inside a [Isar.writeTxn].
+  Future<List<int>> putIncomesInTxn(
+    Isar isar,
+    List<IncomeRecordModel> incomes,
+  ) {
+    return isar.incomeRecordModels.putAll(incomes);
   }
 
   Future<bool> deleteIncome(int id) async {
     late bool deleted;
     await _isar.writeTxn(() async {
-      deleted = await _isar.incomeRecordModels.delete(id);
+      deleted = await deleteIncomeInTxn(_isar, id);
     });
     return deleted;
   }
 
+  /// Transaction-free delete; assumes it is already inside a [Isar.writeTxn].
+  Future<bool> deleteIncomeInTxn(Isar isar, int id) {
+    return isar.incomeRecordModels.delete(id);
+  }
+
   Future<bool> updateIncome(IncomeRecordModel income) async {
-    final existing = await _isar.incomeRecordModels.get(income.id);
+    late bool updated;
+    await _isar.writeTxn(() async {
+      updated = await updateIncomeInTxn(_isar, income);
+    });
+    return updated;
+  }
+
+  /// Transaction-free update-in-place; assumes it is already inside a
+  /// [Isar.writeTxn]. Returns false if the record no longer exists.
+  Future<bool> updateIncomeInTxn(Isar isar, IncomeRecordModel income) async {
+    final existing = await isar.incomeRecordModels.get(income.id);
     if (existing == null) {
       return false;
     }
-
-    await _isar.writeTxn(() async {
-      await _isar.incomeRecordModels.put(income);
-    });
+    await isar.incomeRecordModels.put(income);
     return true;
   }
 

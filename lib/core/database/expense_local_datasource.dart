@@ -1,5 +1,6 @@
 import 'package:isar_community/isar.dart';
 
+import '../../features/expense/domain/entities/expense_source.dart';
 import 'models/expense_record_model.dart';
 
 class ExpenseLocalDataSource {
@@ -189,39 +190,80 @@ class ExpenseLocalDataSource {
     );
   }
 
+  // Public methods own the transaction; the `*InTxn` internals are the SINGLE
+  // write path, callable by a caller that already holds a writeTxn (the ledger).
+
   Future<ExpenseRecordModel> saveExpense(ExpenseRecordModel expense) async {
-    await _isar.writeTxn(() async {
-      await _isar.expenseRecordModels.put(expense);
-    });
+    await _isar.writeTxn(() => putExpenseInTxn(_isar, expense));
     return expense;
+  }
+
+  /// Transaction-free write; assumes it is already inside a [Isar.writeTxn].
+  /// Returns the record id.
+  Future<int> putExpenseInTxn(Isar isar, ExpenseRecordModel expense) {
+    return isar.expenseRecordModels.put(expense);
   }
 
   Future<List<ExpenseRecordModel>> saveExpenses(
     List<ExpenseRecordModel> expenses,
   ) async {
-    await _isar.writeTxn(() async {
-      await _isar.expenseRecordModels.putAll(expenses);
-    });
+    await _isar.writeTxn(() => putExpensesInTxn(_isar, expenses));
     return expenses;
+  }
+
+  /// Transaction-free batch write; assumes it is already inside a [Isar.writeTxn].
+  Future<List<int>> putExpensesInTxn(
+    Isar isar,
+    List<ExpenseRecordModel> expenses,
+  ) {
+    return isar.expenseRecordModels.putAll(expenses);
   }
 
   Future<bool> deleteExpense(int id) async {
     late bool deleted;
     await _isar.writeTxn(() async {
-      deleted = await _isar.expenseRecordModels.delete(id);
+      deleted = await deleteExpenseInTxn(_isar, id);
     });
     return deleted;
   }
 
+  /// Transaction-free delete; assumes it is already inside a [Isar.writeTxn].
+  Future<bool> deleteExpenseInTxn(Isar isar, int id) {
+    return isar.expenseRecordModels.delete(id);
+  }
+
+  /// Transaction-free delete of the record(s) linked to an originating row
+  /// (e.g. a debt payment), matched by [sourceType] + [sourceId]. A no-op when
+  /// none exist (legacy rows created before the link existed). Assumes it is
+  /// already inside a [Isar.writeTxn].
+  Future<int> deleteBySourceInTxn(
+    Isar isar,
+    ExpenseSource sourceType,
+    int sourceId,
+  ) {
+    return isar.expenseRecordModels
+        .filter()
+        .sourceTypeEqualTo(sourceType)
+        .sourceIdEqualTo(sourceId)
+        .deleteAll();
+  }
+
   Future<bool> updateExpense(ExpenseRecordModel expense) async {
-    final existingExpense = await _isar.expenseRecordModels.get(expense.id);
-    if (existingExpense == null) {
+    late bool updated;
+    await _isar.writeTxn(() async {
+      updated = await updateExpenseInTxn(_isar, expense);
+    });
+    return updated;
+  }
+
+  /// Transaction-free update-in-place; assumes it is already inside a
+  /// [Isar.writeTxn]. Returns false if the record no longer exists.
+  Future<bool> updateExpenseInTxn(Isar isar, ExpenseRecordModel expense) async {
+    final existing = await isar.expenseRecordModels.get(expense.id);
+    if (existing == null) {
       return false;
     }
-
-    await _isar.writeTxn(() async {
-      await _isar.expenseRecordModels.put(expense);
-    });
+    await isar.expenseRecordModels.put(expense);
     return true;
   }
 
@@ -240,7 +282,10 @@ class ExpenseLocalDataSource {
       totals[day] = 0;
     }
 
-    for (final expense in expenses) {
+    // Daily totals feed spending charts.
+    for (final expense in expenses.where(
+      (e) => e.sourceType.countsInSpendingTotals,
+    )) {
       final day = DateTime(
         expense.date.year,
         expense.date.month,
@@ -263,7 +308,10 @@ class ExpenseLocalDataSource {
     final expenses = await getExpensesByDateRange(start, end);
     final totals = <String, double>{};
 
-    for (final expense in expenses) {
+    // Category totals feed the budget-alert surface.
+    for (final expense in expenses.where(
+      (e) => e.sourceType.countsInCategoryBudget,
+    )) {
       totals.update(
         expense.category,
         (value) => value + expense.amount,

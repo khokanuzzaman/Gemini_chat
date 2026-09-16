@@ -21,6 +21,7 @@ const GoalSavingModelSchema = CollectionSchema(
     r'date': PropertySchema(id: 1, name: r'date', type: IsarType.dateTime),
     r'goalId': PropertySchema(id: 2, name: r'goalId', type: IsarType.long),
     r'note': PropertySchema(id: 3, name: r'note', type: IsarType.string),
+    r'walletId': PropertySchema(id: 4, name: r'walletId', type: IsarType.long),
   },
 
   estimateSize: _goalSavingModelEstimateSize,
@@ -90,6 +91,7 @@ void _goalSavingModelSerialize(
   writer.writeDateTime(offsets[1], object.date);
   writer.writeLong(offsets[2], object.goalId);
   writer.writeString(offsets[3], object.note);
+  writer.writeLong(offsets[4], object.walletId);
 }
 
 GoalSavingModel _goalSavingModelDeserialize(
@@ -104,6 +106,7 @@ GoalSavingModel _goalSavingModelDeserialize(
   object.goalId = reader.readLong(offsets[2]);
   object.id = id;
   object.note = reader.readStringOrNull(offsets[3]);
+  object.walletId = reader.readLongOrNull(offsets[4]);
   return object;
 }
 
@@ -122,6 +125,8 @@ P _goalSavingModelDeserializeProp<P>(
       return (reader.readLong(offset)) as P;
     case 3:
       return (reader.readStringOrNull(offset)) as P;
+    case 4:
+      return (reader.readLongOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -840,6 +845,79 @@ extension GoalSavingModelQueryFilter
       );
     });
   }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'walletId'),
+      );
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'walletId'),
+      );
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'walletId', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdGreaterThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'walletId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdLessThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'walletId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterFilterCondition>
+  walletIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'walletId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
 }
 
 extension GoalSavingModelQueryObject
@@ -899,6 +977,20 @@ extension GoalSavingModelQuerySortBy
   sortByNoteDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.desc);
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterSortBy>
+  sortByWalletId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'walletId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterSortBy>
+  sortByWalletIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'walletId', Sort.desc);
     });
   }
 }
@@ -968,6 +1060,20 @@ extension GoalSavingModelQuerySortThenBy
       return query.addSortBy(r'note', Sort.desc);
     });
   }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterSortBy>
+  thenByWalletId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'walletId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QAfterSortBy>
+  thenByWalletIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'walletId', Sort.desc);
+    });
+  }
 }
 
 extension GoalSavingModelQueryWhereDistinct
@@ -995,6 +1101,13 @@ extension GoalSavingModelQueryWhereDistinct
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'note', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, GoalSavingModel, QDistinct>
+  distinctByWalletId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'walletId');
     });
   }
 }
@@ -1028,6 +1141,12 @@ extension GoalSavingModelQueryProperty
   QueryBuilder<GoalSavingModel, String?, QQueryOperations> noteProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'note');
+    });
+  }
+
+  QueryBuilder<GoalSavingModel, int?, QQueryOperations> walletIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'walletId');
     });
   }
 }

@@ -8,6 +8,8 @@ class AppStrings {
   static const noInternet = 'ইন্টারনেট সংযোগ নেই';
   static const apiKeyInvalid = 'API key সঠিক নয়';
   static const apiKeyInvalidWithEnv = 'API key সঠিক নয়। .env চেক করুন।';
+  static const aiBackendNotConfigured =
+      'AI পরিষেবা কনফিগার করা নেই। (API_BASE_URL সেট করা হয়নি)';
   static const quotaExceeded = 'Limit শেষ, পরে চেষ্টা করুন';
   static const timeout = 'সময় শেষ, আবার চেষ্টা করুন';
   static const generalError = 'কিছু একটা সমস্যা হয়েছে';

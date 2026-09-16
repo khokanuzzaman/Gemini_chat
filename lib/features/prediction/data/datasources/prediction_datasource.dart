@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_service.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 
@@ -25,11 +26,12 @@ abstract class PredictionDataSource {
 class PredictionDataSourceImpl implements PredictionDataSource {
   PredictionDataSourceImpl({
     http.Client? client,
+    AiGateway? gateway,
     ConnectivityService? connectivityService,
-  }) : _client = client ?? http.Client(),
+  }) : _gateway = gateway ?? AiGateway(client: client),
        _connectivityService = connectivityService ?? ConnectivityService();
 
-  final http.Client _client;
+  final AiGateway _gateway;
   final ConnectivityService _connectivityService;
 
   @override
@@ -44,9 +46,8 @@ class PredictionDataSourceImpl implements PredictionDataSource {
       throw const NoInternetException();
     }
 
-    final apiKey = ApiConstants.openAiApiKey.trim();
-    if (apiKey.isEmpty) {
-      throw const InvalidApiKeyException(AppStrings.apiKeyInvalidWithEnv);
+    if (!_gateway.isConfigured) {
+      throw const GeneralException(AppStrings.aiBackendNotConfigured);
     }
 
     final thisMonthTotal = _total(thisMonthExpenses);
@@ -113,9 +114,9 @@ After JSON, write 2-3 sentences in Bengali:
     required int maxTokens,
     required double temperature,
   }) async* {
-    final request = http.Request('POST', Uri.parse(ApiConstants.chatUrl));
+    final request = http.Request('POST', _gateway.chatCompletionsUri());
     request.headers.addAll({
-      HttpHeaders.authorizationHeader: 'Bearer ${ApiConstants.openAiApiKey}',
+      ..._gateway.authHeaders(),
       HttpHeaders.contentTypeHeader: 'application/json',
     });
     request.body = jsonEncode({
@@ -136,7 +137,7 @@ After JSON, write 2-3 sentences in Bengali:
     final buffer = StringBuffer();
 
     try {
-      final response = await _client
+      final response = await _gateway
           .send(request)
           .timeout(const Duration(seconds: 30));
 
