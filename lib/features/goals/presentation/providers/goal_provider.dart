@@ -21,7 +21,6 @@ import '../../domain/entities/goal_saving.dart';
 import '../../domain/repositories/goal_repository.dart';
 import '../../domain/usecases/add_saving_usecase.dart';
 import '../../domain/usecases/cancel_goal_usecase.dart';
-import '../../domain/usecases/delete_goal_usecase.dart';
 import '../../domain/usecases/get_all_goals_usecase.dart';
 import '../../domain/usecases/get_goal_savings_usecase.dart';
 import '../../domain/usecases/mark_achieved_usecase.dart';
@@ -50,9 +49,9 @@ final updateGoalUseCaseProvider = Provider<UpdateGoalUseCase>((ref) {
   return UpdateGoalUseCase(ref.watch(goalRepositoryProvider));
 });
 
-final deleteGoalUseCaseProvider = Provider<DeleteGoalUseCase>((ref) {
-  return DeleteGoalUseCase(ref.watch(goalRepositoryProvider));
-});
+// Goal deletion no longer routes through a use case / repository delete: the
+// ledger is the single authority for the deletion (it refunds each source
+// wallet and removes the goal + savings atomically). See GoalNotifier.deleteGoal.
 
 final addSavingUseCaseProvider = Provider<AddSavingUseCase>((ref) {
   return AddSavingUseCase(ref.watch(goalRepositoryProvider));
@@ -179,7 +178,68 @@ class GoalNotifier extends Notifier<GoalState> {
     if (goal != null) {
       await NotificationService.cancelGoalReminder(_goalReminderId(goal));
     }
-    await ref.read(deleteGoalUseCaseProvider).call(id);
+
+    final dataSource = ref.read(goalLocalDataSourceProvider);
+    final ledger = ref.read(walletLedgerServiceProvider);
+    final savings = await dataSource.getSavingsForGoal(id);
+
+    // Split this goal's savings by source wallet. New (walletId set) savings
+    // debited a wallet and must be refunded; legacy (walletId == null) savings
+    // pre-date the wallet-debit fix — the wallet was never debited, so they are
+    // deleted but NOT refunded.
+    final refundIdsByWallet = <int, List<int>>{};
+    final refundSumByWallet = <int, double>{};
+    final legacyIds = <int>[];
+    for (final saving in savings) {
+      final walletId = saving.walletId;
+      if (walletId != null) {
+        refundIdsByWallet.putIfAbsent(walletId, () => <int>[]).add(saving.id);
+        refundSumByWallet[walletId] =
+            (refundSumByWallet[walletId] ?? 0) + saving.amount;
+      } else {
+        legacyIds.add(saving.id);
+      }
+    }
+
+    // PER-WALLET ATOMICITY: one ledger op per source wallet — credit (+ that
+    // wallet's sum) AND delete exactly that wallet's saving rows together. A
+    // mid-sequence failure leaves processed wallets fully correct and the rest
+    // untouched; because the goal row still exists (deleted last, below) the
+    // delete is retryable, and already-refunded wallets have no rows left, so a
+    // retry can't double-refund.
+    for (final entry in refundIdsByWallet.entries) {
+      final walletId = entry.key;
+      final savingIds = entry.value;
+      await ledger.execute(
+        walletId: walletId,
+        delta: refundSumByWallet[walletId]!,
+        writeRecords: (txn) async {
+          for (final savingId in savingIds) {
+            await dataSource.deleteSavingInTxn(txn, savingId);
+          }
+          return const LedgerRecordIds();
+        },
+      );
+    }
+
+    // GOAL ROW DELETED LAST, after every refund committed — with the legacy
+    // (unrefunded) savings, in one record-only op. If a refund above failed we
+    // never reach here, so the goal survives for a safe retry.
+    await ledger.execute(
+      walletId: null,
+      delta: 0,
+      writeRecords: (txn) async {
+        for (final savingId in legacyIds) {
+          await dataSource.deleteSavingInTxn(txn, savingId);
+        }
+        await dataSource.deleteGoalInTxn(txn, id);
+        return const LedgerRecordIds();
+      },
+    );
+
+    ref.invalidate(walletProvider);
+    // Refunds change wallet balances + the cash-flow savings line.
+    ref.read(expenseRefreshTokenProvider.notifier).state++;
     ref.invalidate(goalSavingsProvider(id));
     await _load();
   }

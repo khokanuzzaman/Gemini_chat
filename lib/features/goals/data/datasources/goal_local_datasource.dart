@@ -36,11 +36,18 @@ class GoalLocalDataSource {
     return _isar.goalModels.get(id);
   }
 
-  Future<void> deleteGoal(int id) async {
-    await _isar.writeTxn(() async {
-      await _isar.goalModels.delete(id);
-      await _isar.goalSavingModels.filter().goalIdEqualTo(id).deleteAll();
-    });
+  /// Transaction-free goal delete; assumes it is already inside a
+  /// [Isar.writeTxn]. Lets the ledger delete the goal row inside the same op
+  /// that refunds — the single write path.
+  Future<void> deleteGoalInTxn(Isar isar, int id) async {
+    await isar.goalModels.delete(id);
+  }
+
+  /// Transaction-free saving delete; assumes it is already inside a
+  /// [Isar.writeTxn]. The ledger deletes a wallet's saving rows in the SAME op
+  /// that refunds that wallet (never a delete without its refund).
+  Future<void> deleteSavingInTxn(Isar isar, int id) async {
+    await isar.goalSavingModels.delete(id);
   }
 
   Future<void> saveSaving(GoalSavingModel model) async {

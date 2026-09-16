@@ -37,11 +37,6 @@ class GoalRepositoryImpl implements GoalRepository {
   }
 
   @override
-  Future<void> deleteGoal(int id) {
-    return _localDataSource.deleteGoal(id);
-  }
-
-  @override
   Future<void> addSaving(GoalSaving saving) {
     return _localDataSource.saveSaving(GoalSavingModel.fromEntity(saving));
   }

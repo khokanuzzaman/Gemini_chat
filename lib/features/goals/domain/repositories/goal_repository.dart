@@ -13,7 +13,9 @@ abstract class GoalRepository {
 
   Future<void> updateGoal(GoalEntity goal);
 
-  Future<void> deleteGoal(int id);
+  // Goal deletion is owned by the wallet ledger (single authority: it refunds
+  // each source wallet and removes the goal + savings atomically), not by this
+  // repository. See GoalNotifier.deleteGoal.
 
   Future<void> addSaving(GoalSaving saving);
 
