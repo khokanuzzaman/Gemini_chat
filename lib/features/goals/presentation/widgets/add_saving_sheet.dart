@@ -169,7 +169,7 @@ class _AddSavingSheetState extends ConsumerState<AddSavingSheet> {
           style: AppTextStyles.heroAmount.copyWith(color: AppColors.success),
           decoration: InputDecoration(
             labelText: 'পরিমাণ',
-            prefixText: '৳ ',
+            prefixText: '${BanglaFormatters.currencySymbol} ',
             filled: true,
             fillColor: AppColors.success.withValues(alpha: 0.08),
             border: OutlineInputBorder(

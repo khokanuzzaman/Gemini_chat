@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/wallet_entity.dart';
 import '../providers/wallet_provider.dart';
@@ -192,9 +193,9 @@ class _AddEditWalletSheetState extends ConsumerState<AddEditWalletSheet> {
           TextFormField(
             controller: _initialBalanceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'প্রারম্ভিক ব্যালেন্স',
-              prefixText: '৳ ',
+              prefixText: '${BanglaFormatters.currencySymbol} ',
             ),
             validator: (value) {
               final amount = _parseAmount(value);
@@ -211,9 +212,9 @@ class _AddEditWalletSheetState extends ConsumerState<AddEditWalletSheet> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'বর্তমান ব্যালেন্স',
-                prefixText: '৳ ',
+                prefixText: '${BanglaFormatters.currencySymbol} ',
               ),
               validator: (value) {
                 final amount = _parseAmount(value);

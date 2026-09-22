@@ -20,6 +20,20 @@ default AOT build-script step fails because a native-build-hook dependency makes
 JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
 
 ## Known issues (deliberate deferrals)
+- **Currency symbol (DESYNC-3): ~18 raw-`৳` money-display sites still bypass the
+  formatter.** `BanglaFormatters.currency` / `preciseCurrency` and every money
+  entry field now honor the configured symbol (৳ / Tk / BDT). Deferred: raw
+  `'৳${x.toStringAsFixed(0)}'` sites that render money with **Latin** digits —
+  in AI/RAG context (`rag_context_builder`), anomaly messages
+  (`anomaly_detection_service`), budget-planner narration
+  (`budget_planner_datasource`), notifications (`notification_service`),
+  prediction insight, and goal-detail. They are **tied to the Phase-1 AI-hide /
+  insights rework (master §3, which makes prediction + budget-planner local)**:
+  route them through `BanglaFormatters` when those surfaces are reworked, which
+  also intentionally flips their digits Latin→Bangla. **Not** to change: SMS/
+  receipt detection tokens, the app-icon glyph, and fixed BDT price strings —
+  those are not display currency. Split's `৳` prefixes/parser are also left
+  as-is because the Split tab is being cut (master §4).
 - **`ExpenseSource.goalDeposit` is reserved / currently unused.** Goal deposits
   (task 5) are modelled as wallet→goal transfers recorded on `GoalSaving`
   (with `walletId`), NOT as `ExpenseRecordModel` rows — so no `goalDeposit`

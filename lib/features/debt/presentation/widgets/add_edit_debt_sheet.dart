@@ -213,7 +213,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
             decoration: InputDecoration(
               labelText: 'মোট পরিমাণ',
               hintText: '০',
-              prefixText: '৳ ',
+              prefixText: '${BanglaFormatters.currencySymbol} ',
               helperText: _isEditing
                   ? 'মূল পরিমাণ পরিবর্তন করা যাবে না'
                   : 'শুরুতে যত টাকা লেনদেন হয়েছে',

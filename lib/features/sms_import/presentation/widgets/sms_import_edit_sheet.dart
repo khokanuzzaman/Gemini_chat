@@ -100,8 +100,8 @@ class _SmsImportEditSheetState extends ConsumerState<_SmsImportEditSheet> {
             ),
             decoration: _fieldDecoration(
               context,
-              hintText: '৳ 0',
-              prefixText: '৳ ',
+              hintText: '${BanglaFormatters.currencySymbol} 0',
+              prefixText: '${BanglaFormatters.currencySymbol} ',
             ),
           ),
         ),

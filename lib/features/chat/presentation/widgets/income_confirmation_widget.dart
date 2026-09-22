@@ -224,9 +224,9 @@ class _IncomeConfirmationWidgetState
                     fontWeight: FontWeight.w700,
                     fontSize: 20,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'পরিমাণ (টাকা)',
-                    prefixText: '৳ ',
+                    prefixText: '${BanglaFormatters.currencySymbol} ',
                   ),
                 ),
               ],

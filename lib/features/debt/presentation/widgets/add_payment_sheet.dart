@@ -132,7 +132,7 @@ class _AddPaymentSheetState extends ConsumerState<AddPaymentSheet> {
               labelText: 'পরিশোধের পরিমাণ',
               hintText:
                   'সর্বোচ্চ: ${BanglaFormatters.currency(widget.debt.remainingAmount)}',
-              prefixText: '৳ ',
+              prefixText: '${BanglaFormatters.currencySymbol} ',
               filled: true,
               fillColor: accent.withValues(alpha: 0.08),
             ),

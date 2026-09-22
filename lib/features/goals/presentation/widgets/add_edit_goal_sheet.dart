@@ -202,7 +202,7 @@ class _AddEditGoalSheetState extends ConsumerState<AddEditGoalSheet> {
           ),
           decoration: InputDecoration(
             labelText: 'লক্ষ্যমাত্রা',
-            prefixText: '৳ ',
+            prefixText: '${BanglaFormatters.currencySymbol} ',
             filled: true,
             fillColor: context.mutedSurfaceColor,
             border: OutlineInputBorder(
@@ -216,9 +216,9 @@ class _AddEditGoalSheetState extends ConsumerState<AddEditGoalSheet> {
           TextField(
             controller: _alreadySavedController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'ইতিমধ্যে সঞ্চিত (ঐচ্ছিক)',
-              prefixText: '৳ ',
+              prefixText: '${BanglaFormatters.currencySymbol} ',
               hintText: 'আগে থেকে কিছু save থাকলে দিন',
             ),
           ),

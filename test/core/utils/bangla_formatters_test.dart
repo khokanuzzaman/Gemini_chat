@@ -47,4 +47,36 @@ void main() {
       expect(formatted, isNot(contains('৳')));
     });
   });
+
+  group('parseAmount() strips the configured symbol', () {
+    test('parses a value prefixed with the configured symbol', () {
+      BanglaFormatters.configureCurrencySymbol('Tk');
+
+      expect(BanglaFormatters.parseAmount('Tk 300'), 300);
+    });
+
+    test('strips the configured symbol and thousands separators', () {
+      BanglaFormatters.configureCurrencySymbol('BDT');
+
+      expect(BanglaFormatters.parseAmount('BDT 1,234'), 1234);
+    });
+
+    test('parses the default ৳ symbol byte-identically (existing users)', () {
+      BanglaFormatters.configureCurrencySymbol('৳');
+
+      expect(BanglaFormatters.parseAmount('৳ 300'), 300);
+      expect(BanglaFormatters.parseAmount('৳ ৩০০'), 300);
+    });
+
+    test('round-trips a formatted amount back to its number', () {
+      BanglaFormatters.configureCurrencySymbol('Tk');
+
+      final formatted = BanglaFormatters.currency(300); // "Tk ৩০০"
+      expect(BanglaFormatters.parseAmount(formatted), 300);
+    });
+
+    test('returns null for blank input', () {
+      expect(BanglaFormatters.parseAmount('   '), isNull);
+    });
+  });
 }

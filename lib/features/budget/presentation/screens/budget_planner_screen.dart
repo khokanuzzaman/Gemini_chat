@@ -205,27 +205,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     return null;
   }
 
-  double? _parseIncomeInput(String raw) {
-    final normalized = raw
-        .trim()
-        .replaceAll('৳', '')
-        .replaceAll(',', '')
-        .replaceAll(' ', '')
-        .replaceAll('০', '0')
-        .replaceAll('১', '1')
-        .replaceAll('২', '2')
-        .replaceAll('৩', '3')
-        .replaceAll('৪', '4')
-        .replaceAll('৫', '5')
-        .replaceAll('৬', '6')
-        .replaceAll('৭', '7')
-        .replaceAll('৮', '8')
-        .replaceAll('৯', '9');
-    if (normalized.isEmpty) {
-      return null;
-    }
-    return double.tryParse(normalized);
-  }
+  double? _parseIncomeInput(String raw) => BanglaFormatters.parseAmount(raw);
 
   Future<void> _showHistorySheet(
     BuildContext context,
@@ -426,8 +406,8 @@ class _BudgetSetupForm extends StatelessWidget {
                     color: context.primaryTextColor,
                   ),
                   decoration: InputDecoration(
-                    hintText: '৳ ৩০,০০০',
-                    prefixText: '৳ ',
+                    hintText: '${BanglaFormatters.currencySymbol} ৩০,০০০',
+                    prefixText: '${BanglaFormatters.currencySymbol} ',
                     filled: true,
                     fillColor: context.mutedSurfaceColor,
                     border: OutlineInputBorder(

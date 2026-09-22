@@ -256,7 +256,7 @@ class _BudgetLimitRow extends StatelessWidget {
           textAlign: TextAlign.right,
           decoration: InputDecoration(
             isDense: true,
-            prefixText: '৳ ',
+            prefixText: '${BanglaFormatters.currencySymbol} ',
             filled: true,
             fillColor: context.mutedSurfaceColor,
             border: OutlineInputBorder(

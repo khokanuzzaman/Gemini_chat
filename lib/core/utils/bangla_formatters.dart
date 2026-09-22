@@ -21,6 +21,37 @@ class BanglaFormatters {
     _currencySymbol = trimmed.isEmpty ? defaultCurrencySymbol : trimmed;
   }
 
+  /// Parses a user-entered money string into a number. Strips the configured
+  /// currency symbol (and the legacy ৳), thousands separators and spaces, and
+  /// converts Bangla digits. Returns null when no number can be read.
+  ///
+  /// Keeping this alongside [currency] ensures a value formatted with a
+  /// non-৳ symbol (e.g. "Tk ৩০০") parses back to its number instead of failing.
+  static double? parseAmount(String raw) {
+    var normalized = raw.trim();
+    if (_currencySymbol != defaultCurrencySymbol) {
+      normalized = normalized.replaceAll(_currencySymbol, '');
+    }
+    normalized = normalized
+        .replaceAll(defaultCurrencySymbol, '')
+        .replaceAll(',', '')
+        .replaceAll(' ', '')
+        .replaceAll('০', '0')
+        .replaceAll('১', '1')
+        .replaceAll('২', '2')
+        .replaceAll('৩', '3')
+        .replaceAll('৪', '4')
+        .replaceAll('৫', '5')
+        .replaceAll('৬', '6')
+        .replaceAll('৭', '7')
+        .replaceAll('৮', '8')
+        .replaceAll('৯', '9');
+    if (normalized.isEmpty) {
+      return null;
+    }
+    return double.tryParse(normalized);
+  }
+
   static final NumberFormat _numberFormat = NumberFormat.decimalPattern('bn');
   static final NumberFormat _moneyWithDecimals = NumberFormat('#,##0.00', 'bn');
   static final DateFormat _monthFormat = DateFormat('MMMM yyyy', 'bn');

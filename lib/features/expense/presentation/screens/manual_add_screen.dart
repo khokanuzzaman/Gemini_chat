@@ -377,7 +377,7 @@ class _AmountFieldCard extends StatelessWidget {
               style: AppTextStyles.heroAmount.copyWith(color: accentColor),
               decoration: InputDecoration(
                 hintText: '0',
-                prefixText: '৳ ',
+                prefixText: '${BanglaFormatters.currencySymbol} ',
                 prefixStyle: AppTextStyles.heroAmount.copyWith(
                   color: accentColor,
                 ),
