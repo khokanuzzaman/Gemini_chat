@@ -3,6 +3,24 @@ import 'package:intl/intl.dart';
 class BanglaFormatters {
   const BanglaFormatters._();
 
+  /// Symbol shown before money amounts when none is configured.
+  static const String defaultCurrencySymbol = '৳';
+
+  /// The symbol [currency] / [preciseCurrency] prefix onto amounts. Seeded at
+  /// app startup from `AppPreferences.currencySymbol()` and updated when the
+  /// user changes the "মুদ্রার চিহ্ন" setting.
+  static String _currencySymbol = defaultCurrencySymbol;
+
+  /// The currently configured currency symbol.
+  static String get currencySymbol => _currencySymbol;
+
+  /// Sets the currency symbol used by [currency] and [preciseCurrency].
+  /// A null or blank value falls back to [defaultCurrencySymbol].
+  static void configureCurrencySymbol(String? symbol) {
+    final trimmed = symbol?.trim() ?? '';
+    _currencySymbol = trimmed.isEmpty ? defaultCurrencySymbol : trimmed;
+  }
+
   static final NumberFormat _numberFormat = NumberFormat.decimalPattern('bn');
   static final NumberFormat _moneyWithDecimals = NumberFormat('#,##0.00', 'bn');
   static final DateFormat _monthFormat = DateFormat('MMMM yyyy', 'bn');
@@ -11,13 +29,13 @@ class BanglaFormatters {
   static final DateFormat _timeFormat = DateFormat('h:mm a', 'bn');
 
   static String currency(num amount) {
-    return '৳ ${_numberFormat.format(amount.round())}';
+    return '$_currencySymbol ${_numberFormat.format(amount.round())}';
   }
 
   static String preciseCurrency(num amount) {
     final rounded = amount.toDouble();
     final hasFraction = (rounded - rounded.round()).abs() >= 0.01;
-    return '৳ ${hasFraction ? _moneyWithDecimals.format(rounded) : _numberFormat.format(rounded.round())}';
+    return '$_currencySymbol ${hasFraction ? _moneyWithDecimals.format(rounded) : _numberFormat.format(rounded.round())}';
   }
 
   static String monthYear(DateTime date) {

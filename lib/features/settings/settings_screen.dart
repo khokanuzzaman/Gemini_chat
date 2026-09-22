@@ -450,6 +450,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     setState(() {
                       _currencySymbol = value;
                     });
+                    // Update the formatter cache so amounts elsewhere in the app
+                    // pick up the new symbol without needing a restart.
+                    BanglaFormatters.configureCurrencySymbol(value);
                     await AppPreferences.setCurrencySymbol(value);
                   },
                 ),

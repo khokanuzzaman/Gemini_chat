@@ -63,6 +63,7 @@ import 'features/splash/splash_screen.dart';
 import 'features/wallet/data/datasources/wallet_local_datasource.dart';
 import 'features/wallet/presentation/providers/wallet_provider.dart';
 import 'core/usage/usage_providers.dart';
+import 'core/utils/bangla_formatters.dart';
 
 const _notificationPermissionAskedKey = 'notification_permission_asked';
 
@@ -79,6 +80,11 @@ Future<void> main() async {
     userId: FirebaseAuth.instance.currentUser?.uid,
   );
   final sharedPreferences = await SharedPreferences.getInstance();
+  // Seed the money formatter with the saved currency symbol so every amount
+  // renders in the user's chosen symbol from the first frame.
+  BanglaFormatters.configureCurrencySymbol(
+    sharedPreferences.getString(AppPreferences.currencySymbolKey),
+  );
   final savedThemeMode = await _loadSavedThemeMode();
 
   await NotificationService.initialize();
