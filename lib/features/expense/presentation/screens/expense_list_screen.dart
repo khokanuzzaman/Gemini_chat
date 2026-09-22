@@ -21,11 +21,36 @@ import 'manual_add_screen.dart';
 
 part '../widgets/expense_list/expense_list_screen_content.dart';
 
-class ExpenseListScreen extends StatelessWidget {
+/// Standalone খরচ screen. Wraps [ExpenseListBody] in its own scaffold; the
+/// segmented খরচ tab reuses the body directly.
+class ExpenseListScreen extends StatefulWidget {
   const ExpenseListScreen({super.key});
 
   @override
+  State<ExpenseListScreen> createState() => _ExpenseListScreenState();
+}
+
+class _ExpenseListScreenState extends State<ExpenseListScreen> {
+  final _bodyKey = GlobalKey<ExpenseListBodyState>();
+
+  @override
   Widget build(BuildContext context) {
-    return const _ExpenseListScreenContent();
+    return AppPageScaffold(
+      title: 'খরচের তালিকা',
+      showOfflineBanner: false,
+      actions: [
+        IconButton(
+          onPressed: () => _bodyKey.currentState?.openFilter(),
+          icon: const Icon(Icons.filter_alt_outlined),
+          tooltip: 'ফিল্টার',
+        ),
+        const GlobalSettingsButton(),
+      ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _bodyKey.currentState?.openAdd(),
+        child: const Icon(Icons.add_rounded),
+      ),
+      body: ExpenseListBody(key: _bodyKey),
+    );
   }
 }

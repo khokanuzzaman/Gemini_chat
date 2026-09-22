@@ -1,17 +1,25 @@
 part of '../../screens/expense_list_screen.dart';
 
-class _ExpenseListScreenContent extends ConsumerStatefulWidget {
-  const _ExpenseListScreenContent();
+class ExpenseListBody extends ConsumerStatefulWidget {
+  const ExpenseListBody({super.key});
 
   @override
-  ConsumerState<_ExpenseListScreenContent> createState() =>
-      _ExpenseListScreenState();
+  ConsumerState<ExpenseListBody> createState() => ExpenseListBodyState();
 }
 
-class _ExpenseListScreenState extends ConsumerState<_ExpenseListScreenContent> {
+class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
   String _searchQuery = '';
+
+  void openAdd() => _openManualAdd(context);
+
+  void openFilter() {
+    final currentState = ref.read(expenseListControllerProvider).valueOrNull;
+    if (currentState != null) {
+      _openFilterSheet(currentState);
+    }
+  }
 
   @override
   void dispose() {
@@ -23,44 +31,25 @@ class _ExpenseListScreenState extends ConsumerState<_ExpenseListScreenContent> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(expenseListControllerProvider);
-    final currentState = state.valueOrNull;
 
-    return AppPageScaffold(
-      title: 'খরচের তালিকা',
-      showOfflineBanner: false,
-      actions: [
-        IconButton(
-          onPressed: currentState == null
-              ? null
-              : () => _openFilterSheet(currentState),
-          icon: const Icon(Icons.filter_alt_outlined),
-          tooltip: 'ফিল্টার',
+    return state.when(
+      data: (data) => _buildDataState(context, data),
+      loading: () => Padding(
+        padding: const EdgeInsets.all(AppSpacing.screenPadding),
+        child: AppStaggeredList(
+          children: const [
+            _TopPanelLoading(),
+            SizedBox(height: AppSpacing.md),
+            _SummaryLoading(),
+            SizedBox(height: AppSpacing.md),
+            AppLoadingState.list(),
+          ],
         ),
-        const GlobalSettingsButton(),
-      ],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openManualAdd(context),
-        child: const Icon(Icons.add_rounded),
       ),
-      body: state.when(
-        data: (data) => _buildDataState(context, data),
-        loading: () => Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenPadding),
-          child: AppStaggeredList(
-            children: const [
-              _TopPanelLoading(),
-              SizedBox(height: AppSpacing.md),
-              _SummaryLoading(),
-              SizedBox(height: AppSpacing.md),
-              AppLoadingState.list(),
-            ],
-          ),
-        ),
-        error: (error, _) => AppErrorState(
-          message: error.toString(),
-          onRetry: () =>
-              ref.read(expenseListControllerProvider.notifier).refresh(),
-        ),
+      error: (error, _) => AppErrorState(
+        message: error.toString(),
+        onRetry: () =>
+            ref.read(expenseListControllerProvider.notifier).refresh(),
       ),
     );
   }
@@ -793,7 +782,9 @@ class _ExpenseCard extends ConsumerWidget {
     ];
 
     return Dismissible(
-      key: ValueKey('expense-card-${expense.id}-${expense.date.toIso8601String()}'),
+      key: ValueKey(
+        'expense-card-${expense.id}-${expense.date.toIso8601String()}',
+      ),
       direction: DismissDirection.endToStart,
       confirmDismiss: (_) async {
         await onDelete();
@@ -807,10 +798,7 @@ class _ExpenseCard extends ConsumerWidget {
           color: AppColors.error,
           borderRadius: AppRadius.cardAll,
         ),
-        child: const Icon(
-          Icons.delete_outline_rounded,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
       ),
       child: AppCard(
         elevation: 1,

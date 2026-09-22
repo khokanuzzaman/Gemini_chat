@@ -11,54 +11,78 @@ import '../../domain/entities/income_source.dart';
 import '../providers/income_providers.dart';
 import '../widgets/add_edit_income_sheet.dart';
 
-class IncomeListScreen extends ConsumerStatefulWidget {
+/// Standalone আয় screen (pushed from আরও / openIncome). Wraps [IncomeListBody]
+/// in its own scaffold; the segmented খরচ tab reuses the body directly.
+class IncomeListScreen extends StatefulWidget {
   const IncomeListScreen({super.key});
 
   @override
-  ConsumerState<IncomeListScreen> createState() => _IncomeListScreenState();
+  State<IncomeListScreen> createState() => _IncomeListScreenState();
 }
 
-class _IncomeListScreenState extends ConsumerState<IncomeListScreen> {
-  int? _selectedWalletId;
+class _IncomeListScreenState extends State<IncomeListScreen> {
+  final _bodyKey = GlobalKey<IncomeListBodyState>();
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(incomeListControllerProvider);
-
     return AppPageScaffold(
       title: 'আয়ের তালিকা',
       showOfflineBanner: false,
       actions: [
         IconButton(
-          onPressed: () => _openFilterSheet(),
+          onPressed: () => _bodyKey.currentState?.openFilter(),
           icon: const Icon(Icons.filter_alt_outlined),
           tooltip: 'ফিল্টার',
         ),
       ],
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.success,
-        onPressed: _openAddSheet,
+        onPressed: () => _bodyKey.currentState?.openAdd(),
         child: const Icon(Icons.add_rounded),
       ),
-      body: state.when(
-        data: (income) => _buildDataState(context, income),
-        loading: () => Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenPadding),
-          child: AppStaggeredList(
-            children: const [
-              _IncomeTopPanelLoading(),
-              SizedBox(height: AppSpacing.md),
-              _IncomeSummaryLoading(),
-              SizedBox(height: AppSpacing.md),
-              AppLoadingState.list(),
-            ],
-          ),
+      body: IncomeListBody(key: _bodyKey),
+    );
+  }
+}
+
+/// The আয় list body (no scaffold), so it can be hosted either by
+/// [IncomeListScreen] or the segmented খরচ tab. [openAdd]/[openFilter] let the
+/// host wire a FAB and filter action.
+class IncomeListBody extends ConsumerStatefulWidget {
+  const IncomeListBody({super.key});
+
+  @override
+  ConsumerState<IncomeListBody> createState() => IncomeListBodyState();
+}
+
+class IncomeListBodyState extends ConsumerState<IncomeListBody> {
+  int? _selectedWalletId;
+
+  void openAdd() => _openAddSheet();
+  void openFilter() => _openFilterSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(incomeListControllerProvider);
+
+    return state.when(
+      data: (income) => _buildDataState(context, income),
+      loading: () => Padding(
+        padding: const EdgeInsets.all(AppSpacing.screenPadding),
+        child: AppStaggeredList(
+          children: const [
+            _IncomeTopPanelLoading(),
+            SizedBox(height: AppSpacing.md),
+            _IncomeSummaryLoading(),
+            SizedBox(height: AppSpacing.md),
+            AppLoadingState.list(),
+          ],
         ),
-        error: (error, _) => AppErrorState(
-          message: error.toString(),
-          onRetry: () =>
-              ref.read(incomeListControllerProvider.notifier).refresh(),
-        ),
+      ),
+      error: (error, _) => AppErrorState(
+        message: error.toString(),
+        onRetry: () =>
+            ref.read(incomeListControllerProvider.notifier).refresh(),
       ),
     );
   }

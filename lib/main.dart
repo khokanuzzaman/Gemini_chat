@@ -54,7 +54,7 @@ import 'features/anomaly/presentation/providers/anomaly_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/expense/presentation/providers/expense_providers.dart';
 import 'features/expense/presentation/screens/dashboard_screen.dart';
-import 'features/expense/presentation/screens/expense_list_screen.dart';
+import 'features/expense/presentation/screens/expenses_tab_screen.dart';
 import 'features/more/presentation/screens/more_screen.dart';
 import 'features/plan/presentation/screens/plan_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -506,7 +506,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
       case AppTab.chat:
         return const ChatScreen();
       case AppTab.expenses:
-        return const ExpenseListScreen();
+        return const ExpensesTabScreen();
       case AppTab.plan:
         return const PlanScreen();
       case AppTab.more:
