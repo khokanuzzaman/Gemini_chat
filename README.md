@@ -81,7 +81,10 @@ lib/
 
 ### Prerequisites
 - Flutter 3.x
-- OpenAI API key from `platform.openai.com`
+
+> AI features are **off in Phase 1** and need no API key. When enabled (Phase 2)
+> they route through a backend proxy that holds the key server-side — the key
+> never ships in the app.
 
 ### Installation
 ```bash
@@ -90,18 +93,19 @@ cd Gemini_chat
 
 flutter pub get
 
-cp .env.example .env
-# Add your OpenAI key to .env
+cp .env.example .env   # non-secret runtime config only; no OpenAI key
 
 flutter run
 ```
 
 ### Environment Variables
-```env
-OPENAI_API_KEY=your_openai_key_here
-```
+`.env` holds only non-secret runtime config (Google sign-in client id, RevenueCat
+public key) — see `.env.example`. **No OpenAI key lives in the app.**
 
-Get your key: https://platform.openai.com
+AI calls route through a backend proxy, configured at build time (Phase 2):
+```bash
+flutter run --dart-define=API_BASE_URL=https://your-backend.example.com
+```
 
 ## Cost Estimate
 | Usage | Daily Cost |
