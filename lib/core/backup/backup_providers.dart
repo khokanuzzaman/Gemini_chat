@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../logging/app_logger.dart';
 import '../../features/anomaly/presentation/providers/anomaly_provider.dart';
 import '../../features/budget/presentation/providers/budget_provider.dart';
 import '../../features/category/presentation/providers/category_provider.dart';
@@ -216,7 +216,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       unawaited(refreshCloudInfo());
       return true;
     } catch (error) {
-      debugPrint('Backup sign-in failed: $error');
+      AppLogger.error('Backup sign-in failed', error);
       state = AsyncData(
         current.copyWith(errorMessage: _friendlySignInError(error)),
       );

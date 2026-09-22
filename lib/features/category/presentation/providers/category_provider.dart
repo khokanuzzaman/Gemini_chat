@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
 
 import '../../../../core/database/models/expense_record_model.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/notifications/budget_settings.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../anomaly/presentation/providers/anomaly_provider.dart';
@@ -293,7 +294,7 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetSettingsProvider.notifier)
           .remapCategory(oldName, newName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Budget settings remap failed: $error');
+      AppLogger.error('[CategoryProvider] Budget settings remap failed', error);
       ok = false;
     }
 
@@ -302,7 +303,7 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetProvider.notifier)
           .remapCategoryInBudget(oldName, newName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Active budget remap failed: $error');
+      AppLogger.error('[CategoryProvider] Active budget remap failed', error);
       ok = false;
     }
 
@@ -311,7 +312,10 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetPlanLocalDataSourceProvider)
           .migrateCategory(oldName, newName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Historical plans remap failed: $error');
+      AppLogger.error(
+        '[CategoryProvider] Historical plans remap failed',
+        error,
+      );
       ok = false;
     }
 
@@ -326,7 +330,10 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetSettingsProvider.notifier)
           .removeCategory(categoryName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Budget settings cleanup failed: $error');
+      AppLogger.error(
+        '[CategoryProvider] Budget settings cleanup failed',
+        error,
+      );
       ok = false;
     }
 
@@ -335,7 +342,7 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetProvider.notifier)
           .removeCategoryFromBudget(categoryName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Active budget cleanup failed: $error');
+      AppLogger.error('[CategoryProvider] Active budget cleanup failed', error);
       ok = false;
     }
 
@@ -344,7 +351,10 @@ class CategoryNotifier extends Notifier<List<CategoryEntity>> {
           .read(budgetPlanLocalDataSourceProvider)
           .removeCategoryFromAllPlans(categoryName);
     } catch (error) {
-      debugPrint('[CategoryProvider] Historical plans cleanup failed: $error');
+      AppLogger.error(
+        '[CategoryProvider] Historical plans cleanup failed',
+        error,
+      );
       ok = false;
     }
 

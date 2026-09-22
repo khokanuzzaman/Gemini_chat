@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
 import '../../../../core/config/feature_flags.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/notifications/budget_settings.dart';
@@ -395,7 +395,10 @@ class BudgetNotifier extends Notifier<BudgetState> {
       await _loadActiveBudget();
       return true;
     } catch (error) {
-      debugPrint('[BudgetNotifier] Failed to remap category in budget: $error');
+      AppLogger.error(
+        '[BudgetNotifier] Failed to remap category in budget',
+        error,
+      );
       return false;
     }
   }
@@ -408,8 +411,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       await _loadActiveBudget();
       return true;
     } catch (error) {
-      debugPrint(
-        '[BudgetNotifier] Failed to remove category from budget: $error',
+      AppLogger.error(
+        '[BudgetNotifier] Failed to remove category from budget',
+        error,
       );
       return false;
     }

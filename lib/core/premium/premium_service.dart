@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
+import '../logging/app_logger.dart';
+
 const String _premiumEntitlement = 'premium';
 const String _revenueCatPublicKeyEnv = 'REVENUECAT_PUBLIC_SDK_KEY';
 const String _revenueCatPublicApiKeyEnv = 'REVENUECAT_PUBLIC_API_KEY';
@@ -102,7 +104,7 @@ class PremiumService {
   Future<void> initialize({String? userId}) async {
     try {
       if (!hasUsableSdkKey) {
-        debugPrint(
+        AppLogger.debug(
           'RevenueCat initialize skipped: ${configurationWarningBn ?? 'SDK key missing'}',
         );
         return;
@@ -122,8 +124,7 @@ class PremiumService {
         await Purchases.logIn(userId);
       }
     } catch (error, stackTrace) {
-      debugPrint('RevenueCat initialize failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
+      AppLogger.error('RevenueCat initialize failed', error, stackTrace);
     }
   }
 
