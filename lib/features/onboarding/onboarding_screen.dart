@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/navigation/app_page_route.dart';
 import '../../core/preferences/app_preferences.dart';
+import '../../core/sms/sms_permission_handler.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../wallet/presentation/screens/wallet_management_screen.dart';
@@ -19,39 +20,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  static const _smsPageIndex = 1;
+
   final _pages = [
     _OnboardingData(
       emoji: '💰',
       gradient: AppGradients.primary,
-      title: 'স্বাগতম!',
-      subtitle:
-          'PocketPilot AI দিয়ে খরচ হিসাব রাখুন। Chat help থেকে AI Guide দেখুন',
+      title: 'বাংলায় টাকার হিসাব,\nপ্রায় নিজে নিজেই',
+      subtitle: 'কষ্ট ছাড়াই খরচ ও আয় ট্র্যাক করুন — বাংলায়।',
       bullets: const [
-        (emoji: '🤖', text: 'AI দিয়ে খরচ যোগ করুন'),
-        (emoji: '🎤', text: 'ভয়েস দিয়ে খরচ যোগ করুন'),
-        (emoji: '📸', text: 'রিসিট স্ক্যান করে খরচ যোগ করুন'),
+        (emoji: '📥', text: 'bKash/নগদ/ব্যাংক SMS থেকে স্বয়ংক্রিয় হিসাব'),
+        (emoji: '✍️', text: 'ম্যানুয়ালি দ্রুত খরচ ও আয় যোগ'),
+        (emoji: '👛', text: 'একাধিক ওয়ালেট ও ব্যালেন্স একসাথে'),
       ],
     ),
     _OnboardingData(
-      emoji: '📊',
+      emoji: '📩',
       gradient: AppGradients.success,
-      title: 'স্মার্ট ইনসাইট',
-      subtitle: 'আপনার খরচের প্যাটার্ন বুঝে সিদ্ধান্ত নিন',
+      title: 'SMS পড়ে হিসাব —\nনিজে নিজেই',
+      subtitle:
+          'bKash, নগদ, রকেট ও ব্যাংকের SMS পড়ে আমরা লেনদেন স্বয়ংক্রিয়ভাবে ধরি। টাইপ করার ঝামেলা নেই।',
+      privacyNote:
+          'আপনার SMS ফোনেই পড়া হয় — কোথাও পাঠানো বা আপলোড করা হয় না।',
       bullets: const [
-        (emoji: '📈', text: 'মাসিক বিশ্লেষণ দেখুন'),
-        (emoji: '🎯', text: 'লক্ষ্য নির্ধারণ করুন'),
-        (emoji: '⚠️', text: 'অস্বাভাবিক খরচ সনাক্ত করুন'),
+        (emoji: '⚡', text: 'নতুন লেনদেন সাথে সাথে ধরা পড়ে'),
+        (emoji: '🏦', text: 'bKash · নগদ · রকেট · ব্যাংক'),
       ],
     ),
     _OnboardingData(
-      emoji: '🔒',
+      emoji: '👛',
       gradient: AppGradients.walletTeal,
-      title: 'আপনার ডেটা, আপনার নিয়ন্ত্রণে',
-      subtitle: 'সব ডেটা আপনার ফোনে সুরক্ষিত থাকে',
+      title: 'আপনার ওয়ালেট সেট করুন',
+      subtitle: 'ক্যাশ, বিকাশ, নগদ বা ব্যাংক — ব্যালেন্স যোগ করে শুরু করুন।',
       bullets: const [
-        (emoji: '🔐', text: 'লোকাল স্টোরেজ'),
-        (emoji: '👆', text: 'বায়োমেট্রিক লক'),
-        (emoji: '📤', text: 'যেকোনো সময় এক্সপোর্ট করুন'),
+        (emoji: '💵', text: 'ক্যাশ ও মোবাইল ব্যাংকিং একসাথে'),
+        (emoji: '⚖️', text: 'ব্যালেন্স সবসময় মিলে যায়'),
+        (emoji: '🔒', text: 'সব ডেটা আপনার ফোনে সুরক্ষিত'),
       ],
     ),
   ];
@@ -120,33 +124,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       }),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      children: [
-                        AnimatedSwitcher(
-                          duration: AppMotion.fast,
-                          child: isLastPage
-                              ? const SizedBox.shrink(
-                                  key: ValueKey('skip-hidden'),
-                                )
-                              : TextButton(
-                                  key: const ValueKey('skip-visible'),
-                                  onPressed: () => _complete(),
-                                  child: const Text('এড়িয়ে যান'),
-                                ),
-                        ),
-                        const Spacer(),
-                        AppActionButton(
-                          label: isLastPage ? 'শুরু করুন' : 'পরবর্তী',
-                          icon: isLastPage
-                              ? Icons.check_rounded
-                              : Icons.arrow_forward_rounded,
-                          onPressed: isLastPage
-                              ? () => _complete(showWalletPrompt: true)
-                              : _nextPage,
-                          variant: AppActionButtonVariant.primary,
-                        ),
-                      ],
-                    ),
+                    _buildActionRow(isLastPage: isLastPage),
                   ],
                 ),
               ),
@@ -155,6 +133,62 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildActionRow({required bool isLastPage}) {
+    final isSmsPage = _currentPage == _smsPageIndex;
+
+    // Secondary (left): a clearly-visible skip that always reaches a fully
+    // working app — never a dark pattern. "পরে করব" on the SMS page advances
+    // without granting; "এড়িয়ে যান" on info pages finishes onboarding.
+    final Widget secondary;
+    if (isSmsPage) {
+      secondary = TextButton(
+        onPressed: _nextPage,
+        child: const Text('পরে করব'),
+      );
+    } else if (!isLastPage) {
+      secondary = TextButton(
+        onPressed: () => _complete(),
+        child: const Text('এড়িয়ে যান'),
+      );
+    } else {
+      secondary = const SizedBox.shrink();
+    }
+
+    return Row(
+      children: [
+        secondary,
+        const Spacer(),
+        AppActionButton(
+          label: isSmsPage
+              ? 'SMS অ্যাক্সেস দিন'
+              : (isLastPage ? 'শুরু করুন' : 'পরবর্তী'),
+          icon: isSmsPage
+              ? Icons.sms_rounded
+              : (isLastPage
+                    ? Icons.check_rounded
+                    : Icons.arrow_forward_rounded),
+          onPressed: isSmsPage
+              ? _requestSmsThenNext
+              : (isLastPage
+                    ? () => _complete(showWalletPrompt: true)
+                    : _nextPage),
+          variant: AppActionButtonVariant.primary,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _requestSmsThenNext() async {
+    // Inline activation moment: fire the native READ_SMS dialog here. Whatever
+    // the user chooses, we advance — denial is fully graceful (the app works via
+    // manual entry, and SMS import can be granted later from its own screen).
+    await const SmsPermissionHandler().requestPermission();
+    if (!mounted) {
+      return;
+    }
+    await _nextPage();
   }
 
   Future<void> _complete({bool showWalletPrompt = false}) async {
@@ -183,15 +217,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             AppActionButton(
               label: 'পরে করব',
               variant: AppActionButtonVariant.ghost,
-              onPressed: () => Navigator.of(
-                dialogContext,
-              ).pop(_WalletPromptAction.skip),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(_WalletPromptAction.skip),
             ),
             AppActionButton(
               label: 'এখন যোগ করুন',
-              onPressed: () => Navigator.of(
-                dialogContext,
-              ).pop(_WalletPromptAction.addNow),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(_WalletPromptAction.addNow),
             ),
           ],
         );
@@ -274,6 +306,44 @@ class _OnboardingPage extends StatelessWidget {
                 ),
               ),
             ),
+            if (data.privacyNote != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppFadeSlideIn(
+                offset: const Offset(0, 0.12),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: context.appColors.primary.withValues(
+                      alpha: context.isDarkMode ? 0.16 : 0.08,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: context.appColors.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_rounded,
+                        size: 20,
+                        color: context.appColors.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          data.privacyNote!,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: context.primaryTextColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             AppStaggeredList(
               initialDelay: const Duration(milliseconds: 100),
@@ -324,6 +394,7 @@ class _OnboardingData {
     required this.emoji,
     required this.gradient,
     required this.bullets,
+    this.privacyNote,
   });
 
   final String title;
@@ -331,6 +402,9 @@ class _OnboardingData {
   final String emoji;
   final LinearGradient gradient;
   final List<({String emoji, String text})> bullets;
+
+  /// Optional prominent on-device privacy line (used on the SMS pitch screen).
+  final String? privacyNote;
 }
 
 enum _WalletPromptAction { addNow, skip }
