@@ -20,6 +20,16 @@ default AOT build-script step fails because a native-build-hook dependency makes
 JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
 
 ## Known issues (deliberate deferrals)
+- **iOS build (CocoaPods) does not resolve — dedicated iOS-setup task.** `pod
+  install` fails on two conflicts: `google_mlkit_text_recognition` (receipt OCR)
+  vs `cloud_firestore`/Firebase over shared transitive pods (`nanopb`,
+  `GoogleDataTransport`, `MLKitVision`), and the iOS Podfile specifies no
+  `platform :ios` (defaults to 13.0, too low for current Firebase/MLKit). This is
+  **pre-existing and does not block Phase 1** — the launch is Android-first, and
+  MLKit powers the receipt-OCR feature which is **off in Phase 1**. Fix (bump the
+  Podfile platform, align/drop the MLKit pods) belongs to the store-prep / iOS
+  parity work (master §8 Phase-1 store-prep and Phase-3), not to a feature slice.
+  Android builds and runs fine; verify UI on Android until iOS pods are fixed.
 - **Currency symbol (DESYNC-3): ~18 raw-`৳` money-display sites still bypass the
   formatter.** `BanglaFormatters.currency` / `preciseCurrency` and every money
   entry field now honor the configured symbol (৳ / Tk / BDT). Deferred: raw
