@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/feature_flags.dart';
 import 'app_page_route.dart';
 import '../../features/debt/presentation/screens/debt_detail_screen.dart';
 import '../../features/debt/presentation/screens/debt_list_screen.dart';
@@ -86,7 +87,13 @@ class AppShellNavigation {
 
     switch (payload) {
       case 'daily_reminder':
-        openChat();
+        // With AI off the chat tab is inert, so send the reminder to the
+        // dashboard instead of a dead chat surface.
+        if (FeatureFlags.aiEnabled) {
+          openChat();
+        } else {
+          openDashboard();
+        }
         break;
       case 'budget_alert':
         openDashboard();

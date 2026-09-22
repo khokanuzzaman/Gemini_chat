@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/backup/backup_providers.dart';
 import '../../core/database/expense_seed_data.dart';
@@ -365,44 +366,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           children: [
             _tileCard(context, [
-              AppListTile(
-                leadingIcon: Icons.school_outlined,
-                leadingColor: context.appColors.primary,
-                title: 'AI Guide',
-                subtitle: 'চ্যাট, ভয়েস, রিসিট ও Smart Mode শেখুন',
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(AppSlideRoute(builder: (_) => const AiGuideScreen()));
-                },
-              ),
-              AppListTile(
-                leadingIcon: Icons.psychology_alt_rounded,
-                leadingColor: context.appColors.primary,
-                title: 'পার্সোনাল ডেটা ব্যবহার',
-                subtitle: _ragEnabled
-                    ? 'চালু — Smart Mode আপনার খরচের ডেটা ব্যবহার করবে'
-                    : 'বন্ধ — Smart Mode সীমিত থাকবে',
-                trailing: Switch.adaptive(
-                  value: _ragEnabled,
-                  onChanged: (value) async {
-                    setState(() {
-                      _ragEnabled = value;
-                    });
-                    ref.read(ragEnabledProvider.notifier).state = value;
-                    await AppPreferences.setRagEnabled(value);
+              if (FeatureFlags.aiEnabled) ...[
+                AppListTile(
+                  leadingIcon: Icons.school_outlined,
+                  leadingColor: context.appColors.primary,
+                  title: 'AI Guide',
+                  subtitle: 'চ্যাট, ভয়েস, রিসিট ও Smart Mode শেখুন',
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      AppSlideRoute(builder: (_) => const AiGuideScreen()),
+                    );
                   },
                 ),
-                onTap: () async {
-                  final nextValue = !_ragEnabled;
-                  setState(() {
-                    _ragEnabled = nextValue;
-                  });
-                  ref.read(ragEnabledProvider.notifier).state = nextValue;
-                  await AppPreferences.setRagEnabled(nextValue);
-                },
-              ),
+                AppListTile(
+                  leadingIcon: Icons.psychology_alt_rounded,
+                  leadingColor: context.appColors.primary,
+                  title: 'পার্সোনাল ডেটা ব্যবহার',
+                  subtitle: _ragEnabled
+                      ? 'চালু — Smart Mode আপনার খরচের ডেটা ব্যবহার করবে'
+                      : 'বন্ধ — Smart Mode সীমিত থাকবে',
+                  trailing: Switch.adaptive(
+                    value: _ragEnabled,
+                    onChanged: (value) async {
+                      setState(() {
+                        _ragEnabled = value;
+                      });
+                      ref.read(ragEnabledProvider.notifier).state = value;
+                      await AppPreferences.setRagEnabled(value);
+                    },
+                  ),
+                  onTap: () async {
+                    final nextValue = !_ragEnabled;
+                    setState(() {
+                      _ragEnabled = nextValue;
+                    });
+                    ref.read(ragEnabledProvider.notifier).state = nextValue;
+                    await AppPreferences.setRagEnabled(nextValue);
+                  },
+                ),
+              ],
               AppListTile(
                 leadingIcon: Icons.label_important_outline_rounded,
                 leadingColor: context.appColors.primary,

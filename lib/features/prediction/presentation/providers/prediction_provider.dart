@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
+import '../../../../core/config/feature_flags.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/providers/database_providers.dart';
@@ -136,6 +137,14 @@ class PredictionNotifier extends Notifier<PredictionState> {
 
   Future<void> loadPrediction({bool forceRefresh = false}) async {
     if (state.isLoading || state.isStreaming) {
+      return;
+    }
+
+    // AI off (Phase 1): compute the prediction from local math only — never
+    // touch the AI gateway. The projected number is already AI-independent; the
+    // AI path (below) only narrates it, which is disabled here.
+    if (!FeatureFlags.aiEnabled) {
+      await _loadPredictionLocally();
       return;
     }
 
@@ -277,6 +286,65 @@ class PredictionNotifier extends Notifier<PredictionState> {
         now,
         daysInMonth,
       );
+      await repository.savePrediction(entity);
+      _cachedPrediction = entity;
+      _cachedError = null;
+      state = state.copyWith(
+        prediction: entity,
+        isLoading: false,
+        isStreaming: false,
+        streamingText: '',
+        fromCache: false,
+        clearError: true,
+        isStale: false,
+      );
+    } catch (_) {
+      final cached = await repository.getCachedPrediction();
+      _cachedPrediction = cached;
+      _cachedError = 'Prediction করতে সমস্যা হয়েছে';
+      state = state.copyWith(
+        prediction: cached,
+        isLoading: false,
+        isStreaming: false,
+        streamingText: '',
+        error: _cachedError,
+        fromCache: cached != null,
+        isStale: false,
+      );
+    }
+  }
+
+  /// Populates the prediction from local math only (no AI gateway call).
+  /// Mirrors the success path of [loadPrediction] but feeds an empty response
+  /// to [_parseResponse], which falls back to the locally-derived projection.
+  Future<void> _loadPredictionLocally() async {
+    final repository = ref.read(predictionRepositoryProvider);
+    state = state.copyWith(
+      isLoading: true,
+      isStreaming: false,
+      streamingText: '',
+      fromCache: false,
+      clearError: true,
+      isStale: false,
+    );
+    try {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
+      final endOfLastMonth = startOfMonth.subtract(const Duration(days: 1));
+
+      final expenseRepository = ref.read(predictionExpenseRepositoryProvider);
+      final thisMonth = (await expenseRepository.getExpensesByDateRange(
+        startOfMonth,
+        now,
+      )).inPrediction.toList(growable: false);
+      final lastMonth = (await expenseRepository.getExpensesByDateRange(
+        startOfLastMonth,
+        endOfLastMonth,
+      )).inPrediction.toList(growable: false);
+      final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
+
+      final entity = _parseResponse('', thisMonth, lastMonth, now, daysInMonth);
       await repository.savePrediction(entity);
       _cachedPrediction = entity;
       _cachedError = null;

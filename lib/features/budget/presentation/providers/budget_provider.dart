@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/json_block_extractor.dart';
+import '../../../../core/config/feature_flags.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/notifications/budget_settings.dart';
@@ -242,18 +243,23 @@ class BudgetNotifier extends Notifier<BudgetState> {
       return;
     }
 
-    final isConnected = await ref
-        .read(connectivityServiceProvider)
-        .isConnected();
-    if (!isConnected) {
-      state = state.copyWith(
-        error: 'ইন্টারনেট নেই — budget generate করা যাচ্ছে না',
-      );
-      return;
-    }
+    // AI off (Phase 1): the connectivity check, usage credit and AI stream are
+    // all AI-only. Skip them and build the budget from local rule-based math —
+    // _parseResponse('') falls back to _buildFallbackBudgets.
+    if (FeatureFlags.aiEnabled) {
+      final isConnected = await ref
+          .read(connectivityServiceProvider)
+          .isConnected();
+      if (!isConnected) {
+        state = state.copyWith(
+          error: 'ইন্টারনেট নেই — budget generate করা যাচ্ছে না',
+        );
+        return;
+      }
 
-    if (!await _consumeAiBudgetUsage()) {
-      return;
+      if (!await _consumeAiBudgetUsage()) {
+        return;
+      }
     }
 
     state = state.copyWith(
@@ -270,17 +276,19 @@ class BudgetNotifier extends Notifier<BudgetState> {
           .toList(growable: false);
 
       var fullResponse = '';
-      await for (final chunk
-          in ref
-              .read(budgetPlannerDataSourceProvider)
-              .generateBudget(
-                monthlyIncome: income,
-                avgMonthlyByCategory: avgByCategory,
-                availableCategories: categories,
-                preferredRule: state.selectedRule,
-              )) {
-        fullResponse += chunk;
-        state = state.copyWith(streamingText: fullResponse);
+      if (FeatureFlags.aiEnabled) {
+        await for (final chunk
+            in ref
+                .read(budgetPlannerDataSourceProvider)
+                .generateBudget(
+                  monthlyIncome: income,
+                  avgMonthlyByCategory: avgByCategory,
+                  availableCategories: categories,
+                  preferredRule: state.selectedRule,
+                )) {
+          fullResponse += chunk;
+          state = state.copyWith(streamingText: fullResponse);
+        }
       }
 
       final plan = _parseResponse(

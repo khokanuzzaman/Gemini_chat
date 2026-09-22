@@ -13,7 +13,7 @@ import 'package:gemini_chat/core/utils/either.dart';
 import 'package:gemini_chat/features/chat/domain/entities/message_entity.dart';
 import 'package:gemini_chat/features/chat/domain/repositories/chat_repository.dart';
 import 'package:gemini_chat/features/chat/presentation/providers/chat_provider.dart';
-import 'package:gemini_chat/features/chat/presentation/screens/chat_screen.dart';
+import 'package:gemini_chat/features/chat/presentation/widgets/chat_screen_content.dart';
 import 'package:gemini_chat/features/chat/presentation/widgets/chat_mode_toggle_chip.dart';
 import 'package:gemini_chat/features/chat/presentation/widgets/message_bubble.dart';
 
@@ -99,7 +99,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: ChatScreen()),
+        child: const MaterialApp(home: ChatScreenContent()),
       ),
     );
     await _pumpChatFrames(tester);
@@ -138,7 +138,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: ChatScreen()),
+        child: const MaterialApp(home: ChatScreenContent()),
       ),
     );
     await _pumpChatFrames(tester);
@@ -272,7 +272,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: ChatScreen()),
+        child: const MaterialApp(home: ChatScreenContent()),
       ),
     );
     await _pumpChatFrames(tester);

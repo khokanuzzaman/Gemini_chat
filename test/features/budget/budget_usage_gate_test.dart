@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:gemini_chat/core/config/feature_flags.dart';
 import 'package:gemini_chat/core/network/connectivity_provider.dart';
 import 'package:gemini_chat/core/network/connectivity_service.dart';
 import 'package:gemini_chat/core/premium/premium_providers.dart';
@@ -27,108 +28,186 @@ import 'package:gemini_chat/features/expense/presentation/providers/expense_prov
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Budget usage gates', () {
-    test('free users are blocked after monthly AI budget limit', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final usageService = _FakeUsageTrackerService(
-        results: {
-          UsageLimits.aiBudget: UsageGateResult.blocked(
-            UsageStatus(
-              feature: UsageLimits.aiBudget,
-              used: 3,
-              limit: 3,
-              isMonthly: true,
-              resetAt: DateTime(2026, 5, 1),
+  // AI budget generation — and therefore its usage gating — only runs when
+  // AI_ENABLED=true. With AI off (Phase-1 default) generateBudget builds the
+  // budget locally and consumes no AI usage, so these AI-path assertions only
+  // apply under --dart-define=AI_ENABLED=true.
+  group(
+    'Budget usage gates',
+    skip: FeatureFlags.aiEnabled
+        ? null
+        : 'AI off (Phase 1): budget generates locally, no AI usage gating',
+    () {
+      test('free users are blocked after monthly AI budget limit', () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final usageService = _FakeUsageTrackerService(
+          results: {
+            UsageLimits.aiBudget: UsageGateResult.blocked(
+              UsageStatus(
+                feature: UsageLimits.aiBudget,
+                used: 3,
+                limit: 3,
+                isMonthly: true,
+                resetAt: DateTime(2026, 5, 1),
+              ),
             ),
-          ),
-        },
-      );
-      final planner = _FakeBudgetPlannerDataSource();
-      final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-          budgetRepositoryProvider.overrideWithValue(_FakeBudgetRepository()),
-          budgetPlannerDataSourceProvider.overrideWithValue(planner),
-          expenseRepositoryProvider.overrideWithValue(_FakeExpenseRepository()),
-          categoryProvider.overrideWith(_TestCategoryNotifier.new),
-          connectivityServiceProvider.overrideWithValue(
-            _FakeConnectivityService(),
-          ),
-          usageTrackerServiceProvider.overrideWithValue(usageService),
-          premiumServiceProvider.overrideWithValue(
-            _FakePremiumService(isPremiumUser: false),
-          ),
-          isPremiumProvider.overrideWith((ref) => false),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(budgetProvider.notifier);
-      notifier.setIncome(50000);
-      await Future<void>.delayed(Duration.zero);
-
-      await notifier.generateBudget();
-
-      final state = container.read(budgetProvider);
-      expect(planner.generateCalls, 0);
-      expect(
-        state.error,
-        'এই মাসের AI বাজেট সীমা শেষ (3/3 ব্যবহার হয়েছে). প্রিমিয়াম এ আপগ্রেড করুন।',
-      );
-      expect(container.read(usageRefreshTokenProvider), 0);
-    });
-
-    test('premium users bypass monthly AI budget limit', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final usageService = _FakeUsageTrackerService(
-        results: {
-          UsageLimits.aiBudget: UsageGateResult.blocked(
-            UsageStatus(
-              feature: UsageLimits.aiBudget,
-              used: 3,
-              limit: 3,
-              isMonthly: true,
-              resetAt: DateTime(2026, 5, 1),
+          },
+        );
+        final planner = _FakeBudgetPlannerDataSource();
+        final container = ProviderContainer(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            budgetRepositoryProvider.overrideWithValue(_FakeBudgetRepository()),
+            budgetPlannerDataSourceProvider.overrideWithValue(planner),
+            expenseRepositoryProvider.overrideWithValue(
+              _FakeExpenseRepository(),
             ),
-          ),
-        },
-      );
-      final planner = _FakeBudgetPlannerDataSource();
-      final repository = _FakeBudgetRepository();
-      final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-          budgetRepositoryProvider.overrideWithValue(repository),
-          budgetPlannerDataSourceProvider.overrideWithValue(planner),
-          expenseRepositoryProvider.overrideWithValue(_FakeExpenseRepository()),
-          categoryProvider.overrideWith(_TestCategoryNotifier.new),
-          connectivityServiceProvider.overrideWithValue(
-            _FakeConnectivityService(),
-          ),
-          usageTrackerServiceProvider.overrideWithValue(usageService),
-          premiumServiceProvider.overrideWithValue(
-            _FakePremiumService(isPremiumUser: true),
-          ),
-          isPremiumProvider.overrideWith((ref) => true),
-        ],
-      );
-      addTearDown(container.dispose);
+            categoryProvider.overrideWith(_TestCategoryNotifier.new),
+            connectivityServiceProvider.overrideWithValue(
+              _FakeConnectivityService(),
+            ),
+            usageTrackerServiceProvider.overrideWithValue(usageService),
+            premiumServiceProvider.overrideWithValue(
+              _FakePremiumService(isPremiumUser: false),
+            ),
+            isPremiumProvider.overrideWith((ref) => false),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final notifier = container.read(budgetProvider.notifier);
-      notifier.setIncome(50000);
-      await Future<void>.delayed(Duration.zero);
+        final notifier = container.read(budgetProvider.notifier);
+        notifier.setIncome(50000);
+        await Future<void>.delayed(Duration.zero);
 
-      await notifier.generateBudget();
+        await notifier.generateBudget();
 
-      final state = container.read(budgetProvider);
-      expect(planner.generateCalls, 1);
-      expect(usageService.checkCalls, isEmpty);
-      expect(state.error, isNull);
-      expect(repository.savedBudgets, isNotEmpty);
-    });
-  });
+        final state = container.read(budgetProvider);
+        expect(planner.generateCalls, 0);
+        expect(
+          state.error,
+          'এই মাসের AI বাজেট সীমা শেষ (3/3 ব্যবহার হয়েছে). প্রিমিয়াম এ আপগ্রেড করুন।',
+        );
+        expect(container.read(usageRefreshTokenProvider), 0);
+      });
+
+      test('premium users bypass monthly AI budget limit', () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final usageService = _FakeUsageTrackerService(
+          results: {
+            UsageLimits.aiBudget: UsageGateResult.blocked(
+              UsageStatus(
+                feature: UsageLimits.aiBudget,
+                used: 3,
+                limit: 3,
+                isMonthly: true,
+                resetAt: DateTime(2026, 5, 1),
+              ),
+            ),
+          },
+        );
+        final planner = _FakeBudgetPlannerDataSource();
+        final repository = _FakeBudgetRepository();
+        final container = ProviderContainer(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            budgetRepositoryProvider.overrideWithValue(repository),
+            budgetPlannerDataSourceProvider.overrideWithValue(planner),
+            expenseRepositoryProvider.overrideWithValue(
+              _FakeExpenseRepository(),
+            ),
+            categoryProvider.overrideWith(_TestCategoryNotifier.new),
+            connectivityServiceProvider.overrideWithValue(
+              _FakeConnectivityService(),
+            ),
+            usageTrackerServiceProvider.overrideWithValue(usageService),
+            premiumServiceProvider.overrideWithValue(
+              _FakePremiumService(isPremiumUser: true),
+            ),
+            isPremiumProvider.overrideWith((ref) => true),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(budgetProvider.notifier);
+        notifier.setIncome(50000);
+        await Future<void>.delayed(Duration.zero);
+
+        await notifier.generateBudget();
+
+        final state = container.read(budgetProvider);
+        expect(planner.generateCalls, 1);
+        expect(usageService.checkCalls, isEmpty);
+        expect(state.error, isNull);
+        expect(repository.savedBudgets, isNotEmpty);
+      });
+    },
+  );
+
+  // AI off (Phase-1 default): generateBudget must build the budget from local
+  // math without ever calling the AI planner/gateway or consuming AI usage.
+  group(
+    'Budget AI-off local generation',
+    skip: FeatureFlags.aiEnabled ? 'only for the AI-off (Phase 1) build' : null,
+    () {
+      test('generates locally without calling the AI planner', () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final planner = _FakeBudgetPlannerDataSource();
+        final repository = _FakeBudgetRepository();
+        final usageService = _FakeUsageTrackerService(results: {});
+        final container = ProviderContainer(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            budgetRepositoryProvider.overrideWithValue(repository),
+            budgetPlannerDataSourceProvider.overrideWithValue(planner),
+            expenseRepositoryProvider.overrideWithValue(
+              _FakeExpenseRepository(),
+            ),
+            categoryProvider.overrideWith(_TestCategoryNotifier.new),
+            connectivityServiceProvider.overrideWithValue(
+              _FakeConnectivityService(),
+            ),
+            usageTrackerServiceProvider.overrideWithValue(usageService),
+            premiumServiceProvider.overrideWithValue(
+              _FakePremiumService(isPremiumUser: false),
+            ),
+            isPremiumProvider.overrideWith((ref) => false),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(budgetProvider.notifier);
+        notifier.setIncome(50000);
+        await Future<void>.delayed(Duration.zero);
+
+        await notifier.generateBudget();
+
+        final state = container.read(budgetProvider);
+        expect(
+          planner.generateCalls,
+          0,
+          reason: 'AI gateway must not be reached when AI is off',
+        );
+        expect(
+          usageService.checkCalls,
+          isEmpty,
+          reason: 'no AI usage consumed when AI is off',
+        );
+        expect(
+          state.error,
+          isNull,
+          reason: 'local generation should not error',
+        );
+        expect(
+          repository.savedBudgets,
+          isNotEmpty,
+          reason: 'a local budget should still be produced',
+        );
+      });
+    },
+  );
 }
 
 class _FakeBudgetPlannerDataSource extends BudgetPlannerDataSource {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/config/feature_flags.dart';
 import '../../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../../core/navigation/app_page_route.dart';
 import '../../../../../core/theme/app_theme.dart';
@@ -27,11 +28,12 @@ class PrimaryQuickActions extends StatelessWidget {
         color: AppColors.success,
         onTap: AppShellNavigation.openIncome,
       ),
-      _PrimaryAction(
-        label: 'রিসিট স্ক্যান',
-        icon: Icons.camera_alt_rounded,
-        onTap: AppShellNavigation.openChat,
-      ),
+      if (FeatureFlags.aiEnabled)
+        _PrimaryAction(
+          label: 'রিসিট স্ক্যান',
+          icon: Icons.camera_alt_rounded,
+          onTap: AppShellNavigation.openChat,
+        ),
       _PrimaryAction(
         label: 'স্প্লিট বিল',
         icon: Icons.call_split_rounded,
@@ -55,19 +57,21 @@ class PrimaryQuickActions extends StatelessWidget {
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: actions.map((action) {
-            return SizedBox(
-              width: actionWidth,
-              child: AppChip(
-                label: action.label,
-                icon: action.icon,
-                color: action.color,
-                compact: compact,
-                fullWidth: true,
-                onTap: action.onTap,
-              ),
-            );
-          }).toList(growable: false),
+          children: actions
+              .map((action) {
+                return SizedBox(
+                  width: actionWidth,
+                  child: AppChip(
+                    label: action.label,
+                    icon: action.icon,
+                    color: action.color,
+                    compact: compact,
+                    fullWidth: true,
+                    onTap: action.onTap,
+                  ),
+                );
+              })
+              .toList(growable: false),
         );
       },
     );
