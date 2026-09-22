@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/analytics/analytics_providers.dart';
+import '../../../../core/analytics/usage_analytics.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -13,11 +16,11 @@ import '../../../wallet/presentation/screens/wallet_management_screen.dart';
 /// আরও tab — the catch-all hub. SMS import (the moat) is promoted to the top.
 /// Analytics and Split live here now that they are no longer bottom-nav tabs.
 /// Security, backup, premium and theme remain inside the full Settings screen.
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppPageScaffold(
       title: 'আরও',
       showBackButton: false,
@@ -37,7 +40,12 @@ class MoreScreen extends StatelessWidget {
                     title: 'SMS আমদানি',
                     subtitle: 'বিকাশ, নগদ ও ব্যাংক SMS থেকে খরচ ধরুন',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => SmsImportScreen.push(context),
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.smsImport);
+                      SmsImportScreen.push(context);
+                    },
                   ),
                   AppListTile(
                     leadingIcon: Icons.bar_chart_rounded,
@@ -45,7 +53,12 @@ class MoreScreen extends StatelessWidget {
                     title: 'বিশ্লেষণ',
                     subtitle: 'বিস্তারিত চার্ট ও অ্যানোমালি',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: AppShellNavigation.openAnalytics,
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.analytics);
+                      AppShellNavigation.openAnalytics();
+                    },
                   ),
                 ],
               ),
@@ -61,9 +74,14 @@ class MoreScreen extends StatelessWidget {
                     title: 'ওয়ালেট',
                     subtitle: 'ক্যাশ, বিকাশ, নগদ ও ব্যাংক',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).push(buildAppRoute(const WalletManagementScreen())),
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.wallets);
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const WalletManagementScreen()));
+                    },
                   ),
                   AppListTile(
                     leadingIcon: Icons.category_rounded,
@@ -71,9 +89,14 @@ class MoreScreen extends StatelessWidget {
                     title: 'ক্যাটাগরি',
                     subtitle: 'খরচের ক্যাটাগরি গুছিয়ে রাখুন',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).push(buildAppRoute(const CategoryManagementScreen())),
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.categories);
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const CategoryManagementScreen()));
+                    },
                   ),
                   AppListTile(
                     leadingIcon: Icons.trending_up_rounded,
@@ -97,9 +120,14 @@ class MoreScreen extends StatelessWidget {
                     title: 'এক্সপোর্ট',
                     subtitle: 'CSV ফাইলে ডেটা রপ্তানি',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).push(buildAppRoute(const ExportScreen())),
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.export);
+                      Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const ExportScreen()));
+                    },
                   ),
                   AppListTile(
                     leadingIcon: Icons.call_split_rounded,
@@ -107,7 +135,12 @@ class MoreScreen extends StatelessWidget {
                     title: 'স্প্লিট বিল',
                     subtitle: 'বিল ভাগ করুন',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: AppShellNavigation.openSplit,
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.split);
+                      AppShellNavigation.openSplit();
+                    },
                   ),
                   AppListTile(
                     leadingIcon: Icons.settings_rounded,
@@ -115,9 +148,14 @@ class MoreScreen extends StatelessWidget {
                     title: 'সেটিংস',
                     subtitle: 'নিরাপত্তা, ব্যাকআপ, থিম ও আরও',
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(context).push(
-                      AppSlideRoute(builder: (_) => const SettingsScreen()),
-                    ),
+                    onTap: () {
+                      ref
+                          .read(usageAnalyticsProvider)
+                          .featureOpen(AnalyticsFeature.settings);
+                      Navigator.of(context).push(
+                        AppSlideRoute(builder: (_) => const SettingsScreen()),
+                      );
+                    },
                   ),
                 ],
               ),

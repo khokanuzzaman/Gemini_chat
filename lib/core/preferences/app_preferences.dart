@@ -12,6 +12,7 @@ class AppPreferences {
   static const aiGuidePromptSeenKey = 'ai_guide_prompt_seen';
   static const handledChatCardKeysKey = 'handled_chat_card_keys';
   static const firstWalletPromptSeenKey = 'first_wallet_prompt_seen';
+  static const analyticsEnabledKey = 'analytics_enabled';
   static const _activeWalletIdKey = 'active_wallet_id';
 
   static Future<SharedPreferences> get _prefs async =>
@@ -75,6 +76,15 @@ class AppPreferences {
 
   static Future<bool> isFirstWalletPromptSeen() async {
     return (await _prefs).getBool(firstWalletPromptSeenKey) ?? false;
+  }
+
+  /// Anonymous usage analytics — on by default, disclosed, user can opt out.
+  static Future<bool> isAnalyticsEnabled() async {
+    return (await _prefs).getBool(analyticsEnabledKey) ?? true;
+  }
+
+  static Future<void> setAnalyticsEnabled(bool value) async {
+    await (await _prefs).setBool(analyticsEnabledKey, value);
   }
 
   static Future<void> setFirstWalletPromptSeen(bool value) async {

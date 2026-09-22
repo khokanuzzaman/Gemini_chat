@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../core/analytics/analytics_providers.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/backup/backup_providers.dart';
@@ -77,6 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   bool _loading = true;
   bool _ragEnabled = true;
+  bool _analyticsEnabled = true;
   String _defaultCategory = 'Other';
   String _currencySymbol = '৳';
   String _dateFormat = 'd MMM yyyy';
@@ -91,6 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _load() async {
     final packageInfo = await PackageInfo.fromPlatform();
     _ragEnabled = await AppPreferences.isRagEnabled();
+    _analyticsEnabled = await AppPreferences.isAnalyticsEnabled();
     _defaultCategory = await AppPreferences.defaultCategory();
     _currencySymbol = await AppPreferences.currencySymbol();
     _dateFormat = await AppPreferences.dateFormat();
@@ -103,6 +106,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _version = '${packageInfo.version}+${packageInfo.buildNumber}';
       _loading = false;
     });
+  }
+
+  Future<void> _setAnalyticsEnabled(bool value) async {
+    setState(() {
+      _analyticsEnabled = value;
+    });
+    ref.read(analyticsEnabledProvider.notifier).state = value;
+    await ref.read(usageAnalyticsProvider).setEnabled(value);
+    await AppPreferences.setAnalyticsEnabled(value);
   }
 
   @override
@@ -331,6 +343,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'ডেটা',
         child: _tileCard(context, [
           const SmsImportSettingsTile(),
+          AppListTile(
+            leadingIcon: Icons.insights_rounded,
+            leadingColor: context.appColors.primary,
+            title: 'ব্যবহারের পরিসংখ্যান শেয়ার করুন',
+            subtitle:
+                'কোন ফিচার কতটা ব্যবহার হয় তা বেনামে পাঠানো হয় — কোনো টাকা, SMS বা ব্যক্তিগত তথ্য নয়।',
+            trailing: Switch.adaptive(
+              value: _analyticsEnabled,
+              onChanged: _setAnalyticsEnabled,
+            ),
+            onTap: () => _setAnalyticsEnabled(!_analyticsEnabled),
+          ),
           AppListTile(
             leadingIcon: Icons.table_chart_rounded,
             leadingColor: context.appColors.primary,

@@ -9,6 +9,8 @@ import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../core/analytics/analytics_providers.dart';
+import '../../../../core/analytics/usage_analytics.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/providers/recurring_provider.dart';
 import '../../../wallet/domain/entities/wallet_entity.dart';

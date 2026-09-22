@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/analytics/analytics_providers.dart';
+import '../../../../core/analytics/usage_analytics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -262,6 +264,11 @@ class _AddEditIncomeSheetState extends ConsumerState<AddEditIncomeSheet> {
       return;
     }
 
+    if (widget.existingIncome == null) {
+      ref
+          .read(usageAnalyticsProvider)
+          .entryMethodUsed(AnalyticsEntryMethod.manualIncome);
+    }
     Navigator.of(context).pop(true);
   }
 

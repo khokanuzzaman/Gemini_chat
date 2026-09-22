@@ -19,6 +19,15 @@ default AOT build-script step fails because a native-build-hook dependency makes
 `dart compile aot-snapshot` bail (`'dart compile' does not support build hooks`).
 JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
 
+## Store prep — must declare
+- **Play Data Safety must declare usage analytics (added in slice g).** The app
+  collects **anonymous app-activity / usage analytics** via Firebase Analytics
+  (feature-open + entry-method events only — no financial amounts, SMS content or
+  PII; not tied to identity). It is **on by default** with an in-app disclosure
+  and a Settings opt-out. The Data Safety form must say: app-activity collected,
+  **not** linked to identity, **not** shared, user can opt out. Do not ship the
+  listing without this — default-on is only defensible with the honest disclosure.
+
 ## Known issues (deliberate deferrals)
 - **`RecurringDetectionService` is demoted/reserved, not dead by accident.**
   Recurring is opt-in in Phase 1 (the user marks an expense recurring; see

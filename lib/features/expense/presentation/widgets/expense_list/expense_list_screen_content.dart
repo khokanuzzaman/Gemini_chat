@@ -980,8 +980,13 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
     if (!mounted) {
       return;
     }
-    navigator.pop();
     final added = result == MarkRecurringResult.added;
+    if (added) {
+      ref
+          .read(usageAnalyticsProvider)
+          .entryMethodUsed(AnalyticsEntryMethod.markRecurring);
+    }
+    navigator.pop();
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(

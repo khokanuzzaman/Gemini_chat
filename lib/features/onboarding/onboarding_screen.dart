@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/analytics/analytics_providers.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/sms/sms_permission_handler.dart';
@@ -7,16 +9,16 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../wallet/presentation/screens/wallet_management_screen.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, required this.onComplete});
 
   final VoidCallback onComplete;
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -184,7 +186,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // Inline activation moment: fire the native READ_SMS dialog here. Whatever
     // the user chooses, we advance — denial is fully graceful (the app works via
     // manual entry, and SMS import can be granted later from its own screen).
-    await const SmsPermissionHandler().requestPermission();
+    final granted = await const SmsPermissionHandler().requestPermission();
+    ref.read(usageAnalyticsProvider).smsPermissionResult(granted: granted);
     if (!mounted) {
       return;
     }
@@ -193,6 +196,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _complete({bool showWalletPrompt = false}) async {
     await AppPreferences.setOnboardingComplete(true);
+    ref.read(usageAnalyticsProvider).onboardingComplete();
     final shouldShowWalletPrompt =
         showWalletPrompt && !await AppPreferences.isFirstWalletPromptSeen();
     if (!mounted) {

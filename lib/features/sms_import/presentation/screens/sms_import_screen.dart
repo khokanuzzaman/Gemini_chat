@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/analytics/analytics_providers.dart';
+import '../../../../core/analytics/usage_analytics.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/sms/parsed_transaction.dart';
 import '../../../../core/sms/sms_import_entry.dart';
@@ -69,6 +71,11 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
               isImporting: state.isImporting,
               onImport: () async {
                 final outcome = await controller.importSelected();
+                if (outcome.hasSuccess) {
+                  ref
+                      .read(usageAnalyticsProvider)
+                      .entryMethodUsed(AnalyticsEntryMethod.smsImport);
+                }
                 if (!context.mounted ||
                     (!outcome.hasSuccess && !outcome.hasFailures)) {
                   return;
@@ -578,8 +585,7 @@ class _ScanSummaryStrip extends StatelessWidget {
           spacing: spacing,
           runSpacing: spacing,
           children: [
-            for (final card in cards)
-              SizedBox(width: itemWidth, child: card),
+            for (final card in cards) SizedBox(width: itemWidth, child: card),
           ],
         );
       },
@@ -733,7 +739,8 @@ class _PendingAutoImportPanel extends StatelessWidget {
                   entry: state.pendingTransactions[index],
                   isBusy: state.isBusy,
                   onSave: () => onSaveEntry(state.pendingTransactions[index]),
-                  onDismiss: () => onDismissEntry(state.pendingTransactions[index]),
+                  onDismiss: () =>
+                      onDismissEntry(state.pendingTransactions[index]),
                 ),
               ],
               if (state.pendingTransactions.length > 3) ...[
@@ -838,7 +845,11 @@ class _PendingAutoImportRow extends StatelessWidget {
         if (isCompact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [content, const SizedBox(height: AppSpacing.xs), actions],
+            children: [
+              content,
+              const SizedBox(height: AppSpacing.xs),
+              actions,
+            ],
           );
         }
 

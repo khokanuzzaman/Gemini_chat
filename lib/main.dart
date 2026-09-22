@@ -29,6 +29,7 @@ import 'core/database/models/sms_ledger_sync_state_model.dart';
 import 'core/database/models/split_bill_model.dart';
 import 'core/database/models/wallet_model.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
+import 'core/analytics/analytics_providers.dart';
 import 'core/config/feature_flags.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
@@ -446,6 +447,15 @@ class _MainShellState extends ConsumerState<_MainShell> {
     ref.read(activeWalletIdProvider.notifier).state = activeWalletId;
     ref.read(backupStateProvider);
     ref.read(smsAutoImportProvider);
+
+    final analyticsEnabled = await AppPreferences.isAnalyticsEnabled();
+    if (!mounted) {
+      return;
+    }
+    ref.read(analyticsEnabledProvider.notifier).state = analyticsEnabled;
+    final analytics = ref.read(usageAnalyticsProvider);
+    await analytics.initialize(enabled: analyticsEnabled);
+    await analytics.appOpen();
   }
 
   @override
@@ -562,6 +572,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
     setState(() {
       _currentTab = tab;
     });
+    ref.read(usageAnalyticsProvider).tabOpen(tab.name);
     if (AppShellNavigation.selectedTab.value != tab) {
       AppShellNavigation.selectedTab.value = tab;
     }

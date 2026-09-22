@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/analytics/analytics_providers.dart';
+import '../../../../core/analytics/usage_analytics.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/bangla_formatters.dart';
@@ -243,6 +245,9 @@ class _ManualAddScreenState extends ConsumerState<ManualAddScreen> {
       return;
     }
 
+    ref
+        .read(usageAnalyticsProvider)
+        .entryMethodUsed(AnalyticsEntryMethod.manualExpense);
     Navigator.of(context).pop(true);
   }
 
