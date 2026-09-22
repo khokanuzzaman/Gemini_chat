@@ -209,7 +209,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leadingColor: context.appColors.primary,
             title: 'বাজেট প্ল্যানার',
             subtitle: activeBudget != null
-                ? '${AppStrings.appName} AI আপনার মাসিক বাজেট সাজিয়ে দেবে'
+                ? '${AppStrings.appName} আপনার মাসিক বাজেট সাজিয়ে দেবে'
                 : 'AI দিয়ে নতুন বাজেট পরিকল্পনা বানান',
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () {
