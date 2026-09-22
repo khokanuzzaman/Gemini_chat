@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/auth/google_auth_provider.dart';
+import '../../../../../core/navigation/app_shell_navigation.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../providers/expense_providers.dart';
 
 class DashboardHeader extends ConsumerWidget {
@@ -17,6 +19,7 @@ class DashboardHeader extends ConsumerWidget {
     final greeting = _timeGreeting();
     final title = firstName.isEmpty ? greeting : '$greeting, $firstName';
     final lastRefreshed = ref.watch(dashboardLastRefreshedAtProvider);
+    final anomalyCount = ref.watch(anomalyProvider).highSeverityCount;
     final secondLine = lastRefreshed == null
         ? 'টানুন রিফ্রেশ করতে'
         : 'শেষ আপডেট: ${BanglaFormatters.relativeFromNow(lastRefreshed)}';
@@ -42,6 +45,19 @@ class DashboardHeader extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        Badge(
+          isLabelVisible: anomalyCount > 0,
+          backgroundColor: AppColors.error,
+          label: Text(anomalyCount > 9 ? '9+' : '$anomalyCount'),
+          child: IconButton(
+            icon: Icon(
+              Icons.bar_chart_rounded,
+              color: context.primaryTextColor,
+            ),
+            tooltip: 'বিশ্লেষণ',
+            onPressed: AppShellNavigation.openAnalytics,
           ),
         ),
         const GlobalSettingsButton(),

@@ -35,11 +35,6 @@ class PrimaryQuickActions extends StatelessWidget {
           onTap: AppShellNavigation.openChat,
         ),
       _PrimaryAction(
-        label: 'স্প্লিট বিল',
-        icon: Icons.call_split_rounded,
-        onTap: AppShellNavigation.openSplit,
-      ),
-      _PrimaryAction(
         label: 'আরও',
         icon: Icons.more_horiz_rounded,
         onTap: () => _openMoreActionsSheet(context),

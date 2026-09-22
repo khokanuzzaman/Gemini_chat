@@ -18,7 +18,6 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     super.initState();
     _selectedTabIndex = AppShellNavigation.analyticsTab.value;
     AppShellNavigation.analyticsTab.addListener(_handleExternalAnalyticsTab);
-    AppShellNavigation.selectedTab.addListener(_handleShellTabChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _triggerPredictionLoadIfVisible();
     });
@@ -27,7 +26,6 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
   @override
   void dispose() {
     AppShellNavigation.analyticsTab.removeListener(_handleExternalAnalyticsTab);
-    AppShellNavigation.selectedTab.removeListener(_handleShellTabChange);
     super.dispose();
   }
 
@@ -38,7 +36,6 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
 
     return AppPageScaffold(
       title: 'বিশ্লেষণ',
-      showBackButton: false,
       showOfflineBanner: false,
       body: analytics.when(
         data: (state) {
@@ -56,7 +53,8 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
                   child: _MonthNavigator(
                     month: state.selectedMonth,
                     enabled: !_isAnomalyTabSelected,
-                    disabledTooltipMessage: 'অ্যানোমালি ট্যাবে মাস নির্বাচন প্রযোজ্য নয়',
+                    disabledTooltipMessage:
+                        'অ্যানোমালি ট্যাবে মাস নির্বাচন প্রযোজ্য নয়',
                     onPrevious: () => ref
                         .read(analyticsControllerProvider.notifier)
                         .previousMonth(),
@@ -234,17 +232,13 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     _triggerPredictionLoadIfVisible();
   }
 
-  void _handleShellTabChange() {
-    _triggerPredictionLoadIfVisible();
-  }
-
   void _triggerPredictionLoadIfVisible() {
     if (!mounted) {
       return;
     }
-    final isAnalyticsScreen = AppShellNavigation.selectedTab.value == 3;
-    final isSummaryTab = _selectedTabIndex == 0;
-    if (!isAnalyticsScreen || !isSummaryTab) {
+    // Analytics is a pushed screen now, so being mounted means it is the
+    // visible screen; only the Summary sub-tab needs the prediction.
+    if (_selectedTabIndex != 0) {
       return;
     }
     ref.read(predictionProvider.notifier).loadPrediction();
@@ -324,10 +318,7 @@ class _MonthNavigator extends StatelessWidget {
       return wrappedNavigator;
     }
 
-    return Tooltip(
-      message: disabledTooltipMessage,
-      child: wrappedNavigator,
-    );
+    return Tooltip(message: disabledTooltipMessage, child: wrappedNavigator);
   }
 }
 

@@ -29,6 +29,7 @@ import 'core/database/models/sms_ledger_sync_state_model.dart';
 import 'core/database/models/split_bill_model.dart';
 import 'core/database/models/wallet_model.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
+import 'core/config/feature_flags.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
@@ -52,13 +53,13 @@ import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/anomaly/presentation/providers/anomaly_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/expense/presentation/providers/expense_providers.dart';
-import 'features/expense/presentation/screens/analytics_screen.dart';
 import 'features/expense/presentation/screens/dashboard_screen.dart';
 import 'features/expense/presentation/screens/expense_list_screen.dart';
+import 'features/more/presentation/screens/more_screen.dart';
+import 'features/plan/presentation/screens/plan_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/security/lock_screen.dart';
 import 'features/sms_import/presentation/providers/sms_import_provider.dart';
-import 'features/split/presentation/screens/split_bill_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/wallet/data/datasources/wallet_local_datasource.dart';
 import 'features/wallet/presentation/providers/wallet_provider.dart';
@@ -410,14 +411,14 @@ class _MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<_MainShell> {
-  int _currentIndex = 0;
+  AppTab _currentTab = AppTab.home;
   StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     AppShellNavigation.selectedTab.addListener(_handleExternalTabChange);
-    _currentIndex = AppShellNavigation.selectedTab.value;
+    _currentTab = AppShellNavigation.selectedTab.value;
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       ref.read(premiumStatusProvider.notifier).syncUser(user?.uid);
       if (user != null) {
@@ -449,24 +450,17 @@ class _MainShellState extends ConsumerState<_MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final highSeverityAnomalyCount = ref
-        .watch(anomalyProvider)
-        .highSeverityCount;
-    final screens = [
-      DashboardScreen(
-        onOpenExpenses: _openExpenses,
-        onOpenChat: () => setState(() => _currentIndex = 1),
-      ),
-      const ChatScreen(),
-      const ExpenseListScreen(),
-      const AnalyticsScreen(),
-      const SplitBillScreen(),
-    ];
+    final tabs = visibleAppTabs(aiEnabled: FeatureFlags.aiEnabled);
+    var currentIndex = tabs.indexOf(_currentTab);
+    if (currentIndex < 0) {
+      currentIndex = 0;
+    }
+    final screens = tabs.map(_screenFor).toList(growable: false);
 
     return Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: context.shellBackgroundGradient),
-        child: IndexedStack(index: _currentIndex, children: screens),
+        child: IndexedStack(index: currentIndex, children: screens),
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -491,98 +485,47 @@ class _MainShellState extends ConsumerState<_MainShell> {
             backgroundColor: Colors.transparent,
             indicatorColor: Colors.transparent,
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            selectedIndex: _currentIndex,
+            selectedIndex: currentIndex,
             onDestinationSelected: (index) {
-              _setCurrentIndex(index);
+              _setCurrentTab(tabs[index]);
             },
-            destinations: [
-              NavigationDestination(
-                icon: _NavIcon(
-                  icon: Icons.home_rounded,
-                  label: 'হোম',
-                  active: false,
-                ),
-                selectedIcon: _NavIcon(
-                  icon: Icons.home_rounded,
-                  label: 'হোম',
-                  active: true,
-                ),
-                label: 'হোম',
-              ),
-              NavigationDestination(
-                icon: _NavIcon(
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'চ্যাট',
-                  active: false,
-                ),
-                selectedIcon: _NavIcon(
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'চ্যাট',
-                  active: true,
-                ),
-                label: 'চ্যাট',
-              ),
-              NavigationDestination(
-                icon: _NavIcon(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'খরচ',
-                  active: false,
-                ),
-                selectedIcon: _NavIcon(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'খরচ',
-                  active: true,
-                ),
-                label: 'খরচ',
-              ),
-              NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: highSeverityAnomalyCount > 0,
-                  backgroundColor: AppColors.error,
-                  label: Text(
-                    highSeverityAnomalyCount > 9
-                        ? '9+'
-                        : '$highSeverityAnomalyCount',
-                  ),
-                  child: const _NavIcon(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'বিশ্লেষণ',
-                    active: false,
-                  ),
-                ),
-                selectedIcon: Badge(
-                  isLabelVisible: highSeverityAnomalyCount > 0,
-                  backgroundColor: AppColors.error,
-                  label: Text(
-                    highSeverityAnomalyCount > 9
-                        ? '9+'
-                        : '$highSeverityAnomalyCount',
-                  ),
-                  child: const _NavIcon(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'বিশ্লেষণ',
-                    active: true,
-                  ),
-                ),
-                label: 'বিশ্লেষণ',
-              ),
-              NavigationDestination(
-                icon: _NavIcon(
-                  icon: Icons.call_split_rounded,
-                  label: 'Split',
-                  active: false,
-                ),
-                selectedIcon: _NavIcon(
-                  icon: Icons.call_split_rounded,
-                  label: 'Split',
-                  active: true,
-                ),
-                label: 'Split',
-              ),
-            ],
+            destinations: tabs.map(_destinationFor).toList(growable: false),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _screenFor(AppTab tab) {
+    switch (tab) {
+      case AppTab.home:
+        return DashboardScreen(
+          onOpenExpenses: _openExpenses,
+          onOpenChat: () => _setCurrentTab(AppTab.chat),
+        );
+      case AppTab.chat:
+        return const ChatScreen();
+      case AppTab.expenses:
+        return const ExpenseListScreen();
+      case AppTab.plan:
+        return const PlanScreen();
+      case AppTab.more:
+        return const MoreScreen();
+    }
+  }
+
+  NavigationDestination _destinationFor(AppTab tab) {
+    final (IconData icon, String label) = switch (tab) {
+      AppTab.home => (Icons.home_rounded, 'হোম'),
+      AppTab.chat => (Icons.chat_bubble_rounded, 'চ্যাট'),
+      AppTab.expenses => (Icons.receipt_long_rounded, 'খরচ'),
+      AppTab.plan => (Icons.checklist_rounded, 'প্ল্যান'),
+      AppTab.more => (Icons.grid_view_rounded, 'আরও'),
+    };
+    return NavigationDestination(
+      icon: _NavIcon(icon: icon, label: label, active: false),
+      selectedIcon: _NavIcon(icon: icon, label: label, active: true),
+      label: label,
     );
   }
 
@@ -596,31 +539,31 @@ class _MainShellState extends ConsumerState<_MainShell> {
     if (!mounted) {
       return;
     }
-    _setCurrentIndex(2);
+    _setCurrentTab(AppTab.expenses);
   }
 
   void _handleExternalTabChange() {
-    final nextIndex = AppShellNavigation.selectedTab.value;
-    if (!mounted || nextIndex == _currentIndex) {
+    final nextTab = AppShellNavigation.selectedTab.value;
+    if (!mounted || nextTab == _currentTab) {
       return;
     }
 
     setState(() {
-      _currentIndex = nextIndex;
+      _currentTab = nextTab;
     });
   }
 
-  void _setCurrentIndex(int index) {
+  void _setCurrentTab(AppTab tab) {
     if (!mounted) {
       return;
     }
 
     HapticFeedback.selectionClick();
     setState(() {
-      _currentIndex = index;
+      _currentTab = tab;
     });
-    if (AppShellNavigation.selectedTab.value != index) {
-      AppShellNavigation.selectedTab.value = index;
+    if (AppShellNavigation.selectedTab.value != tab) {
+      AppShellNavigation.selectedTab.value = tab;
     }
   }
 }
