@@ -29,17 +29,12 @@ class RecurringScreen extends ConsumerWidget {
               ),
             ),
           ),
-        IconButton(
-          onPressed: () => ref.read(recurringProvider.notifier).reDetect(),
-          icon: const Icon(Icons.refresh_rounded),
-          tooltip: 'আবার খুঁজুন',
-        ),
       ],
       body: recurring.when(
         data: (patterns) {
           if (patterns.isEmpty) {
             return RefreshIndicator(
-              onRefresh: () => ref.read(recurringProvider.notifier).reDetect(),
+              onRefresh: () => ref.read(recurringProvider.notifier).reload(),
               color: context.appColors.primary,
               backgroundColor: context.cardBackgroundColor,
               child: ListView(
@@ -47,20 +42,12 @@ class RecurringScreen extends ConsumerWidget {
                   parent: BouncingScrollPhysics(),
                 ),
                 padding: const EdgeInsets.all(AppSpacing.screenPadding),
-                children: [
-                  const AppEmptyState(
+                children: const [
+                  AppEmptyState(
                     icon: Icons.repeat_rounded,
-                    title: 'কোনো নিয়মিত খরচ সনাক্ত হয়নি',
+                    title: 'এখনো কোনো নিয়মিত খরচ চিহ্নিত করা হয়নি',
                     subtitle:
-                        'পর্যাপ্ত খরচ ডেটা জমা হলে নিয়মিত খরচ স্বয়ংক্রিয়ভাবে সনাক্ত হবে',
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppActionButton(
-                    label: 'আবার খুঁজুন',
-                    icon: Icons.refresh_rounded,
-                    fullWidth: true,
-                    onPressed: () =>
-                        ref.read(recurringProvider.notifier).reDetect(),
+                        'খরচের তালিকা থেকে কোনো খরচ এডিট করে "নিয়মিত খরচ হিসেবে চিহ্নিত করুন" চাপুন।',
                   ),
                 ],
               ),
@@ -72,7 +59,7 @@ class RecurringScreen extends ConsumerWidget {
               .length;
 
           return RefreshIndicator(
-            onRefresh: () => ref.read(recurringProvider.notifier).reDetect(),
+            onRefresh: () => ref.read(recurringProvider.notifier).reload(),
             color: context.appColors.primary,
             backgroundColor: context.cardBackgroundColor,
             child: SingleChildScrollView(
@@ -93,7 +80,7 @@ class RecurringScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          '${BanglaFormatters.count(patterns.length)}টি সনাক্ত হয়েছে · ${BanglaFormatters.count(reminderCount)}টি রিমাইন্ডার চালু',
+                          '${BanglaFormatters.count(patterns.length)}টি চিহ্নিত · ${BanglaFormatters.count(reminderCount)}টি রিমাইন্ডার চালু',
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: context.secondaryTextColor,
                           ),
@@ -118,7 +105,7 @@ class RecurringScreen extends ConsumerWidget {
         ),
         error: (error, _) => AppErrorState(
           message: error.toString(),
-          onRetry: () => ref.read(recurringProvider.notifier).reDetect(),
+          onRetry: () => ref.read(recurringProvider.notifier).reload(),
         ),
       ),
     );
@@ -174,15 +161,17 @@ class _RecurringExpenseCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                AppProgressBar(
-                  value: pattern.confidenceScore,
-                  color: _confidenceColor(pattern.confidenceScore),
-                  showLabel: true,
-                  label: 'আত্মবিশ্বাস',
-                ),
-                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
+                    IconButton(
+                      onPressed: () => ref
+                          .read(recurringProvider.notifier)
+                          .removePattern(pattern.id),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                      tooltip: 'সরান',
+                      color: AppColors.error,
+                      visualDensity: VisualDensity.compact,
+                    ),
                     if (pattern.reminderEnabled)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -271,16 +260,6 @@ String _nextExpectedLabel(DateTime? date) {
     return 'পরবর্তী তারিখ নেই';
   }
   return 'পরবর্তী: ${BanglaFormatters.fullDate(date)}';
-}
-
-Color _confidenceColor(double confidenceScore) {
-  if (confidenceScore >= 0.75) {
-    return AppColors.success;
-  }
-  if (confidenceScore >= 0.5) {
-    return AppColors.warning;
-  }
-  return AppColors.error;
 }
 
 Color _categoryColor(String category) {

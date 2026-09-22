@@ -25,4 +25,17 @@ class RecurringLocalDataSource {
       await _isar.recurringExpenseModels.put(model);
     });
   }
+
+  /// Adds a single pattern without clearing the others (opt-in mark path).
+  Future<int> addPattern(RecurringExpenseModel model) async {
+    return _isar.writeTxn(() async {
+      return _isar.recurringExpenseModels.put(model);
+    });
+  }
+
+  Future<void> deletePattern(int id) async {
+    await _isar.writeTxn(() async {
+      await _isar.recurringExpenseModels.delete(id);
+    });
+  }
 }

@@ -959,8 +959,41 @@ class _EditExpenseSheetState extends ConsumerState<_EditExpenseSheet> {
           isLoading: _isSaving,
           fullWidth: true,
         ),
+        const SizedBox(height: AppSpacing.sm),
+        AppActionButton(
+          label: 'নিয়মিত খরচ হিসেবে চিহ্নিত করুন',
+          icon: Icons.repeat_rounded,
+          variant: AppActionButtonVariant.ghost,
+          fullWidth: true,
+          onPressed: _isSaving ? null : _markRecurring,
+        ),
       ],
     );
+  }
+
+  Future<void> _markRecurring() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final result = await ref
+        .read(recurringProvider.notifier)
+        .markExpenseAsRecurring(widget.expense);
+    if (!mounted) {
+      return;
+    }
+    navigator.pop();
+    final added = result == MarkRecurringResult.added;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            added
+                ? 'নিয়মিত খরচ হিসেবে চিহ্নিত হয়েছে'
+                : 'এই খরচ আগে থেকেই নিয়মিত হিসেবে চিহ্নিত আছে',
+          ),
+          backgroundColor: added ? AppColors.success : null,
+        ),
+      );
   }
 
   Future<void> _pickDate() async {

@@ -2,11 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/models/recurring_expense_model.dart';
 import '../../../../core/providers/database_providers.dart';
-import '../../../expense/domain/entities/expense_source_filters.dart';
-import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../expense/domain/entities/expense_entity.dart';
 import '../../data/datasources/recurring_local_datasource.dart';
-import '../../data/services/recurring_detection_service.dart';
 import '../../domain/entities/recurring_expense_entity.dart';
+
+/// Outcome of [RecurringNotifier.markExpenseAsRecurring].
+enum MarkRecurringResult { added, alreadyExists }
 
 final recurringLocalDataSourceProvider = Provider<RecurringLocalDataSource>((
   ref,
@@ -22,13 +23,61 @@ final recurringProvider =
 class RecurringNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
   @override
   Future<List<RecurringExpenseEntity>> build() async {
-    ref.watch(expenseRefreshTokenProvider);
-    await _detectAndSave();
+    // Opt-in (Phase 1): recurring entries exist only when the user explicitly
+    // marks an expense recurring. build() never auto-detects — it just loads
+    // whatever the user has already marked. (The RecurringDetectionService is
+    // kept but dead-ended; see CONTRIBUTING.)
     return _loadFromIsar();
   }
 
-  Future<void> reDetect() async {
-    await _detectAndSave();
+  Future<void> reload() async {
+    state = AsyncData(await _loadFromIsar());
+  }
+
+  /// Marks [expense] as a recurring (monthly) expense. De-dupes: if an
+  /// equivalent recurring entry already exists (same description, category and
+  /// day-of-month), it is a no-op and returns [MarkRecurringResult.alreadyExists]
+  /// so the caller can give clear feedback — no silent duplicate is created.
+  Future<MarkRecurringResult> markExpenseAsRecurring(
+    ExpenseEntity expense,
+  ) async {
+    final existing = await _loadFromIsar();
+    final normalizedDescription = expense.description.trim().toLowerCase();
+    final normalizedCategory = expense.category.trim().toLowerCase();
+    final isDuplicate = existing.any(
+      (item) =>
+          item.frequency == RecurringFrequency.monthly &&
+          item.dayOfMonth == expense.date.day &&
+          item.description.trim().toLowerCase() == normalizedDescription &&
+          item.category.trim().toLowerCase() == normalizedCategory,
+    );
+    if (isDuplicate) {
+      return MarkRecurringResult.alreadyExists;
+    }
+
+    final entity = RecurringExpenseEntity(
+      id: 0,
+      description: expense.description,
+      category: expense.category,
+      averageAmount: expense.amount,
+      confidenceScore: 1,
+      frequency: RecurringFrequency.monthly,
+      dayOfMonth: expense.date.day,
+      dayOfWeek: expense.date.weekday,
+      lastOccurrence: expense.date,
+      nextExpected: _nextMonthSameDay(expense.date),
+      isActive: true,
+      reminderEnabled: false,
+    );
+    await ref
+        .read(recurringLocalDataSourceProvider)
+        .addPattern(RecurringExpenseModel.fromEntity(entity));
+    state = AsyncData(await _loadFromIsar());
+    return MarkRecurringResult.added;
+  }
+
+  Future<void> removePattern(int id) async {
+    await ref.read(recurringLocalDataSourceProvider).deletePattern(id);
     state = AsyncData(await _loadFromIsar());
   }
 
@@ -45,24 +94,13 @@ class RecurringNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
     state = AsyncData(await _loadFromIsar());
   }
 
-  Future<void> _detectAndSave() async {
-    final expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
-    final cutoff = DateTime.now().subtract(const Duration(days: 90));
-    // Only ordinary expenses feed recurring detection — debtPayment EMIs are
-    // already modeled as debt; goalDeposit is a transfer.
-    final last90Days = expenses.forRecurringDetection
-        .where((expense) => expense.date.isAfter(cutoff))
-        .toList(growable: false);
-    final detected = await const RecurringDetectionService().detectPatterns(
-      last90Days,
-    );
-    await ref
-        .read(recurringLocalDataSourceProvider)
-        .savePatterns(
-          detected
-              .map(RecurringExpenseModel.fromEntity)
-              .toList(growable: false),
-        );
+  DateTime _nextMonthSameDay(DateTime date) {
+    final year = date.month == 12 ? date.year + 1 : date.year;
+    final month = date.month == 12 ? 1 : date.month + 1;
+    // Clamp the day to the target month's length (e.g. Jan 31 -> Feb 28/29).
+    final lastDayOfMonth = DateTime(year, month + 1, 0).day;
+    final day = date.day > lastDayOfMonth ? lastDayOfMonth : date.day;
+    return DateTime(year, month, day);
   }
 
   Future<List<RecurringExpenseEntity>> _loadFromIsar() async {

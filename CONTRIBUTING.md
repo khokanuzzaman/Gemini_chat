@@ -20,6 +20,14 @@ default AOT build-script step fails because a native-build-hook dependency makes
 JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
 
 ## Known issues (deliberate deferrals)
+- **`RecurringDetectionService` is demoted/reserved, not dead by accident.**
+  Recurring is opt-in in Phase 1 (the user marks an expense recurring; see
+  `RecurringNotifier.markExpenseAsRecurring`). The auto-detection service
+  (`lib/features/recurring/data/services/recurring_detection_service.dart`) and
+  the `ExpenseEntity.forRecurringDetection` filter are kept but **have no runtime
+  callers** — reserved for a possible "suggest recurring patterns" opt-in helper
+  later. Do not delete them assuming they are unused. Same policy as
+  [ai_guide] and `ExpenseSource.goalDeposit`.
 - **iOS build (CocoaPods) does not resolve — dedicated iOS-setup task.** `pod
   install` fails on two conflicts: `google_mlkit_text_recognition` (receipt OCR)
   vs `cloud_firestore`/Firebase over shared transitive pods (`nanopb`,
