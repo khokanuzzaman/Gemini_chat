@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,6 @@ import '../../core/database/models/sms_ledger_sync_state_model.dart';
 import '../../core/database/models/split_bill_model.dart';
 import '../../core/database/models/wallet_model.dart';
 import '../../core/navigation/app_page_route.dart';
-import '../../core/navigation/app_shell_navigation.dart';
 import '../../core/notifications/budget_settings.dart';
 import '../../core/notifications/notification_provider.dart';
 import '../../core/notifications/notification_settings.dart';
@@ -39,27 +39,20 @@ import '../../core/widgets/widgets.dart';
 import '../ai_guide/presentation/screens/ai_guide_screen.dart';
 import '../anomaly/presentation/providers/anomaly_provider.dart';
 import '../budget/presentation/providers/budget_provider.dart';
-import '../budget/presentation/screens/budget_planner_screen.dart';
 import '../category/presentation/providers/category_provider.dart';
-import '../category/presentation/screens/category_management_screen.dart';
 import '../chat/data/models/message_model.dart';
 import '../chat/presentation/providers/chat_provider.dart';
 import '../debt/data/models/debt_model.dart';
 import '../debt/data/models/debt_payment_model.dart';
 import '../debt/presentation/providers/debt_providers.dart';
 import '../expense/presentation/providers/expense_providers.dart';
-import '../export/presentation/screens/export_screen.dart';
 import '../goals/presentation/providers/goal_provider.dart';
-import '../goals/presentation/screens/goals_screen.dart';
 import '../income/presentation/providers/income_providers.dart';
-import '../income/presentation/screens/income_list_screen.dart';
 import '../prediction/presentation/providers/prediction_provider.dart';
 import '../prediction/data/models/prediction_cache_model.dart';
-import '../recurring/presentation/screens/recurring_screen.dart';
 import '../sms_import/presentation/providers/sms_import_provider.dart';
 import '../sms_import/presentation/widgets/sms_import_entry_widgets.dart';
 import '../wallet/presentation/providers/wallet_provider.dart';
-import '../wallet/presentation/screens/wallet_management_screen.dart';
 import 'backup_screen.dart';
 import 'budget_settings_screen.dart';
 import 'premium_screen.dart';
@@ -133,9 +126,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final biometricState = ref.watch(biometricProvider);
     final biometricService = ref.watch(biometricServiceProvider);
     final notificationSettings = ref.watch(notificationProvider);
-    final anomalyState = ref.watch(anomalyProvider);
-    final goalState = ref.watch(goalProvider);
-    final activeBudget = ref.watch(budgetProvider).activeBudget;
     final backupStateAsync = ref.watch(backupStateProvider);
     final backupState = backupStateAsync.valueOrNull;
     final backupSignedIn = backupState?.isSignedIn ?? false;
@@ -147,8 +137,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final backupSubtitle = isPremium
         ? 'স্বয়ংক্রিয় ব্যাকআপ চালু'
         : 'দৈনিক ${BanglaFormatters.count(UsageLimits.cloudBackupPerDay)}টি ম্যানুয়াল ব্যাকআপ';
-    final activeAnomalyCount = anomalyState.activeAlerts.length;
-    final activeGoalCount = goalState.activeGoals.length;
     final categories = ref.watch(categoryProvider);
     final categoryNames = categories
         .map((category) => category.name)
@@ -160,140 +148,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isDarkMode = themeMode == ThemeMode.dark;
 
     final sections = <Widget>[
-      _SettingsGroup(
-        title: 'অ্যাকাউন্ট',
-        child: _tileCard(context, [
-          AppListTile(
-            leadingIcon: Icons.account_balance_wallet_outlined,
-            leadingColor: context.appColors.primary,
-            title: 'ওয়ালেট ম্যানেজমেন্ট',
-            subtitle: 'ক্যাশ, বিকাশ, নগদ ও ব্যাংক ওয়ালেট পরিচালনা করুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                AppSlideRoute(builder: (_) => const WalletManagementScreen()),
-              );
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.category_outlined,
-            leadingColor: context.appColors.primary,
-            title: 'ক্যাটাগরি ম্যানেজমেন্ট',
-            subtitle: 'ডিফল্ট ও কাস্টম ক্যাটাগরি গুছিয়ে রাখুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                AppSlideRoute(builder: (_) => const CategoryManagementScreen()),
-              );
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.trending_up_rounded,
-            leadingColor: AppColors.success,
-            title: 'আয় ব্যবস্থাপনা',
-            subtitle: 'আয়ের উৎস, তালিকা ও সংযোজন দেখুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(AppSlideRoute(builder: (_) => const IncomeListScreen()));
-            },
-          ),
-        ]),
-      ),
-      _SettingsGroup(
-        title: 'বাজেট ও লক্ষ্য',
-        child: _tileCard(context, [
-          AppListTile(
-            leadingIcon: Icons.savings_outlined,
-            leadingColor: context.appColors.primary,
-            title: 'বাজেট সেটিংস',
-            subtitle: 'ক্যাটাগরি অনুযায়ী সীমা সেট করুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                AppSlideRoute(builder: (_) => const BudgetSettingsScreen()),
-              );
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.auto_awesome_rounded,
-            leadingColor: context.appColors.primary,
-            title: 'বাজেট প্ল্যানার',
-            subtitle: activeBudget != null
-                ? '${AppStrings.appName} আপনার মাসিক বাজেট সাজিয়ে দেবে'
-                : 'AI দিয়ে নতুন বাজেট পরিকল্পনা বানান',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                AppSlideRoute(builder: (_) => const BudgetPlannerScreen()),
-              );
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.flag_rounded,
-            leadingColor: context.appColors.primary,
-            title: 'লক্ষ্য',
-            subtitle: activeGoalCount == 0
-                ? 'এখনো কোনো সঞ্চয় লক্ষ্য নেই'
-                : '${BanglaFormatters.count(activeGoalCount)}টি চলমান লক্ষ্য আছে',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(AppSlideRoute(builder: (_) => const GoalsScreen()));
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.repeat_rounded,
-            leadingColor: context.appColors.primary,
-            title: 'নিয়মিত খরচ',
-            subtitle: 'স্বয়ংক্রিয়ভাবে সনাক্ত হওয়া recurring খরচ দেখুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(AppSlideRoute(builder: (_) => const RecurringScreen()));
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.call_split_rounded,
-            leadingColor: AppColors.warning,
-            title: 'স্প্লিট বিল',
-            subtitle: 'বন্ধুদের সাথে বিল ভাগ করুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).pop();
-              AppShellNavigation.openSplit();
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.handshake_outlined,
-            leadingColor: context.appColors.primary,
-            title: 'ধার-দেনা',
-            subtitle: 'পাওনা, দেনা ও কিস্তি ম্যানেজ করুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: AppShellNavigation.openDebts,
-          ),
-          AppListTile(
-            leadingIcon: Icons.warning_amber_rounded,
-            leadingColor: activeAnomalyCount > 0
-                ? AppColors.warning
-                : context.appColors.primary,
-            title: 'স্পেন্ডিং অ্যালার্ট',
-            subtitle: activeAnomalyCount > 0
-                ? '${activeAnomalyCount.toString()}টি সতর্কতা সক্রিয় আছে'
-                : 'অস্বাভাবিক খরচ ধরা পড়লে এখানে দেখবেন',
-            trailing: activeAnomalyCount > 0
-                ? _CountBadge(count: activeAnomalyCount)
-                : const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).pop();
-              AppShellNavigation.openAnalytics(tabIndex: 1);
-            },
-          ),
-        ]),
-      ),
       _SettingsGroup(
         title: 'ক্লাউড ব্যাকআপ',
         child: _tileCard(context, [
@@ -355,26 +209,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             onTap: () => _setAnalyticsEnabled(!_analyticsEnabled),
           ),
-          AppListTile(
-            leadingIcon: Icons.table_chart_rounded,
-            leadingColor: context.appColors.primary,
-            title: 'ডেটা এক্সপোর্ট',
-            subtitle: 'CSV ফাইলে খরচের হিসাব বের করুন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(AppSlideRoute(builder: (_) => const ExportScreen()));
-            },
-          ),
-          AppListTile(
-            leadingIcon: Icons.auto_awesome_outlined,
-            leadingColor: AppColors.success,
-            title: 'ডেমো ডেটা যোগ করুন',
-            subtitle: 'ডেমো খরচ যোগ করে ফিচারগুলো দ্রুত দেখে নিন',
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: _seedDemoData,
-          ),
+          // Dev-only: seeds demo data. Never shown in release builds.
+          if (kDebugMode)
+            AppListTile(
+              leadingIcon: Icons.auto_awesome_outlined,
+              leadingColor: AppColors.success,
+              title: 'ডেমো ডেটা যোগ করুন',
+              subtitle: 'ডেমো খরচ যোগ করে ফিচারগুলো দ্রুত দেখে নিন',
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _seedDemoData,
+            ),
           AppListTile(
             leadingIcon: Icons.delete_outline_rounded,
             leadingColor: AppColors.error,
@@ -430,6 +274,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
               ],
+              // Re-homed from the old "বাজেট ও লক্ষ্য" group: this is the only
+              // entry point to per-category budget limits + alerts.
+              AppListTile(
+                leadingIcon: Icons.savings_outlined,
+                leadingColor: context.appColors.primary,
+                title: 'বাজেট সেটিংস',
+                subtitle: 'ক্যাটাগরি অনুযায়ী সীমা সেট করুন',
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(context).push(
+                    AppSlideRoute(builder: (_) => const BudgetSettingsScreen()),
+                  );
+                },
+              ),
               AppListTile(
                 leadingIcon: Icons.label_important_outline_rounded,
                 leadingColor: context.appColors.primary,
@@ -1139,21 +997,6 @@ class _SettingsGroup extends StatelessWidget {
           child,
         ],
       ),
-    );
-  }
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppChip(
-      label: count > 9 ? '9+' : '$count',
-      color: AppColors.error,
-      compact: true,
     );
   }
 }
