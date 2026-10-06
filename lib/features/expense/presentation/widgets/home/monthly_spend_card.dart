@@ -7,7 +7,8 @@ import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/spending_delta.dart';
 import '../../providers/expense_providers.dart';
 
-/// এই মাসের খরচ — resets monthly — with "গত মাসের চেয়ে X% কম/বেশি".
+/// এই মাসের খরচ — resets monthly — with "গত মাসের এই সময়ের চেয়ে X% কম/বেশি"
+/// (month so far vs the same days last month) and an "আয় · নিট" line.
 class MonthlySpendCard extends ConsumerWidget {
   const MonthlySpendCard({super.key, this.now});
 
@@ -20,10 +21,13 @@ class MonthlySpendCard extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final tokens = context.tokens;
+    // Like with like: this month so far vs last month's SAME days (never last
+    // month's full total, which would read "less" every month start).
     final delta = spendingDelta(
-      thisMonth: data.thisMonthTotal,
-      lastMonth: data.lastMonthTotal,
+      thisMonth: data.thisMonthToDateTotal,
+      lastMonth: data.lastMonthSamePeriodTotal,
     );
+    final cashFlow = ref.watch(cashFlowProvider).valueOrNull;
 
     return AppCard(
       child: Column(
@@ -56,6 +60,12 @@ class MonthlySpendCard extends ConsumerWidget {
               if (delta != null) _DeltaChip(delta: delta),
             ],
           ),
+          // আয় · নিট for the month, from the existing cash-flow figures. Hidden
+          // with no income: "নিট" would then just repeat the spending above.
+          if (cashFlow != null && cashFlow.income > 0) ...[
+            const SizedBox(height: 6),
+            _IncomeNetLine(income: cashFlow.income, net: cashFlow.netFlow),
+          ],
         ],
       ),
     );
@@ -78,8 +88,8 @@ class _DeltaChip extends StatelessWidget {
 
     final percent = BanglaFormatters.count(delta.displayPercent);
     final label = same
-        ? 'গত মাসের প্রায় সমান'
-        : 'গত মাসের চেয়ে $percent%${delta.isCapped ? '+' : ''} ${less ? 'কম' : 'বেশি'}';
+        ? 'গত মাসের এই সময়ের প্রায় সমান'
+        : 'গত মাসের এই সময়ের চেয়ে $percent%${delta.isCapped ? '+' : ''} ${less ? 'কম' : 'বেশি'}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -107,6 +117,37 @@ class _DeltaChip extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeNetLine extends StatelessWidget {
+  const _IncomeNetLine({required this.income, required this.net});
+
+  final double income;
+  final double net;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final base = AppTextStyles.bodySmall.copyWith(color: tokens.muted);
+    final strong = base.copyWith(
+      color: tokens.ink,
+      fontWeight: FontWeight.w700,
+    );
+    // Calm, not alarming: a negative net is just a "−", not a red warning.
+    final netText =
+        '${net < 0 ? '−' : ''}${BanglaFormatters.currency(net.abs())}';
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          const TextSpan(text: 'আয় '),
+          TextSpan(text: BanglaFormatters.currency(income), style: strong),
+          const TextSpan(text: ' · নিট '),
+          TextSpan(text: netText, style: strong),
         ],
       ),
     );

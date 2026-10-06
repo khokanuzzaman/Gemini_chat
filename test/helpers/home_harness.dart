@@ -48,6 +48,8 @@ class HomeScenario {
   const HomeScenario({
     this.thisMonth = 0,
     this.lastMonth = 0,
+    this.lastMonthSamePeriod = 0,
+    this.monthIncome = 0,
     this.expenses = const [],
     this.incomes = const [],
     this.wallets = const [],
@@ -65,6 +67,12 @@ class HomeScenario {
 
   final double thisMonth;
   final double lastMonth;
+
+  /// Last month's day 1..N (what the delta chip compares against).
+  final double lastMonthSamePeriod;
+
+  /// This month's income, for the "আয় · নিট" line.
+  final double monthIncome;
   final List<ExpenseEntity> expenses;
   final List<IncomeEntity> incomes;
   final List<WalletEntity> wallets;
@@ -89,7 +97,11 @@ class HomeScenario {
     final d = homeToday;
     return HomeScenario(
       thisMonth: 41890,
-      lastMonth: 52300,
+      // Last month's FULL total is far bigger than its same-period total: the chip
+      // must use the latter (20% less, not 57% less).
+      lastMonth: 98000,
+      lastMonthSamePeriod: 52300,
+      monthIncome: 65000,
       wallets: [
         _wallet(1, 'নগদ টাকা', WalletType.cash, 12450, 0),
         _wallet(2, 'বিকাশ', WalletType.bkash, 8300, 1),
@@ -309,6 +321,8 @@ class _FakeDashboard extends DashboardController {
   Future<DashboardData> build() async => DashboardData(
     thisMonthTotal: s.thisMonth,
     lastMonthTotal: s.lastMonth,
+    thisMonthToDateTotal: s.thisMonth,
+    lastMonthSamePeriodTotal: s.lastMonthSamePeriod,
     thisWeekTotal: 0,
     transactionCount: s.expenses.length,
     manualEntryCount: 0,
@@ -443,6 +457,14 @@ List<Override> homeOverrides(
     googleAuthProvider.overrideWith(() => _FakeAuth(s.signedInName)),
     recurringProvider.overrideWith(() => _FakeRecurring(s.recurring)),
     debtListProvider.overrideWith(() => _FakeDebts(s.debts)),
+    cashFlowProvider.overrideWith(
+      (ref) async => CashFlowData(
+        income: s.monthIncome,
+        expense: s.thisMonth,
+        lastMonthIncome: 0,
+        lastMonthExpense: s.lastMonth,
+      ),
+    ),
     restorePromptProvider.overrideWith((ref) => s.restoreBackup),
     backupReminderProvider.overrideWith((ref) async => s.reminder),
     connectivityServiceProvider.overrideWithValue(_OfflineSafeConnectivity()),

@@ -37,6 +37,16 @@ void main() {
       smsPending: 0,
     ),
     'populated, many alerts': stress,
+    // Widest strings: big spend + delta chip + আয়·নিট with a negative net.
+    'huge amounts, negative net, delta chip': HomeScenario(
+      thisMonth: 99999999,
+      lastMonth: 12000000,
+      lastMonthSamePeriod: 8000000,
+      monthIncome: 1000000,
+      wallets: stress.wallets,
+      expenses: stress.expenses,
+      incomes: stress.incomes,
+    ),
     'empty': HomeScenario.empty(),
     'empty + restore banner': HomeScenario.empty(restoreBackup: backup),
   };

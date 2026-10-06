@@ -81,7 +81,7 @@ void main() {
       await _pump(tester, HomeScenario.populated());
       expect(find.text('এই মাসের খরচ'), findsOneWidget);
       expect(find.text(BanglaFormatters.currency(41890)), findsOneWidget);
-      expect(find.text('গত মাসের চেয়ে ২০% কম'), findsOneWidget);
+      expect(find.text('গত মাসের এই সময়ের চেয়ে ২০% কম'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_downward_rounded), findsOneWidget);
     });
 
@@ -108,12 +108,102 @@ void main() {
         HomeScenario(
           thisMonth: 60000,
           lastMonth: 50000,
+          lastMonthSamePeriod: 50000,
           wallets: base.wallets,
           expenses: base.expenses,
         ),
       );
-      expect(find.text('গত মাসের চেয়ে ২০% বেশি'), findsOneWidget);
+      expect(find.text('গত মাসের এই সময়ের চেয়ে ২০% বেশি'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    });
+
+    testWidgets(
+      'the chip uses the same days last month, not last month\'s full total '
+      '(no false "less" at the start of a month)',
+      (tester) async {
+        final base = HomeScenario.populated();
+        // Early in the month: spent 3,000 so far. Last month's FULL total is
+        // 60,000 (a 95% "drop"), but its same days only came to 3,000.
+        await _pump(
+          tester,
+          HomeScenario(
+            thisMonth: 3000,
+            lastMonth: 60000,
+            lastMonthSamePeriod: 3000,
+            wallets: base.wallets,
+            expenses: base.expenses,
+          ),
+        );
+        expect(find.text('গত মাসের এই সময়ের প্রায় সমান'), findsOneWidget);
+        expect(find.textContaining('৯৫'), findsNothing);
+      },
+    );
+
+    testWidgets('no spending in last month\'s same days -> chip hidden', (
+      tester,
+    ) async {
+      final base = HomeScenario.populated();
+      await _pump(
+        tester,
+        HomeScenario(
+          thisMonth: 3000,
+          lastMonth: 60000, // spent later in the month, not in days 1..N
+          lastMonthSamePeriod: 0,
+          wallets: base.wallets,
+          expenses: base.expenses,
+        ),
+      );
+      expect(find.textContaining('গত মাসের'), findsNothing);
+    });
+
+    testWidgets('আয় · নিট line from the cash-flow figures', (tester) async {
+      await _pump(tester, HomeScenario.populated());
+      expect(
+        find.textContaining(
+          'আয় ${BanglaFormatters.currency(65000)} · নিট ${BanglaFormatters.currency(23110)}',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a negative net shows a plain minus', (tester) async {
+      final base = HomeScenario.populated();
+      await _pump(
+        tester,
+        HomeScenario(
+          thisMonth: 41890,
+          lastMonth: 0,
+          monthIncome: 10000,
+          wallets: base.wallets,
+          expenses: base.expenses,
+        ),
+      );
+      expect(
+        find.textContaining(
+          'নিট −${BanglaFormatters.currency(31890)}',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('no income this month -> the whole line is hidden', (
+      tester,
+    ) async {
+      final base = HomeScenario.populated();
+      await _pump(
+        tester,
+        HomeScenario(
+          thisMonth: 41890,
+          lastMonth: 0,
+          monthIncome: 0,
+          wallets: base.wallets,
+          expenses: base.expenses,
+        ),
+      );
+      expect(find.textContaining('নিট', findRichText: true), findsNothing);
+      expect(find.textContaining('আয় ', findRichText: true), findsNothing);
     });
 
     testWidgets(

@@ -229,11 +229,20 @@ live in `widgets/home/`; with ZERO expenses AND ZERO income Home shows `HomeWelc
 - **Numbers come from existing providers; derived values are pure, tested functions** —
   `spendingDelta()` (% vs last month, hidden when last month is 0, capped at 999) and
   `mergeRecentActivity()` (expense + income, top 5). Don't compute in widgets.
-- `spendingDelta` compares a PARTIAL month with a full one (spec'd), so it reads "less"
-  early in the month. Pro-rating would be a new calculation — decide before changing it.
+- **The delta compares like with like:** month-to-date vs the SAME days of last month
+  (`compareMonthToDate`: day 1..N, N = today's day clamped to last month's length, so
+  31 Mar vs all of Feb). Never feed it last month's full total — that reads "less" every
+  month start. The pair comes from `DashboardData.thisMonthToDateTotal` /
+  `lastMonthSamePeriodTotal`; the big number is still the full `thisMonthTotal`.
+- The "আয় · নিট" line uses `cashFlowProvider` (income, `netFlow`, the cash-flow
+  predicate — which, unlike spending totals, would also count goal deposits). It is hidden
+  when this month has no income.
 - Insights rows only appear when they have something to say: budget · upcoming (G4,
   `upcomingObligationsProvider`) · prediction · anomaly. New rows go in
   `home_insights_card.dart`.
+- **Deferred on purpose:** a full "upcoming obligations" list screen (rows deep-link to the
+  debt / recurring list for now), and a chat entry on Home for AI-on builds (Phase 2 — the
+  old quick-actions row and the empty state's "চ্যাটে যান" are gone; the Chat tab remains).
 - Don't put "→" (U+2192) or other symbols in text: the bundled fonts have no glyph for
   them (use an `Icon`).
 - **Tests:** `home_states_test` (content per state), `home_overflow_test` (7 states × light/

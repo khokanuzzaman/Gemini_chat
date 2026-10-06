@@ -1,5 +1,6 @@
 import '../entities/dashboard_data.dart';
 import '../entities/expense_source_filters.dart';
+import '../spending_delta.dart';
 import '../repositories/expense_repository.dart';
 
 class GetDashboardDataUseCase {
@@ -7,14 +8,14 @@ class GetDashboardDataUseCase {
 
   final ExpenseRepository _repository;
 
-  Future<DashboardData> call() async {
+  Future<DashboardData> call({DateTime? now}) async {
     final thisMonthExpenses = await _repository.getThisMonthExpenses();
     final lastMonthExpenses = await _repository.getLastMonthExpenses();
     final todayExpenses = await _repository.getTodayExpenses();
     final allExpenses = await _repository.getAllExpenses();
     final sortedRecentExpenses = [...allExpenses]
       ..sort((first, second) => second.date.compareTo(first.date));
-    final now = DateTime.now();
+    now ??= DateTime.now();
     final startOfWeek = DateTime(
       now.year,
       now.month,
@@ -39,6 +40,12 @@ class GetDashboardDataUseCase {
       (sum, expense) => sum + expense.amount,
     );
 
+    final comparison = compareMonthToDate(
+      now: now,
+      thisMonth: thisMonthExpenses,
+      lastMonth: lastMonthExpenses,
+    );
+
     final categoryTotals = <String, double>{};
     for (final expense in thisMonthSpending) {
       categoryTotals.update(
@@ -51,6 +58,8 @@ class GetDashboardDataUseCase {
     return DashboardData(
       thisMonthTotal: thisMonthTotal,
       lastMonthTotal: lastMonthTotal,
+      thisMonthToDateTotal: comparison.thisMonthToDate,
+      lastMonthSamePeriodTotal: comparison.lastMonthSamePeriod,
       thisWeekTotal: thisWeekExpenses.inSpendingTotals.fold<double>(
         0,
         (sum, expense) => sum + expense.amount,
