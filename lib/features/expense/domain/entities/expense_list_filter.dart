@@ -13,6 +13,12 @@ class ExpenseListFilter {
 
   bool get hasDateRange => startDate != null && endDate != null;
 
+  /// Any narrowing at all (category, wallet or date range).
+  bool get hasAny =>
+      (category != null && category!.isNotEmpty) ||
+      walletId != null ||
+      hasDateRange;
+
   ExpenseListFilter copyWith({
     String? category,
     int? walletId,

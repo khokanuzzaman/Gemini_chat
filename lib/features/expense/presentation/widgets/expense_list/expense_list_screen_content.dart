@@ -11,8 +11,30 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
   String _searchQuery = '';
+  bool _searchVisible = false;
+
+  // The grouped, mapped rows are rebuilt only when the data, the search or the
+  // wallet names change — never per frame — so scrolling a long list is cheap.
+  List<ExpenseEntity>? _memoExpenses;
+  String _memoQuery = '';
+  List<WalletEntity>? _memoWallets;
+  List<ActivityListItem> _memoItems = const [];
+  double _memoTotal = 0;
+  int _memoCount = 0;
 
   void openAdd() => _openManualAdd(context);
+
+  /// App-bar search icon: shows/hides the search field (hiding clears it).
+  void toggleSearch() {
+    setState(() {
+      _searchVisible = !_searchVisible;
+      if (!_searchVisible) {
+        _searchDebounce?.cancel();
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
+  }
 
   void openFilter() {
     final currentState = ref.read(expenseListControllerProvider).valueOrNull;
@@ -34,7 +56,9 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
 
     return state.when(
       data: (data) => _buildDataState(context, data),
-      loading: () => Padding(
+      // Scrollable (but inert): the skeleton is taller than a 568dp screen.
+      loading: () => SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         child: AppStaggeredList(
           children: const [
@@ -54,22 +78,67 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
     );
   }
 
-  Widget _buildDataState(BuildContext context, ExpenseListState data) {
-    final visibleExpenses = data.expenses
-        .where((expense) {
-          if (_searchQuery.isEmpty) {
-            return true;
-          }
-          final needle = _searchQuery.toLowerCase();
-          return expense.description.toLowerCase().contains(needle) ||
-              expense.category.toLowerCase().contains(needle);
-        })
-        .toList(growable: false);
-    final groupedExpenses = _groupByDate(visibleExpenses);
-    final totalAmount = visibleExpenses.fold<double>(
-      0,
-      (sum, expense) => sum + expense.amount,
+  void _refreshMemo(ExpenseListState data, List<WalletEntity> wallets) {
+    if (identical(_memoExpenses, data.expenses) &&
+        _memoQuery == _searchQuery &&
+        identical(_memoWallets, wallets)) {
+      return;
+    }
+    final needle = _searchQuery.toLowerCase();
+    final visible = needle.isEmpty
+        ? data.expenses
+        : data.expenses
+              .where(
+                (expense) =>
+                    expense.description.toLowerCase().contains(needle) ||
+                    expense.category.toLowerCase().contains(needle),
+              )
+              .toList(growable: false);
+    final walletById = {for (final wallet in wallets) wallet.id: wallet};
+    _memoItems = buildActivityItems([
+      for (final expense in visible) _activityEntryFor(expense, walletById),
+    ]);
+    _memoTotal = visible.fold<double>(0, (sum, e) => sum + e.amount);
+    _memoCount = visible.length;
+    _memoExpenses = data.expenses;
+    _memoQuery = _searchQuery;
+    _memoWallets = wallets;
+  }
+
+  ActivityEntry _activityEntryFor(
+    ExpenseEntity expense,
+    Map<int, WalletEntity> walletById,
+  ) {
+    final wallet = expense.walletId == null
+        ? null
+        : walletById[expense.walletId];
+    final categoryLabel = _categoryDisplayName(expense.category);
+    final description = expense.description.trim();
+    return ActivityEntry(
+      item: RecentActivityItem(
+        kind: ActivityKind.expense,
+        title: description.isEmpty ? categoryLabel : description,
+        category: expense.category,
+        date: expense.date,
+        amount: expense.amount,
+        isEmi: expense.sourceType == ExpenseSource.debtPayment,
+        id: expense.id,
+      ),
+      subtitle: [
+        categoryLabel,
+        if (wallet != null) '${wallet.emoji} ${wallet.name}',
+      ].join(' · '),
+      time: BanglaFormatters.time(expense.date),
+      source: expense,
+      locked: !expense.sourceType.editableFromExpenseList,
     );
+  }
+
+  Widget _buildDataState(BuildContext context, ExpenseListState data) {
+    final wallets =
+        ref.watch(walletProvider).valueOrNull ?? const <WalletEntity>[];
+    _refreshMemo(data, wallets);
+    final isFiltered = data.filter.hasAny || _searchQuery.isNotEmpty;
 
     return Column(
       children: [
@@ -77,7 +146,7 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
           duration: AppMotion.fast,
           child: _ExpenseTopPanel(
             controller: _searchController,
-            searchQuery: _searchQuery,
+            showSearch: _searchVisible,
             filter: data.filter,
             onSearchChanged: _scheduleSearch,
             onClearDateRange: () {
@@ -91,69 +160,64 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
                 ref.read(expenseListControllerProvider.notifier).refresh(),
             color: context.appColors.primary,
             backgroundColor: context.cardBackgroundColor,
-            child: ListView(
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenPadding,
-                AppSpacing.md,
-                AppSpacing.screenPadding,
-                AppSpacing.xl,
-              ),
-              children: [
-                AppFadeSlideIn(
-                  delay: AppMotion.staggerDelay,
-                  duration: AppMotion.fast,
-                  child: _ExpenseSummaryStrip(
-                    totalAmount: totalAmount,
-                    count: visibleExpenses.length,
-                    onDateTap: _pickCustomDateRange,
-                    hasDateRange: data.filter.hasDateRange,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenPadding,
+                    AppSpacing.md,
+                    AppSpacing.screenPadding,
+                    0,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: _memoCount == 0
+                        ? const SizedBox.shrink()
+                        : ActivitySummaryLine(
+                            total: _memoTotal,
+                            count: _memoCount,
+                          ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                if (visibleExpenses.isEmpty)
-                  AppFadeSlideIn(
-                    delay: AppMotion.fast,
-                    child: AppEmptyState(
-                      icon: Icons.receipt_long_rounded,
-                      title: 'কোনো খরচ নেই',
-                      subtitle:
-                          'খরচ যোগ করতে চ্যাটে যান বা ম্যানুয়ালি যোগ করুন',
-                      actionLabel: 'খরচ যোগ করুন',
-                      onAction: () => _openManualAdd(context),
-                    ),
+                if (_memoItems.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: isFiltered
+                        ? AppEmptyState(
+                            icon: Icons.search_off_rounded,
+                            title: 'কিছু পাওয়া যায়নি',
+                            subtitle: 'ফিল্টার বা সার্চ বদলে দেখুন',
+                            actionLabel: 'ফিল্টার মুছুন',
+                            onAction: _clearAllFilters,
+                          )
+                        : AppEmptyState(
+                            icon: Icons.receipt_long_rounded,
+                            title: 'এখনো কোনো খরচ নেই',
+                            subtitle: 'প্রথম খরচটি যোগ করুন',
+                            actionLabel: 'খরচ যোগ করুন',
+                            onAction: () => _openManualAdd(context),
+                          ),
                   )
-                else ...[
-                  for (var i = 0; i < groupedExpenses.entries.length; i++) ...[
-                    AppFadeSlideIn(
-                      key: ValueKey(
-                        'expense-group-${groupedExpenses.entries.elementAt(i).key}',
-                      ),
-                      delay: Duration(
-                        milliseconds: math.min(
-                          AppMotion.staggerDelay.inMilliseconds * (i + 2),
-                          400,
-                        ),
-                      ),
-                      duration: AppMotion.fast,
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          bottom: i == groupedExpenses.length - 1
-                              ? 0
-                              : AppSpacing.lg,
-                        ),
-                        child: _ExpenseDateSection(
-                          date: groupedExpenses.entries.elementAt(i).key,
-                          expenses: groupedExpenses.entries.elementAt(i).value,
-                          onEdit: _openEditExpense,
-                          onDelete: _confirmDeleteExpense,
-                        ),
-                      ),
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenPadding,
+                      0,
+                      AppSpacing.screenPadding,
+                      // Clear the FAB so the last row is never covered.
+                      96,
                     ),
-                  ],
-                ],
+                    sliver: SliverActivityList(
+                      items: _memoItems,
+                      isIncome: false,
+                      onTap: (entry) =>
+                          _openEditExpense(entry.source as ExpenseEntity),
+                      onDelete: (entry) =>
+                          _confirmDeleteExpense(entry.source as ExpenseEntity),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -162,27 +226,11 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
     );
   }
 
-  Map<DateTime, List<ExpenseEntity>> _groupByDate(
-    List<ExpenseEntity> expenses,
-  ) {
-    final sortedExpenses = [...expenses]
-      ..sort((first, second) => second.date.compareTo(first.date));
-    final grouped = <DateTime, List<ExpenseEntity>>{};
-
-    for (final expense in sortedExpenses) {
-      final date = DateTime(
-        expense.date.year,
-        expense.date.month,
-        expense.date.day,
-      );
-      grouped.putIfAbsent(date, () => []).add(expense);
-    }
-
-    for (final entry in grouped.entries) {
-      entry.value.sort((first, second) => second.date.compareTo(first.date));
-    }
-
-    return grouped;
+  Future<void> _clearAllFilters() async {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    await ref.read(expenseListControllerProvider.notifier).clearFilters();
   }
 
   void _scheduleSearch(String value) {
@@ -491,14 +539,14 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
 class _ExpenseTopPanel extends ConsumerWidget {
   const _ExpenseTopPanel({
     required this.controller,
-    required this.searchQuery,
+    required this.showSearch,
     required this.filter,
     required this.onSearchChanged,
     required this.onClearDateRange,
   });
 
   final TextEditingController controller;
-  final String searchQuery;
+  final bool showSearch;
   final ExpenseListFilter filter;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearDateRange;
@@ -523,38 +571,41 @@ class _ExpenseTopPanel extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: controller,
-            onChanged: onSearchChanged,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: context.primaryTextColor,
+          if (showSearch) ...[
+            TextField(
+              controller: controller,
+              autofocus: true,
+              onChanged: onSearchChanged,
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: context.primaryTextColor,
+              ),
+              decoration: InputDecoration(
+                hintText: 'খরচ খুঁজুন...',
+                hintStyle: AppTextStyles.bodyLarge.copyWith(
+                  color: context.hintTextColor,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: context.secondaryTextColor,
+                ),
+                filled: true,
+                fillColor: context.cardBackgroundColor,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: const BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide(color: context.appColors.primary),
+                ),
+              ),
             ),
-            decoration: InputDecoration(
-              hintText: 'খরচ খুঁজুন...',
-              hintStyle: AppTextStyles.bodyLarge.copyWith(
-                color: context.hintTextColor,
-              ),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: context.secondaryTextColor,
-              ),
-              filled: true,
-              fillColor: context.cardBackgroundColor,
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(AppRadius.input),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(AppRadius.input),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: const BorderRadius.all(AppRadius.input),
-                borderSide: BorderSide(color: context.appColors.primary),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+          ],
           SizedBox(
             height: 40,
             child: walletsAsync.when(
@@ -622,195 +673,6 @@ class _ExpenseTopPanel extends ConsumerWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _ExpenseSummaryStrip extends StatelessWidget {
-  const _ExpenseSummaryStrip({
-    required this.totalAmount,
-    required this.count,
-    required this.onDateTap,
-    required this.hasDateRange,
-  });
-
-  final double totalAmount;
-  final int count;
-  final VoidCallback onDateTap;
-  final bool hasDateRange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: context.cardBackgroundColor,
-        borderRadius: AppRadius.cardAll,
-        boxShadow: context.elevationLevel(1),
-        border: Border.all(
-          color: context.borderColor.withValues(alpha: 0.6),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '${BanglaFormatters.currency(totalAmount)} মোট · ${BanglaFormatters.count(count)}টি লেনদেন',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: context.secondaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onDateTap,
-            borderRadius: AppRadius.buttonAll,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: context.mutedSurfaceColor,
-                borderRadius: AppRadius.buttonAll,
-                border: Border.all(color: context.borderColor),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasDateRange
-                        ? Icons.event_available_rounded
-                        : Icons.calendar_today_rounded,
-                    size: 16,
-                    color: context.appColors.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'তারিখ',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: context.primaryTextColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExpenseDateSection extends StatelessWidget {
-  const _ExpenseDateSection({
-    required this.date,
-    required this.expenses,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final DateTime date;
-  final List<ExpenseEntity> expenses;
-  final Future<void> Function(ExpenseEntity expense) onEdit;
-  final Future<void> Function(ExpenseEntity expense) onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = expenses.fold<double>(
-      0,
-      (sum, expense) => sum + expense.amount,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSectionHeader(
-          title: BanglaFormatters.relativeDay(date),
-          subtitle:
-              '${BanglaFormatters.fullDate(date)} · ${BanglaFormatters.currency(total)}',
-          padding: EdgeInsets.zero,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        for (var i = 0; i < expenses.length; i++) ...[
-          _ExpenseCard(
-            expense: expenses[i],
-            onTap: () => onEdit(expenses[i]),
-            onLongPress: () => onDelete(expenses[i]),
-            onDelete: () => onDelete(expenses[i]),
-          ),
-          if (i != expenses.length - 1) const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}
-
-class _ExpenseCard extends ConsumerWidget {
-  const _ExpenseCard({
-    required this.expense,
-    required this.onTap,
-    required this.onLongPress,
-    required this.onDelete,
-  });
-
-  final ExpenseEntity expense;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  final Future<void> Function() onDelete;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final meta = resolveExpenseCategory(expense.category);
-    final wallet = expense.walletId == null
-        ? null
-        : ref.watch(walletByIdProvider(expense.walletId!));
-    final subtitleParts = <String>[
-      _categoryDisplayName(expense.category),
-      BanglaFormatters.fullDate(expense.date),
-      if (wallet != null) '${wallet.emoji} ${wallet.name}',
-    ];
-
-    return Dismissible(
-      key: ValueKey(
-        'expense-card-${expense.id}-${expense.date.toIso8601String()}',
-      ),
-      // Managed (EMI/goal) rows never swipe-delete; onDelete routes them to
-      // the read-only sheet if reached some other way (long-press).
-      direction: expense.sourceType.editableFromExpenseList
-          ? DismissDirection.endToStart
-          : DismissDirection.none,
-      confirmDismiss: (_) async {
-        await onDelete();
-        return false;
-      },
-      background: const SizedBox.shrink(),
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.error,
-          borderRadius: AppRadius.cardAll,
-        ),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
-      ),
-      child: AppCard(
-        elevation: 1,
-        padding: EdgeInsets.zero,
-        child: AppListTile(
-          leadingEmoji: _categoryEmoji(expense.category),
-          leadingColor: meta.color,
-          title: expense.description,
-          subtitle: subtitleParts.join(' · '),
-          trailingAmount: expense.amount,
-          trailingAmountIsExpense: true,
-          trailingSubtitle: BanglaFormatters.time(expense.date),
-          onTap: onTap,
-          onLongPress: onLongPress,
-        ),
       ),
     );
   }

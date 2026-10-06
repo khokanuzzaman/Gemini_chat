@@ -29,6 +29,14 @@ class _ExpensesTabScreenState extends State<ExpensesTabScreen> {
     }
   }
 
+  void _toggleSearch() {
+    if (_isIncome) {
+      _incomeKey.currentState?.toggleSearch();
+    } else {
+      _expenseKey.currentState?.toggleSearch();
+    }
+  }
+
   void _openAdd() {
     if (_isIncome) {
       _incomeKey.currentState?.openAdd();
@@ -53,6 +61,11 @@ class _ExpensesTabScreenState extends State<ExpensesTabScreen> {
             setState(() => _isIncome = selection.first),
       ),
       actions: [
+        IconButton(
+          onPressed: _toggleSearch,
+          icon: const Icon(Icons.search_rounded),
+          tooltip: 'খুঁজুন',
+        ),
         IconButton(
           onPressed: _openFilter,
           icon: const Icon(Icons.filter_alt_outlined),

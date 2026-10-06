@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +14,8 @@ import '../providers/income_providers.dart';
 import '../widgets/add_edit_income_sheet.dart';
 import '../../../expense/presentation/widgets/add_entry/add_entry_sheet.dart';
 import '../../../expense/presentation/widgets/add_entry/entry_type.dart';
+import '../../../expense/domain/recent_activity.dart';
+import '../../../expense/presentation/widgets/activity_list/activity_day_list.dart';
 
 /// Standalone আয় screen (pushed from আরও / openIncome). Wraps [IncomeListBody]
 /// in its own scaffold; the segmented খরচ tab reuses the body directly.
@@ -31,6 +35,11 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
       title: 'আয়ের তালিকা',
       showOfflineBanner: false,
       actions: [
+        IconButton(
+          onPressed: () => _bodyKey.currentState?.toggleSearch(),
+          icon: const Icon(Icons.search_rounded),
+          tooltip: 'খুঁজুন',
+        ),
         IconButton(
           onPressed: () => _bodyKey.currentState?.openFilter(),
           icon: const Icon(Icons.filter_alt_outlined),
@@ -59,9 +68,50 @@ class IncomeListBody extends ConsumerStatefulWidget {
 
 class IncomeListBodyState extends ConsumerState<IncomeListBody> {
   int? _selectedWalletId;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  String _searchQuery = '';
+  bool _searchVisible = false;
+
+  // Grouped rows are rebuilt only when data, wallet filter, search or wallet
+  // names change — not per frame.
+  List<IncomeEntity>? _memoIncome;
+  int? _memoWalletId;
+  String _memoQuery = '';
+  List<WalletEntity>? _memoWallets;
+  List<ActivityListItem> _memoItems = const [];
+  double _memoTotal = 0;
+  int _memoCount = 0;
 
   void openAdd() => _openAddSheet();
   void openFilter() => _openFilterSheet();
+
+  /// App-bar search icon: shows/hides the search field (hiding clears it).
+  void toggleSearch() {
+    setState(() {
+      _searchVisible = !_searchVisible;
+      if (!_searchVisible) {
+        _searchDebounce?.cancel();
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
+  }
+
+  void _scheduleSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +119,9 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
 
     return state.when(
       data: (income) => _buildDataState(context, income),
-      loading: () => Padding(
+      // Scrollable (but inert): the skeleton is taller than a 568dp screen.
+      loading: () => SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         child: AppStaggeredList(
           children: const [
@@ -89,23 +141,82 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     );
   }
 
+  void _refreshMemo(List<IncomeEntity> income, List<WalletEntity> wallets) {
+    if (identical(_memoIncome, income) &&
+        _memoWalletId == _selectedWalletId &&
+        _memoQuery == _searchQuery &&
+        identical(_memoWallets, wallets)) {
+      return;
+    }
+    final walletById = {for (final wallet in wallets) wallet.id: wallet};
+    final entries = <ActivityEntry>[];
+    var total = 0.0;
+    for (final entry in income) {
+      if (_selectedWalletId != null && entry.walletId != _selectedWalletId) {
+        continue;
+      }
+      final source = findIncomeSourceByName(entry.source);
+      final label = source?.banglaLabel ?? entry.source;
+      if (_searchQuery.isNotEmpty &&
+          !entry.description.toLowerCase().contains(_searchQuery) &&
+          !label.toLowerCase().contains(_searchQuery) &&
+          !entry.source.toLowerCase().contains(_searchQuery)) {
+        continue;
+      }
+      final wallet = entry.walletId == null ? null : walletById[entry.walletId];
+      final description = entry.description.trim();
+      entries.add(
+        ActivityEntry(
+          item: RecentActivityItem(
+            kind: ActivityKind.income,
+            title: description.isEmpty ? label : description,
+            category: entry.source,
+            date: entry.date,
+            amount: entry.amount,
+            id: entry.id,
+          ),
+          subtitle: [
+            label,
+            if (wallet != null) '${wallet.emoji} ${wallet.name}',
+          ].join(' · '),
+          time: BanglaFormatters.time(entry.date),
+          source: entry,
+        ),
+      );
+      total += entry.amount;
+    }
+    _memoItems = buildActivityItems(entries);
+    _memoTotal = total;
+    _memoCount = entries.length;
+    _memoIncome = income;
+    _memoWalletId = _selectedWalletId;
+    _memoQuery = _searchQuery;
+    _memoWallets = wallets;
+  }
+
+  Future<void> _clearAllFilters() async {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _selectedWalletId = null;
+    });
+  }
+
   Widget _buildDataState(BuildContext context, List<IncomeEntity> income) {
-    final visibleIncome = _selectedWalletId == null
-        ? income
-        : income
-              .where((entry) => entry.walletId == _selectedWalletId)
-              .toList(growable: false);
-    final grouped = _groupByDate(visibleIncome);
-    final totalAmount = visibleIncome.fold<double>(
-      0,
-      (sum, entry) => sum + entry.amount,
-    );
+    final wallets =
+        ref.watch(walletProvider).valueOrNull ?? const <WalletEntity>[];
+    _refreshMemo(income, wallets);
+    final isFiltered = _selectedWalletId != null || _searchQuery.isNotEmpty;
 
     return Column(
       children: [
         AppFadeSlideIn(
           duration: AppMotion.fast,
           child: _IncomeTopPanel(
+            controller: _searchController,
+            showSearch: _searchVisible,
+            onSearchChanged: _scheduleSearch,
             selectedWalletId: _selectedWalletId,
             onWalletChanged: (walletId) {
               setState(() {
@@ -120,82 +231,70 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
                 ref.read(incomeListControllerProvider.notifier).refresh(),
             color: AppColors.success,
             backgroundColor: context.cardBackgroundColor,
-            child: ListView(
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenPadding,
-                AppSpacing.md,
-                AppSpacing.screenPadding,
-                AppSpacing.xl,
-              ),
-              children: [
-                AppFadeSlideIn(
-                  delay: AppMotion.staggerDelay,
-                  duration: AppMotion.fast,
-                  child: _IncomeSummaryStrip(
-                    totalAmount: totalAmount,
-                    count: visibleIncome.length,
-                    onFilterTap: _openFilterSheet,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenPadding,
+                    AppSpacing.md,
+                    AppSpacing.screenPadding,
+                    0,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: _memoCount == 0
+                        ? const SizedBox.shrink()
+                        : ActivitySummaryLine(
+                            total: _memoTotal,
+                            count: _memoCount,
+                          ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                if (visibleIncome.isEmpty)
-                  AppFadeSlideIn(
-                    delay: AppMotion.fast,
-                    child: AppEmptyState(
-                      icon: Icons.trending_up_rounded,
-                      title: 'কোনো আয় নেই',
-                      subtitle: 'আয় যোগ করতে + বাটনে ট্যাপ করুন',
-                      actionLabel: 'আয় যোগ করুন',
-                      onAction: _openAddSheet,
-                    ),
+                if (_memoItems.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: isFiltered
+                        ? AppEmptyState(
+                            icon: Icons.search_off_rounded,
+                            title: 'কিছু পাওয়া যায়নি',
+                            subtitle: 'ফিল্টার বা সার্চ বদলে দেখুন',
+                            actionLabel: 'ফিল্টার মুছুন',
+                            onAction: _clearAllFilters,
+                          )
+                        : AppEmptyState(
+                            icon: Icons.trending_up_rounded,
+                            title: 'এখনো কোনো আয় নেই',
+                            subtitle: 'প্রথম আয়টি যোগ করুন',
+                            actionLabel: 'আয় যোগ করুন',
+                            onAction: _openAddSheet,
+                          ),
                   )
-                else ...[
-                  for (var i = 0; i < grouped.entries.length; i++) ...[
-                    AppFadeSlideIn(
-                      key: ValueKey(
-                        'income-group-${grouped.entries.elementAt(i).key}',
-                      ),
-                      delay: Duration(
-                        milliseconds:
-                            AppMotion.staggerDelay.inMilliseconds * (i + 2),
-                      ),
-                      duration: AppMotion.fast,
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          bottom: i == grouped.length - 1 ? 0 : AppSpacing.lg,
-                        ),
-                        child: _IncomeDateSection(
-                          date: grouped.entries.elementAt(i).key,
-                          entries: grouped.entries.elementAt(i).value,
-                          onEdit: _openEditSheet,
-                          onDelete: _confirmDeleteIncome,
-                        ),
-                      ),
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenPadding,
+                      0,
+                      AppSpacing.screenPadding,
+                      // Clear the FAB so the last row is never covered.
+                      96,
                     ),
-                  ],
-                ],
+                    sliver: SliverActivityList(
+                      items: _memoItems,
+                      isIncome: true,
+                      onTap: (entry) =>
+                          _openEditSheet(entry.source as IncomeEntity),
+                      onDelete: (entry) =>
+                          _confirmDeleteIncome(entry.source as IncomeEntity),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ],
     );
-  }
-
-  Map<DateTime, List<IncomeEntity>> _groupByDate(List<IncomeEntity> income) {
-    final sorted = [...income]..sort((a, b) => b.date.compareTo(a.date));
-    final grouped = <DateTime, List<IncomeEntity>>{};
-    for (final entry in sorted) {
-      final date = DateTime(entry.date.year, entry.date.month, entry.date.day);
-      grouped.putIfAbsent(date, () => []).add(entry);
-    }
-    for (final entry in grouped.entries) {
-      entry.value.sort((a, b) => b.date.compareTo(a.date));
-    }
-    return grouped;
   }
 
   Future<void> _openAddSheet() =>
@@ -347,10 +446,16 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
 
 class _IncomeTopPanel extends ConsumerWidget {
   const _IncomeTopPanel({
+    required this.controller,
+    required this.showSearch,
+    required this.onSearchChanged,
     required this.selectedWalletId,
     required this.onWalletChanged,
   });
 
+  final TextEditingController controller;
+  final bool showSearch;
+  final ValueChanged<String> onSearchChanged;
   final int? selectedWalletId;
   final ValueChanged<int?> onWalletChanged;
 
@@ -372,6 +477,41 @@ class _IncomeTopPanel extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showSearch) ...[
+            TextField(
+              controller: controller,
+              autofocus: true,
+              onChanged: onSearchChanged,
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: context.primaryTextColor,
+              ),
+              decoration: InputDecoration(
+                hintText: 'আয় খুঁজুন...',
+                hintStyle: AppTextStyles.bodyLarge.copyWith(
+                  color: context.hintTextColor,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: context.secondaryTextColor,
+                ),
+                filled: true,
+                fillColor: context.cardBackgroundColor,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: const BorderRadius.all(AppRadius.input),
+                  borderSide: BorderSide(color: context.appColors.primary),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           SizedBox(
             height: 40,
             child: walletsAsync.when(
@@ -424,164 +564,6 @@ class _IncomeTopPanel extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _IncomeSummaryStrip extends StatelessWidget {
-  const _IncomeSummaryStrip({
-    required this.totalAmount,
-    required this.count,
-    required this.onFilterTap,
-  });
-
-  final double totalAmount;
-  final int count;
-  final VoidCallback onFilterTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: context.cardBackgroundColor,
-        borderRadius: AppRadius.cardAll,
-        boxShadow: context.elevationLevel(1),
-        border: Border.all(
-          color: context.borderColor.withValues(alpha: 0.6),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '${BanglaFormatters.currency(totalAmount)} মোট · ${BanglaFormatters.count(count)}টি লেনদেন',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: context.secondaryTextColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onFilterTap,
-            borderRadius: AppRadius.buttonAll,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: context.mutedSurfaceColor,
-                borderRadius: AppRadius.buttonAll,
-                border: Border.all(color: context.borderColor),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.filter_list_rounded,
-                    size: 16,
-                    color: AppColors.success,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'ফিল্টার',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: context.primaryTextColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IncomeDateSection extends StatelessWidget {
-  const _IncomeDateSection({
-    required this.date,
-    required this.entries,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final DateTime date;
-  final List<IncomeEntity> entries;
-  final Future<void> Function(IncomeEntity entry) onEdit;
-  final Future<void> Function(IncomeEntity entry) onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = entries.fold<double>(0, (sum, entry) => sum + entry.amount);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSectionHeader(
-          title: BanglaFormatters.relativeDay(date),
-          subtitle:
-              '${BanglaFormatters.fullDate(date)} · ${BanglaFormatters.currency(total)}',
-          padding: EdgeInsets.zero,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        for (var i = 0; i < entries.length; i++) ...[
-          _IncomeCard(
-            entry: entries[i],
-            onTap: () => onEdit(entries[i]),
-            onLongPress: () => onDelete(entries[i]),
-          ),
-          if (i != entries.length - 1) const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}
-
-class _IncomeCard extends ConsumerWidget {
-  const _IncomeCard({
-    required this.entry,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  final IncomeEntity entry;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final source = findIncomeSourceByName(entry.source);
-    final label = source?.banglaLabel ?? entry.source;
-    final emoji = source?.emoji ?? '💰';
-    final wallet = entry.walletId == null
-        ? null
-        : ref.watch(walletByIdProvider(entry.walletId!));
-    final title = entry.description.trim().isEmpty ? label : entry.description;
-    final subtitleParts = <String>[
-      label,
-      BanglaFormatters.fullDate(entry.date),
-      if (wallet != null) '${wallet.emoji} ${wallet.name}',
-    ];
-
-    return AppCard(
-      elevation: 1,
-      padding: EdgeInsets.zero,
-      child: AppListTile(
-        leadingEmoji: emoji,
-        leadingColor: AppColors.success,
-        title: title,
-        subtitle: subtitleParts.join(' · '),
-        trailingAmount: entry.amount,
-        trailingAmountIsIncome: true,
-        trailingSubtitle: BanglaFormatters.time(entry.date),
-        onTap: onTap,
-        onLongPress: onLongPress,
       ),
     );
   }

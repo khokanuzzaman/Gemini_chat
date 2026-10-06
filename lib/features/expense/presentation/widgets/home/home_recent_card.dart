@@ -63,9 +63,30 @@ class HomeRecentCard extends StatelessWidget {
 }
 
 class HomeActivityRow extends StatelessWidget {
-  const HomeActivityRow({super.key, required this.item});
+  const HomeActivityRow({
+    super.key,
+    required this.item,
+    this.subtitle,
+    this.time,
+    this.locked = false,
+    this.onTap,
+    this.onLongPress,
+  });
 
   final RecentActivityItem item;
+
+  /// Replaces the default "relative day · category" line (the খরচ list shows
+  /// "category · wallet" because the day is already in its header).
+  final String? subtitle;
+
+  /// Small time line under the amount (খরচ list only).
+  final String? time;
+
+  /// Owned by another feature (EMI/goal): shows a lock, opens read-only.
+  final bool locked;
+
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +100,7 @@ class HomeActivityRow extends StatelessWidget {
         ? (tokens.successSoft, tokens.successText)
         : (tokens.primarySoft, tokens.primary);
 
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -104,7 +125,8 @@ class HomeActivityRow extends StatelessWidget {
                   style: AppTextStyles.titleMedium.copyWith(color: tokens.ink),
                 ),
                 Text(
-                  '${BanglaFormatters.relativeDay(item.date)} · ${item.category}',
+                  subtitle ??
+                      '${BanglaFormatters.relativeDay(item.date)} · ${item.category}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmall.copyWith(color: tokens.muted),
@@ -115,21 +137,53 @@ class HomeActivityRow extends StatelessWidget {
           const SizedBox(width: 12),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 120),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Text(
-                '${item.isIncome ? '+' : '-'}${BanglaFormatters.currency(item.amount)}',
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: item.isIncome
-                      ? tokens.successText
-                      : tokens.expenseText,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${item.isIncome ? '+' : '-'}${BanglaFormatters.currency(item.amount)}',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: item.isIncome
+                          ? tokens.successText
+                          : tokens.expenseText,
+                    ),
+                  ),
                 ),
-              ),
+                if (time != null || locked)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (locked) ...[
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 12,
+                          color: context.brassGlyph,
+                        ),
+                        const SizedBox(width: 3),
+                      ],
+                      if (time != null)
+                        Text(
+                          time!,
+                          maxLines: 1,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: tokens.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ],
       ),
     );
+
+    if (onTap == null && onLongPress == null) {
+      return content;
+    }
+    return InkWell(onTap: onTap, onLongPress: onLongPress, child: content);
   }
 }

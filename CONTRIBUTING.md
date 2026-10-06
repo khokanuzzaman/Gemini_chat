@@ -314,6 +314,28 @@ owner, so the books disagree. Therefore:
   applies. A new mirrored source = add it to `ExpenseSource` (append only) and it
   is read-only here by default.
 
+## খরচ / আয় lists (R3) — rules
+
+- **One row, everywhere.** The lists reuse Home's `HomeActivityRow` (extended
+  additively: `subtitle`, `time`, `locked`, tap handlers). Do not fork a second
+  row style; change the shared one.
+- **Day groups are pure.** `groupByDay` (`expense/domain/day_groups.dart`) does the
+  grouping and the daily subtotal; newest first, ties keep input order. The daily
+  subtotal counts **every** row shown, EMI included ("how much moved that day").
+- **The list is lazy.** `SliverActivityList` is a `SliverList.builder` over a flat
+  header+row list that the screen memoizes per data / search / wallet-name change
+  (never in `build` per frame). Filtering and search stay in memory
+  (`ExpenseListController` already loads everything); there is no Isar pagination
+  on purpose — totals, count, search and export all need the full filtered set.
+  `expense_list_perf_test.dart` builds 5,000 rows and fails if more than a
+  screenful of rows is alive.
+- **Two empty states**: "no data at all" (add action) vs "filter/search found
+  nothing" (clear-filters action). Keep them distinct.
+- **Search** is behind the app-bar icon (`toggleSearch()` on both bodies); hiding
+  the field clears the query.
+- Loading skeletons must not overflow a 568dp screen (they sit in an inert
+  `SingleChildScrollView`).
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
@@ -324,6 +346,26 @@ owner, so the books disagree. Therefore:
   listing without this — default-on is only defensible with the honest disclosure.
 
 ## Known issues (deliberate deferrals)
+- **Test-only: `Isar.close()` hangs in widget-test teardown after a mutation
+  (root cause unknown).** Seen in `test/features/debt/debt_detail_delete_payment_test.dart`:
+  after the screen triggers a ledger mutation (delete a payment) and then rebuilds,
+  `await isar.close(deleteFromDisk: true)` never completes, and the test process
+  has to be killed. **Suspected cause:** a screen read (the rebuilt
+  `debtDetailProvider` / `walletProvider` future) is still parked in
+  `testWidgets`' fake-async zone — its Isar callback arrives on the real event loop
+  but its continuation needs a `pump` — and `close()` waits on it. Unverified;
+  `container.dispose()` and unmounting the widget first did **not** fix it.
+  **Workaround in that test:** every test opens Isar under its own name (a counter,
+  because a close that timed out leaves the instance open and the next `Isar.open`
+  of the same name throws "Instance has already been opened"), and teardown bounds
+  the close with `.timeout(3s, onTimeout: () => false)`, then deletes the temp dir
+  best-effort. Product code is unaffected (the app never closes Isar mid-run). If a
+  *different* widget+Isar test starts hanging at the end or fails with "already
+  opened", look here first; the fix is probably to resolve the provider futures
+  under `tester.runAsync` before teardown, or to not close Isar in widget tests.
+  Related setup rule: real Isar I/O inside `testWidgets` needs `tester.runAsync`
+  (and `loadAppFonts()` must run in `setUpAll`, never in the test body — it hangs
+  the fake zone).
 - **`RecurringDetectionService` is demoted/reserved, not dead by accident.**
   Recurring is opt-in in Phase 1 (the user marks an expense recurring; see
   `RecurringNotifier.markExpenseAsRecurring`). The auto-detection service

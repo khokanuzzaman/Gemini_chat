@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,8 +17,10 @@ import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../../domain/entities/expense_list_filter.dart';
 import '../../domain/entities/expense_source.dart';
+import '../../domain/recent_activity.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
+import '../widgets/activity_list/activity_day_list.dart';
 import '../widgets/add_entry/add_entry_sheet.dart';
 import '../widgets/expense_list/managed_expense_sheet.dart';
 
@@ -43,6 +44,11 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
       title: 'খরচের তালিকা',
       showOfflineBanner: false,
       actions: [
+        IconButton(
+          onPressed: () => _bodyKey.currentState?.toggleSearch(),
+          icon: const Icon(Icons.search_rounded),
+          tooltip: 'খুঁজুন',
+        ),
         IconButton(
           onPressed: () => _bodyKey.currentState?.openFilter(),
           icon: const Icon(Icons.filter_alt_outlined),
