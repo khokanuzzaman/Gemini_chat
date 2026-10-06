@@ -71,6 +71,33 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
   yet** (no `showLicensePage`/`AboutListTile`); add an entry point under
   Settings → About.
 
+## Release signing (slice h)
+- `android/app/build.gradle.kts` signs `release` with the upload key described in
+  `android/key.properties` (git-ignored, as are `*.jks` / `*.keystore`):
+  ```properties
+  storeFile=/Users/<you>/keys/pocketpilot/upload-keystore.jks
+  storePassword=…
+  keyAlias=upload
+  keyPassword=…
+  ```
+- Keep the keystore **outside the repo** and back it up in two places (password
+  manager + an offline copy). Enroll in Play App Signing so Google holds the app
+  signing key and a lost upload key can be reset by support.
+- Without `key.properties`, APK builds fall back to the debug key (local smoke
+  builds only) and `bundleRelease` **refuses to run**, so a debug-signed AAB can't
+  be produced by accident. Build-verification override:
+  `ORG_GRADLE_PROJECT_allowDebugSignedBundle=true flutter build appbundle --release`.
+- Ship `flutter build appbundle --release` (Play serves per-ABI splits, ~50 MB),
+  not the ~120 MB fat APK.
+- After the first Play upload, add the upload key's AND the Play app-signing
+  certificate's SHA-1 to Firebase (Google Sign-In breaks in release otherwise).
+- R8 is on (`isMinifyEnabled` + `isShrinkResources`); keep rules are in
+  `android/app/proguard-rules.pro`. Do not blanket-keep Firebase/gms/ML Kit —
+  they ship consumer rules and a blanket keep makes the APK bigger. After any
+  dependency change, build a release APK and check
+  `build/app/outputs/mapping/release/missing_rules.txt` is absent/empty, then smoke
+  test on a device.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

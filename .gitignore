@@ -55,3 +55,9 @@ ios/.symlinks/
 
 # Test audio recordings (voice import scratch)
 /voice_test.*
+
+# Release signing — NEVER commit (also ignored in android/.gitignore)
+key.properties
+**/key.properties
+*.jks
+*.keystore
