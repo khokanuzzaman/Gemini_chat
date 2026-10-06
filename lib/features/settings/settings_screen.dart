@@ -121,8 +121,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final premiumOfferingsAsync = ref.watch(premiumOfferingsProvider);
     final isPremium = ref.watch(isPremiumProvider);
     final premiumTeaserTitle = _premiumTeaserTitle(premiumOfferingsAsync);
-    final backupSubtitle = isPremium
+    // "চালু" only if auto-backup is really running (Premium, or grandfathered
+    // with the switch on) — not merely because the user is Premium.
+    final autoBackupRunning =
+        (backupState?.autoBackupEnabled ?? false) &&
+        (isPremium || (backupState?.autoBackupGrandfathered ?? false));
+    final backupSubtitle = backupState?.hasAutoBackupFailure ?? false
+        ? 'শেষ ব্যাকআপ ব্যর্থ — আবার চেষ্টা করুন'
+        : autoBackupRunning
         ? 'স্বয়ংক্রিয় ব্যাকআপ চালু'
+        : isPremium
+        ? 'সীমাহীন ব্যাকআপ · স্বয়ংক্রিয় ব্যাকআপ বন্ধ'
         : 'দৈনিক ${BanglaFormatters.count(UsageLimits.cloudBackupPerDay)}টি ম্যানুয়াল ব্যাকআপ';
     final categories = ref.watch(categoryProvider);
     final categoryNames = categories

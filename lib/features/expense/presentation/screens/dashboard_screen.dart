@@ -24,6 +24,7 @@ import '../widgets/dashboard/month_summary_strip.dart';
 import '../widgets/dashboard/net_worth_hero_card.dart';
 import '../widgets/dashboard/primary_quick_actions.dart';
 import '../widgets/dashboard/recent_transactions_card.dart';
+import '../widgets/dashboard/backup_reminder_card.dart';
 import '../widgets/dashboard/restore_backup_banner.dart';
 import '../widgets/dashboard/upcoming_recurring_card.dart';
 
@@ -104,6 +105,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
+                if (restorePrompt == null) const BackupReminderCard(),
                 const SizedBox(height: AppSpacing.lg),
                 AppFadeSlideIn(
                   delay: const Duration(milliseconds: 100),

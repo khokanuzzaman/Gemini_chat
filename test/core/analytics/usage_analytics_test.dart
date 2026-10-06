@@ -84,4 +84,27 @@ void main() {
     expect(fake.names, ['app_open']); // only the first got through
     expect(fake.collectionCalls, [true, false]);
   });
+
+  test('backup reminder: only the action is logged, nothing else', () async {
+    final fake = _FakeLogger();
+    final analytics = UsageAnalytics(fake);
+    await analytics.initialize(enabled: true);
+
+    await analytics.backupReminder(BackupReminderAction.shown);
+    await analytics.backupReminder(BackupReminderAction.tapped);
+    await analytics.backupReminder(BackupReminderAction.dismissed);
+
+    expect(fake.names, everyElement('backup_reminder'));
+    expect(fake.params, [
+      {'action': 'shown'},
+      {'action': 'tapped'},
+      {'action': 'dismissed'},
+    ]);
+
+    final optedOut = _FakeLogger();
+    final off = UsageAnalytics(optedOut);
+    await off.initialize(enabled: false);
+    await off.backupReminder(BackupReminderAction.shown);
+    expect(optedOut.names, isEmpty);
+  });
 }

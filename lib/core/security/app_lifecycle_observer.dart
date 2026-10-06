@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/net_worth/presentation/providers/net_worth_snapshot_provider.dart';
+import '../backup/backup_providers.dart';
 import '../../features/sms_import/presentation/providers/sms_import_provider.dart';
 import 'biometric_provider.dart';
 
@@ -27,6 +28,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(_ref.read(smsAutoImportProvider.notifier).handleAppResumed());
       unawaited(_ref.read(netWorthSnapshotServiceProvider).captureIfNeeded());
+      unawaited(_ref.read(autoBackupCoordinatorProvider).run());
     }
 
     final biometric = _ref.read(biometricProvider);

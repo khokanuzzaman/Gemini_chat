@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/backup/auto_backup_coordinator.dart';
+import '../../core/backup/backup_exception.dart';
 import '../../core/backup/backup_progress.dart';
 import '../../core/backup/backup_providers.dart';
+import '../../core/navigation/app_page_route.dart';
+import '../../core/premium/premium_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/bangla_formatters.dart';
 import '../../core/widgets/widgets.dart';
+import 'premium_screen.dart';
 
 class BackupScreen extends ConsumerWidget {
   const BackupScreen({super.key});
@@ -17,6 +22,13 @@ class BackupScreen extends ConsumerWidget {
     final notifier = ref.read(backupStateProvider.notifier);
     final hasCloudBackup = backupState.cloudBackupInfo != null;
     final activeProgress = backupState.activeProgress;
+    final premiumStatus = ref.watch(premiumStatusProvider).valueOrNull;
+    // null = still loading: never show the "lapsed" message on unknown status.
+    final premiumKnown = premiumStatus != null;
+    final isPremium = premiumStatus?.isPremium ?? false;
+    final autoAllowed = isPremium || backupState.autoBackupGrandfathered;
+    final autoLapsed =
+        premiumKnown && backupState.autoBackupEnabled && !autoAllowed;
 
     Widget body;
     if (backupStateAsync.isLoading && backupStateAsync.valueOrNull == null) {
@@ -134,6 +146,34 @@ class BackupScreen extends ConsumerWidget {
                         : '${_formatDateTime(backupState.lastBackupTime!)} · ${_formatSize(backupState.lastBackupSizeBytes ?? 0)}',
                     trailing: const SizedBox.shrink(),
                   ),
+                  if (backupState.hasAutoBackupFailure) ...[
+                    Divider(color: context.borderColor.withValues(alpha: 0.3)),
+                    AppListTile(
+                      key: const Key('auto-backup-failure'),
+                      leadingIcon: Icons.error_outline_rounded,
+                      leadingColor: AppColors.error,
+                      title: 'শেষ ব্যাকআপ ব্যর্থ',
+                      subtitle:
+                          '${_formatDateTime(backupState.autoBackupFailedAt!)} · ${_failureReason(backupState.autoBackupErrorCode)}',
+                      trailing: TextButton(
+                        onPressed: backupState.isBusy
+                            ? null
+                            : () async {
+                                final outcome = await notifier
+                                    .retryAutoBackup();
+                                if (!context.mounted) {
+                                  return;
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(_retryMessage(outcome)),
+                                  ),
+                                );
+                              },
+                        child: const Text('আবার চেষ্টা'),
+                      ),
+                    ),
+                  ],
                   Divider(color: context.borderColor.withValues(alpha: 0.3)),
                   AppListTile(
                     leadingIcon: Icons.cloud_rounded,
@@ -186,21 +226,60 @@ class BackupScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
+            if (backupState.autoBackupEnabled &&
+                backupState.autoBackupGrandfathered &&
+                !isPremium &&
+                !backupState.grandfatherNoteDismissed) ...[
+              AppCard(
+                key: const Key('auto-backup-grandfather-note'),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: context.tokens.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'স্বয়ংক্রিয় ব্যাকআপ এখন Premium ফিচার। আপনি আগে থেকেই চালু রেখেছেন, '
+                        'তাই এটি চলতে থাকবে। বন্ধ করলে আবার চালু করতে Premium লাগবে।',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.primaryTextColor,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'বুঝেছি',
+                      onPressed: notifier.dismissGrandfatherNote,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.cardGap),
+            ],
             AppCard(
               padding: EdgeInsets.zero,
               child: AppListTile(
                 leadingIcon: Icons.schedule_rounded,
                 title: 'স্বয়ংক্রিয় ব্যাকআপ',
-                subtitle: 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে',
+                subtitle: autoLapsed
+                    ? 'বন্ধ আছে — Premium মেয়াদ শেষ'
+                    : (autoAllowed
+                          ? 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে'
+                          : 'Premium ফিচার — প্রতিদিন নিজে থেকে ব্যাকআপ'),
                 trailing: Switch.adaptive(
                   value: backupState.autoBackupEnabled,
                   onChanged: backupState.isBusy
                       ? null
-                      : notifier.setAutoBackupEnabled,
+                      : (value) => _toggleAuto(context, notifier, value),
                 ),
                 onTap: backupState.isBusy
                     ? null
-                    : () => notifier.setAutoBackupEnabled(
+                    : () => _toggleAuto(
+                        context,
+                        notifier,
                         !backupState.autoBackupEnabled,
                       ),
               ),
@@ -480,6 +559,64 @@ class BackupScreen extends ConsumerWidget {
       result = result.replaceAll(english[index], bangla[index]);
     }
     return result;
+  }
+
+  Future<void> _toggleAuto(
+    BuildContext context,
+    BackupNotifier notifier,
+    bool value,
+  ) async {
+    final changed = await notifier.setAutoBackupEnabled(value);
+    if (changed || !context.mounted) {
+      return;
+    }
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('স্বয়ংক্রিয় ব্যাকআপ — Premium'),
+        content: const Text(
+          'প্রতিদিন নিজে থেকে ব্যাকআপ নিতে Premium লাগবে। '
+          'Premium ছাড়া "এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিতে পারবেন।',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('বাদ দিন'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Premium দেখুন'),
+          ),
+        ],
+      ),
+    );
+    if (open == true && context.mounted) {
+      await Navigator.of(
+        context,
+      ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
+    }
+  }
+
+  String _failureReason(BackupErrorCode? code) {
+    return switch (code) {
+      BackupErrorCode.network => 'ইন্টারনেট সমস্যা',
+      BackupErrorCode.auth => 'Google-এ আবার সাইন ইন করুন',
+      BackupErrorCode.drive => 'Google Drive সমস্যা',
+      _ => 'অজানা সমস্যা',
+    };
+  }
+
+  String _retryMessage(AutoBackupOutcome outcome) {
+    return switch (outcome) {
+      AutoBackupOutcome.succeeded => 'ব্যাকআপ সম্পন্ন ✓',
+      AutoBackupOutcome.skippedOffline =>
+        'ইন্টারনেট নেই — সংযোগ এলে আবার চেষ্টা করুন',
+      AutoBackupOutcome.skippedNotAllowed ||
+      AutoBackupOutcome.skippedDisabled => 'স্বয়ংক্রিয় ব্যাকআপ এখন বন্ধ আছে',
+      AutoBackupOutcome.skippedPremiumUnknown =>
+        'Premium অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন',
+      _ => 'ব্যাকআপ সম্পন্ন হয়নি। আবার চেষ্টা করুন',
+    };
   }
 }
 

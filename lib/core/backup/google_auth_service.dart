@@ -105,6 +105,7 @@ class GoogleAuthService {
     if (!granted) {
       throw const BackupException(
         'Google Drive অনুমতি মেলেনি। আবার Google দিয়ে সাইন ইন করুন।',
+        code: BackupErrorCode.auth,
       );
     }
   }

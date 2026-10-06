@@ -50,7 +50,7 @@ class BackupOrchestrator {
       await _ensureSignedIn();
       final userId = authService.userId;
       if (userId == null || userId.isEmpty) {
-        throw const BackupException('সাইন ইন করুন');
+        throw const BackupException('সাইন ইন করুন', code: BackupErrorCode.auth);
       }
 
       _emitProgress(
@@ -157,7 +157,11 @@ class BackupOrchestrator {
         startedAt: startedAt,
         overrideProgress: 1,
       );
-      return BackupResult(success: false, errorMessage: error.message);
+      return BackupResult(
+        success: false,
+        errorMessage: error.message,
+        errorCode: error.code,
+      );
     } catch (error) {
       _emitProgress(
         onProgress,
@@ -171,6 +175,7 @@ class BackupOrchestrator {
       return BackupResult(
         success: false,
         errorMessage: _friendlyUnexpectedError(error),
+        errorCode: _classify(error),
       );
     }
   }
@@ -192,7 +197,7 @@ class BackupOrchestrator {
       await _ensureSignedIn();
       final userId = authService.userId;
       if (userId == null || userId.isEmpty) {
-        throw const BackupException('সাইন ইন করুন');
+        throw const BackupException('সাইন ইন করুন', code: BackupErrorCode.auth);
       }
 
       _emitProgress(
@@ -381,8 +386,31 @@ class BackupOrchestrator {
     }
     await authService.signInSilently();
     if (!await authService.isSignedIn()) {
-      throw const BackupException('সাইন ইন করুন');
+      throw const BackupException('সাইন ইন করুন', code: BackupErrorCode.auth);
     }
+  }
+
+  /// PII-free cause for logs and the Settings failure line.
+  BackupErrorCode _classify(Object error) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('network') ||
+        raw.contains('socketexception') ||
+        raw.contains('failed host lookup') ||
+        raw.contains('timeout')) {
+      return BackupErrorCode.network;
+    }
+    if (raw.contains('sign_in') ||
+        raw.contains('insufficient') ||
+        raw.contains('unauthorized') ||
+        raw.contains('invalid credentials')) {
+      return BackupErrorCode.auth;
+    }
+    if (raw.contains('accessnotconfigured') ||
+        raw.contains('service_disabled') ||
+        raw.contains('drive')) {
+      return BackupErrorCode.drive;
+    }
+    return BackupErrorCode.unknown;
   }
 
   String _friendlyUnexpectedError(

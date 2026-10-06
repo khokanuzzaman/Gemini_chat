@@ -72,6 +72,7 @@ class DriveBackupService {
         throw const BackupException(
           'ব্যাকআপ ফাইল ডাউনলোড করা যায়নি',
           isRecoverable: false,
+          code: BackupErrorCode.drive,
         );
       }
 
@@ -124,18 +125,27 @@ class DriveBackupService {
   ) async {
     final client = await _authService.getDriveHttpClient();
     if (client == null) {
-      throw const BackupException('সাইন ইন করুন');
+      throw const BackupException('সাইন ইন করুন', code: BackupErrorCode.auth);
     }
 
     final driveApi = drive.DriveApi(client);
     try {
       return await action(driveApi);
     } on SocketException {
-      throw const BackupException('ইন্টারনেট সংযোগ নেই');
+      throw const BackupException(
+        'ইন্টারনেট সংযোগ নেই',
+        code: BackupErrorCode.network,
+      );
     } on HttpException {
-      throw const BackupException('ইন্টারনেট সংযোগ নেই');
+      throw const BackupException(
+        'ইন্টারনেট সংযোগ নেই',
+        code: BackupErrorCode.network,
+      );
     } on TimeoutException {
-      throw const BackupException('ইন্টারনেট সংযোগ নেই');
+      throw const BackupException(
+        'ইন্টারনেট সংযোগ নেই',
+        code: BackupErrorCode.network,
+      );
     } catch (error) {
       if (error is BackupException) {
         rethrow;
@@ -144,7 +154,10 @@ class DriveBackupService {
       if (raw.contains('socketexception') ||
           raw.contains('failed host lookup') ||
           raw.contains('connection closed')) {
-        throw const BackupException('ইন্টারনেট সংযোগ নেই');
+        throw const BackupException(
+          'ইন্টারনেট সংযোগ নেই',
+          code: BackupErrorCode.network,
+        );
       }
       if (raw.contains('sign_in_failed') ||
           raw.contains('clientconfigurationerror') ||
@@ -154,6 +167,7 @@ class DriveBackupService {
         throw const BackupException(
           'Google Sign-In configure করা নেই। SHA-1, package name, আর google-services.json আবার check করুন।',
           isRecoverable: false,
+          code: BackupErrorCode.auth,
         );
       }
       if (raw.contains('accessnotconfigured') ||
@@ -164,6 +178,7 @@ class DriveBackupService {
         throw const BackupException(
           'Google Drive API চালু নেই। Google Cloud Console এ এই project-এর Drive API enable করুন।',
           isRecoverable: false,
+          code: BackupErrorCode.drive,
         );
       }
       if (raw.contains('insufficient') ||
@@ -173,6 +188,7 @@ class DriveBackupService {
           raw.contains('permission')) {
         throw const BackupException(
           'Google Drive অনুমতি মেলেনি। আবার Google দিয়ে সাইন ইন করুন।',
+          code: BackupErrorCode.auth,
         );
       }
       if (raw.contains('invalid credentials') ||
@@ -180,6 +196,7 @@ class DriveBackupService {
           raw.contains('401')) {
         throw const BackupException(
           'Google অ্যাকাউন্টের অনুমতি নতুন করে দরকার। সাইন আউট করে আবার সাইন ইন করুন।',
+          code: BackupErrorCode.auth,
         );
       }
       rethrow;

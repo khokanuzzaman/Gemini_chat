@@ -118,6 +118,32 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
 - Backup format stays `version: 1`; `netWorthSnapshots` is an additive key. Restoring
   an older backup without it keeps local snapshots (that history can't be rebuilt).
 
+## Backup safety (G2) — rules
+- **Auto-backup is `AutoBackupCoordinator`** (`core/backup/`), run on first frame and
+  on every resume. Rules, in order: setting on -> allowed (Premium, or grandfathered)
+  -> last SUCCESS >= 24h ago (a manual backup counts) -> no manual op / attempt in
+  flight -> no failure in the last hour -> **online (live `ConnectivityService`
+  check; offline is a skip, never a failure)** -> signed in -> run.
+- **It never touches the manual 1/day quota** (`usageTrackerServiceProvider` is not
+  a dependency; a test asserts zero calls). Keep it that way — the old code burned the
+  user's manual backup on every silent run, even failed ones.
+- Failures are logged with a cause code only (`network|auth|drive|unknown`, no
+  messages/amounts/PII) and stored (`auto_backup_last_failed_at/_error_code`);
+  Settings shows "শেষ ব্যাকআপ ব্যর্থ" with আবার চেষ্টা until a later success.
+- **Premium gating:** free users can't switch it ON. Free users who already had it on
+  when this shipped were grandfathered once (`auto_backup_grandfathered`); switching
+  it off (or delete-all) ends that. A lapsed Premium shows "বন্ধ আছে — Premium মেয়াদ
+  শেষ" instead of silently stopping.
+- **Home reminder (free for everyone):** `BackupReminderCard`, rules in
+  `backup_reminder_policy.dart` (>=10 records or any debt/goal; last backup >=30 days;
+  never backed up: 30 days from `app_first_seen_at`, 7 days if >=30 records; "পরে"
+  snoozes 7 days). Analytics: `backup_reminder` {shown|tapped|dismissed}.
+- `app_first_seen_at` is the only install-age marker (written on the first G2+ run);
+  the wallet seed `createdAt` is a constant, not an install date.
+- Gotcha fixed in G2: `BackupNotifier.build()` must not call `refreshCloudInfo()`
+  inline — it reads `state` while build is still running and overwrote the real state
+  with `BackupState.initial()`.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

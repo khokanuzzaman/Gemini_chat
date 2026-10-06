@@ -30,6 +30,15 @@ enum AnalyticsEntryMethod {
   final String key;
 }
 
+enum BackupReminderAction {
+  shown('shown'),
+  tapped('tapped'),
+  dismissed('dismissed');
+
+  const BackupReminderAction(this.key);
+  final String key;
+}
+
 /// Abstract sink so tests inject a fake instead of hitting the real SDK.
 abstract class AnalyticsLogger {
   Future<void> logEvent(String name, Map<String, Object>? params);
@@ -99,6 +108,10 @@ class UsageAnalytics {
 
   Future<void> featureOpen(AnalyticsFeature feature) =>
       _log('feature_open', {'feature': feature.key});
+
+  /// Home "no recent backup" card: shown / tapped / dismissed. No data values.
+  Future<void> backupReminder(BackupReminderAction action) =>
+      _log('backup_reminder', {'action': action.key});
 
   Future<void> entryMethodUsed(AnalyticsEntryMethod method) =>
       _log('entry_method_used', {'method': method.key});

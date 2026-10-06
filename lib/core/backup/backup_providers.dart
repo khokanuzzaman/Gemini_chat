@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logging/app_logger.dart';
+import '../network/connectivity_provider.dart';
 import '../../features/anomaly/presentation/providers/anomaly_provider.dart';
 import '../../features/budget/presentation/providers/budget_provider.dart';
 import '../../features/category/presentation/providers/category_provider.dart';
@@ -22,10 +23,12 @@ import '../providers/shared_preferences_provider.dart';
 import '../premium/premium_providers.dart';
 import '../usage/usage_limits.dart';
 import '../usage/usage_providers.dart';
+import 'auto_backup_coordinator.dart';
 import 'backup_encryption_service.dart';
 import 'backup_exception.dart';
 import 'backup_models.dart';
 import 'backup_orchestrator.dart';
+import 'backup_reminder_provider.dart';
 import 'backup_progress.dart';
 import 'drive_backup_service.dart';
 import 'google_auth_service.dart';
@@ -46,6 +49,46 @@ final backupOrchestratorProvider = Provider<BackupOrchestrator>((ref) {
     driveService: ref.read(driveBackupServiceProvider),
     authService: ref.read(googleAuthServiceProvider),
     isar: ref.read(isarProvider),
+  );
+});
+
+final autoBackupCoordinatorProvider = Provider<AutoBackupCoordinator>((ref) {
+  return AutoBackupCoordinator(
+    prefs: ref.read(sharedPreferencesProvider),
+    isOnline: () => ref.read(connectivityServiceProvider).isConnected(),
+    // null = unknown (e.g. RevenueCat unreachable): never treated as "free".
+    isPremium: () async {
+      if (ref.read(isPremiumProvider)) {
+        return true;
+      }
+      try {
+        return (await ref.read(premiumServiceProvider).getStatus()).isPremium;
+      } catch (_) {
+        return null;
+      }
+    },
+    ensureSignedIn: () async {
+      final auth = ref.read(googleAuthServiceProvider);
+      try {
+        if (await auth.isSignedIn()) {
+          return true;
+        }
+        await auth.signInSilently();
+        return await auth.isSignedIn();
+      } catch (_) {
+        return false;
+      }
+    },
+    runBackup: () => ref.read(backupOrchestratorProvider).createBackup(),
+    isManualBusy: () =>
+        ref.exists(backupStateProvider) &&
+        (ref.read(backupStateProvider).valueOrNull?.isBusy ?? false),
+    onFinished: () {
+      ref.invalidate(backupReminderProvider);
+      if (ref.exists(backupStateProvider)) {
+        unawaited(ref.read(backupStateProvider.notifier).reloadFromPrefs());
+      }
+    },
   );
 });
 
@@ -70,6 +113,10 @@ class BackupState {
     required this.activeProgress,
     required this.progressTitle,
     required this.progressDetail,
+    this.autoBackupFailedAt,
+    this.autoBackupErrorCode,
+    this.autoBackupGrandfathered = false,
+    this.grandfatherNoteDismissed = false,
   });
 
   factory BackupState.initial() {
@@ -104,7 +151,26 @@ class BackupState {
   final String? progressTitle;
   final String? progressDetail;
 
+  /// Latest failed AUTO attempt not yet followed by a success; null when OK.
+  final DateTime? autoBackupFailedAt;
+  final BackupErrorCode? autoBackupErrorCode;
+
+  /// Free user who had auto-backup on before it became Premium: it keeps
+  /// running until they switch it off.
+  final bool autoBackupGrandfathered;
+  final bool grandfatherNoteDismissed;
+
   bool get isBusy => isBackingUp || isRestoring;
+
+  /// A failure only counts while it is newer than the last successful backup.
+  bool get hasAutoBackupFailure {
+    final failedAt = autoBackupFailedAt;
+    if (failedAt == null) {
+      return false;
+    }
+    final lastBackup = lastBackupTime;
+    return lastBackup == null || failedAt.isAfter(lastBackup);
+  }
 
   BackupState copyWith({
     bool? isSignedIn,
@@ -120,8 +186,22 @@ class BackupState {
     Object? activeProgress = _backupStateUnset,
     Object? progressTitle = _backupStateUnset,
     Object? progressDetail = _backupStateUnset,
+    Object? autoBackupFailedAt = _backupStateUnset,
+    Object? autoBackupErrorCode = _backupStateUnset,
+    bool? autoBackupGrandfathered,
+    bool? grandfatherNoteDismissed,
   }) {
     return BackupState(
+      autoBackupFailedAt: autoBackupFailedAt == _backupStateUnset
+          ? this.autoBackupFailedAt
+          : autoBackupFailedAt as DateTime?,
+      autoBackupErrorCode: autoBackupErrorCode == _backupStateUnset
+          ? this.autoBackupErrorCode
+          : autoBackupErrorCode as BackupErrorCode?,
+      autoBackupGrandfathered:
+          autoBackupGrandfathered ?? this.autoBackupGrandfathered,
+      grandfatherNoteDismissed:
+          grandfatherNoteDismissed ?? this.grandfatherNoteDismissed,
       isSignedIn: isSignedIn ?? this.isSignedIn,
       userEmail: userEmail == _backupStateUnset
           ? this.userEmail
@@ -183,9 +263,22 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       activeProgress: null,
       progressTitle: null,
       progressDetail: null,
+      autoBackupFailedAt: _readDate(prefs.getInt(AutoBackupKeys.lastFailedAt)),
+      autoBackupErrorCode: prefs.containsKey(AutoBackupKeys.lastErrorCode)
+          ? BackupErrorCode.fromKey(
+              prefs.getString(AutoBackupKeys.lastErrorCode),
+            )
+          : null,
+      autoBackupGrandfathered:
+          prefs.getBool(AutoBackupKeys.grandfathered) ?? false,
+      grandfatherNoteDismissed:
+          prefs.getBool(AutoBackupKeys.grandfatherNoteDismissed) ?? false,
     );
     if (isSignedIn) {
-      unawaited(refreshCloudInfo());
+      // One event-loop turn later, NOT inline: refreshCloudInfo() reads `state`,
+      // which is still empty while build() runs, so calling it here replaced
+      // the state with BackupState.initial() (signed-out, auto-backup off).
+      unawaited(Future<void>.delayed(Duration.zero, refreshCloudInfo));
     }
     return initial;
   }
@@ -250,9 +343,18 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     await prefs.remove(BackupOrchestrator.backupLastTimeKey);
     await prefs.remove(BackupOrchestrator.backupLastSizeKey);
     await prefs.remove(BackupOrchestrator.autoBackupEnabledKey);
+    // Delete-all switches auto-backup off, so the grandfathering ends with it.
+    await prefs.remove(AutoBackupKeys.grandfathered);
+    await prefs.remove(AutoBackupKeys.lastFailedAt);
+    await prefs.remove(AutoBackupKeys.lastErrorCode);
+    await prefs.remove(backupReminderSnoozedUntilKey);
+    ref.invalidate(backupReminderProvider);
     ref.read(restorePromptProvider.notifier).state = null;
     state = AsyncData(
       _current.copyWith(
+        autoBackupFailedAt: null,
+        autoBackupErrorCode: null,
+        autoBackupGrandfathered: false,
         lastBackupTime: null,
         lastBackupSizeBytes: null,
         cloudBackupInfo: null,
@@ -265,13 +367,96 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     );
   }
 
-  Future<void> setAutoBackupEnabled(bool enabled) async {
+  /// Returns false when a free, non-grandfathered user tries to switch it ON
+  /// (the screen then shows the Premium upsell). Switching OFF always works and
+  /// ends any grandfathering — turning it back on then needs Premium.
+  Future<bool> setAutoBackupEnabled(bool enabled) async {
     final prefs = ref.read(sharedPreferencesProvider);
+    if (enabled && !await canEnableAutoBackup()) {
+      return false;
+    }
     await prefs.setBool(BackupOrchestrator.autoBackupEnabledKey, enabled);
-    state = AsyncData(_current.copyWith(autoBackupEnabled: enabled));
+    if (!enabled) {
+      await prefs.remove(AutoBackupKeys.grandfathered);
+    }
+    state = AsyncData(
+      _current.copyWith(
+        autoBackupEnabled: enabled,
+        autoBackupGrandfathered: enabled
+            ? _current.autoBackupGrandfathered
+            : false,
+      ),
+    );
+    if (enabled) {
+      // Don't wait for the next resume for the first backup (24h rule still applies).
+      unawaited(ref.read(autoBackupCoordinatorProvider).run());
+    }
+    return true;
+  }
+
+  Future<bool> canEnableAutoBackup() async {
+    if (_current.autoBackupGrandfathered || await _isPremiumUser()) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> dismissGrandfatherNote() async {
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool(AutoBackupKeys.grandfatherNoteDismissed, true);
+    state = AsyncData(_current.copyWith(grandfatherNoteDismissed: true));
+  }
+
+  /// Re-reads everything a background auto-backup attempt can change.
+  Future<void> reloadFromPrefs() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final failedAt = _readDate(prefs.getInt(AutoBackupKeys.lastFailedAt));
+    state = AsyncData(
+      _current.copyWith(
+        lastBackupTime: _readDate(
+          prefs.getInt(BackupOrchestrator.backupLastTimeKey),
+        ),
+        lastBackupSizeBytes: prefs.getInt(BackupOrchestrator.backupLastSizeKey),
+        autoBackupEnabled:
+            prefs.getBool(BackupOrchestrator.autoBackupEnabledKey) ?? false,
+        autoBackupFailedAt: failedAt,
+        autoBackupErrorCode: failedAt == null
+            ? null
+            : BackupErrorCode.fromKey(
+                prefs.getString(AutoBackupKeys.lastErrorCode),
+              ),
+        autoBackupGrandfathered:
+            prefs.getBool(AutoBackupKeys.grandfathered) ?? false,
+        isBackingUp: false,
+        activeProgress: null,
+        progressTitle: null,
+        progressDetail: null,
+      ),
+    );
+  }
+
+  /// "আবার চেষ্টা" on the failure line. Uses the auto-backup path, so it never
+  /// consumes the manual 1/day quota.
+  Future<AutoBackupOutcome> retryAutoBackup() async {
+    state = AsyncData(_current.copyWith(isBackingUp: true, errorMessage: null));
+    final outcome = await ref
+        .read(autoBackupCoordinatorProvider)
+        .run(force: true);
+    await reloadFromPrefs();
+    if (outcome == AutoBackupOutcome.succeeded) {
+      unawaited(refreshCloudInfo());
+    }
+    return outcome;
   }
 
   Future<BackupResult> createBackup() async {
+    if (ref.read(autoBackupCoordinatorProvider).isRunning) {
+      return const BackupResult(
+        success: false,
+        errorMessage: 'স্বয়ংক্রিয় ব্যাকআপ চলছে। একটু পরে চেষ্টা করুন।',
+      );
+    }
     if (!await _consumeManualBackupUsage()) {
       return BackupResult(
         success: false,
@@ -307,7 +492,13 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       return result;
     }
 
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.remove(AutoBackupKeys.lastFailedAt);
+    await prefs.remove(AutoBackupKeys.lastErrorCode);
+    ref.invalidate(backupReminderProvider);
     final updated = _current.copyWith(
+      autoBackupFailedAt: null,
+      autoBackupErrorCode: null,
       isBackingUp: false,
       lastBackupTime: result.timestamp,
       lastBackupSizeBytes: result.sizeBytes,

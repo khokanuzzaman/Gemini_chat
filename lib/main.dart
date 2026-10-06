@@ -14,7 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_strings.dart';
-import 'core/backup/backup_orchestrator.dart';
 import 'core/backup/backup_providers.dart';
 import 'core/database/expense_migration.dart';
 import 'core/database/models/expense_record_model.dart';
@@ -46,7 +45,6 @@ import 'core/security/app_lifecycle_observer.dart';
 import 'core/security/biometric_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
-import 'core/usage/usage_limits.dart';
 import 'features/chat/data/models/message_model.dart';
 import 'features/category/data/datasources/category_local_datasource.dart';
 import 'features/category/data/models/category_model.dart';
@@ -135,7 +133,6 @@ Future<void> main() async {
             .read(usageTrackerServiceProvider)
             .syncFromFirestore();
       }
-      await _checkAutoBackup(bootstrapContainer);
     } finally {
       bootstrapContainer.dispose();
     }
@@ -161,63 +158,6 @@ Future<ThemeMode> _loadSavedThemeMode() async {
     'dark' => ThemeMode.dark,
     _ => ThemeMode.system,
   };
-}
-
-Future<void> _checkAutoBackup(ProviderContainer container) async {
-  try {
-    final prefs = container.read(sharedPreferencesProvider);
-    final isEnabled =
-        prefs.getBool(BackupOrchestrator.autoBackupEnabledKey) ?? false;
-    if (!isEnabled) {
-      return;
-    }
-
-    final lastBackupMs = prefs.getInt(BackupOrchestrator.backupLastTimeKey);
-    if (lastBackupMs != null && lastBackupMs > 0) {
-      final lastBackup = DateTime.fromMillisecondsSinceEpoch(lastBackupMs);
-      if (DateTime.now().difference(lastBackup) < const Duration(hours: 24)) {
-        return;
-      }
-    }
-
-    final auth = container.read(googleAuthServiceProvider);
-    if (!await auth.isSignedIn()) {
-      await auth.signInSilently();
-      if (!await auth.isSignedIn()) {
-        return;
-      }
-    }
-
-    final isPremiumUser = await _isPremiumUser(container);
-    if (!isPremiumUser) {
-      try {
-        final gate = await container
-            .read(usageTrackerServiceProvider)
-            .checkAndConsume(UsageLimits.cloudBackup);
-        if (!gate.isAllowed) {
-          return;
-        }
-      } catch (_) {
-        // Usage tracking is best-effort for silent backups.
-      }
-    }
-
-    await container.read(backupOrchestratorProvider).createBackup();
-  } catch (_) {
-    // Auto-backup is best-effort; failures are intentionally ignored.
-  }
-}
-
-Future<bool> _isPremiumUser(ProviderContainer container) async {
-  if (container.read(isPremiumProvider)) {
-    return true;
-  }
-
-  try {
-    return await container.read(premiumServiceProvider).isPremium();
-  } catch (_) {
-    return false;
-  }
 }
 
 Future<void> _checkForExistingBackup(WidgetRef ref) async {
@@ -290,6 +230,7 @@ class _ExpenseTrackerAppState extends ConsumerState<ExpenseTrackerApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(anomalyProvider.notifier).detectIfNeeded();
       unawaited(ref.read(netWorthSnapshotServiceProvider).captureIfNeeded());
+      unawaited(ref.read(autoBackupCoordinatorProvider).run());
     });
   }
 

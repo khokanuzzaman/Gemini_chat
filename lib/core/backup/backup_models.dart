@@ -1,3 +1,5 @@
+import 'backup_exception.dart';
+
 class BackupFileInfo {
   const BackupFileInfo({
     required this.fileId,
@@ -30,12 +32,14 @@ class BackupResult {
     this.timestamp,
     this.sizeBytes,
     this.errorMessage,
+    this.errorCode,
   });
 
   final bool success;
   final DateTime? timestamp;
   final int? sizeBytes;
   final String? errorMessage;
+  final BackupErrorCode? errorCode;
 }
 
 class RestoreResult {
