@@ -126,6 +126,28 @@ void main() {
             expect(tester.takeException(), isNull);
           });
 
+          testWidgets('income source filter sheet + selected chip, $tag', (
+            tester,
+          ) async {
+            final key = GlobalKey<IncomeListBodyState>();
+            await pump(
+              tester,
+              IncomeListBody(key: key),
+              listOverrides(incomes: incomes, calls: ListCalls()),
+            );
+            key.currentState!.openFilter();
+            await tester.pump(const Duration(milliseconds: 500));
+            expect(tester.takeException(), isNull);
+            await tester.tap(
+              find.descendant(
+                of: find.byType(Wrap),
+                matching: find.text('ফ্রিল্যান্স'),
+              ),
+            );
+            await tester.pump(const Duration(milliseconds: 500));
+            expect(tester.takeException(), isNull);
+          });
+
           testWidgets('income populated, $tag', (tester) async {
             await pump(
               tester,

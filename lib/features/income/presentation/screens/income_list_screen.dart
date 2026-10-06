@@ -70,6 +70,7 @@ class IncomeListBody extends ConsumerStatefulWidget {
 
 class IncomeListBodyState extends ConsumerState<IncomeListBody> {
   int? _selectedWalletId;
+  String? _selectedSource;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
   String _searchQuery = '';
@@ -79,6 +80,11 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
   // names change — not per frame.
   List<IncomeEntity>? _memoIncome;
   int? _memoWalletId;
+  String? _memoSource;
+  // Default sources, plus any other source the data actually contains (imports,
+  // old records) so every row stays reachable from a chip.
+  List<IncomeSource> _sourceOptions = defaultIncomeSources;
+  List<IncomeEntity>? _optionsFor;
   String _memoQuery = '';
   List<WalletEntity>? _memoWallets;
   List<ActivityListItem> _memoItems = const [];
@@ -146,6 +152,7 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
   void _refreshMemo(List<IncomeEntity> income, List<WalletEntity> wallets) {
     if (identical(_memoIncome, income) &&
         _memoWalletId == _selectedWalletId &&
+        _memoSource == _selectedSource &&
         _memoQuery == _searchQuery &&
         identical(_memoWallets, wallets)) {
       return;
@@ -155,6 +162,9 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     var total = 0.0;
     for (final entry in income) {
       if (_selectedWalletId != null && entry.walletId != _selectedWalletId) {
+        continue;
+      }
+      if (_selectedSource != null && entry.source != _selectedSource) {
         continue;
       }
       final source = findIncomeSourceByName(entry.source);
@@ -192,6 +202,25 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     _memoCount = entries.length;
     _memoIncome = income;
     _memoWalletId = _selectedWalletId;
+    _memoSource = _selectedSource;
+    if (!identical(_optionsFor, income)) {
+      _optionsFor = income;
+      final known = {for (final source in defaultIncomeSources) source.name};
+      final extra = {
+        for (final entry in income)
+          if (!known.contains(entry.source)) entry.source,
+      };
+      _sourceOptions = [
+        ...defaultIncomeSources,
+        for (final name in extra)
+          IncomeSource(
+            name: name,
+            banglaLabel: name,
+            emoji: '💰',
+            sortOrder: 1000,
+          ),
+      ];
+    }
     _memoQuery = _searchQuery;
     _memoWallets = wallets;
   }
@@ -202,6 +231,7 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     setState(() {
       _searchQuery = '';
       _selectedWalletId = null;
+      _selectedSource = null;
     });
   }
 
@@ -209,7 +239,10 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     final wallets =
         ref.watch(walletProvider).valueOrNull ?? const <WalletEntity>[];
     _refreshMemo(income, wallets);
-    final isFiltered = _selectedWalletId != null || _searchQuery.isNotEmpty;
+    final isFiltered =
+        _selectedWalletId != null ||
+        _selectedSource != null ||
+        _searchQuery.isNotEmpty;
 
     return Column(
       children: [
@@ -223,6 +256,13 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
             onWalletChanged: (walletId) {
               setState(() {
                 _selectedWalletId = walletId;
+              });
+            },
+            sources: _sourceOptions,
+            selectedSource: _selectedSource,
+            onSourceChanged: (source) {
+              setState(() {
+                _selectedSource = source;
               });
             },
           ),
@@ -373,7 +413,7 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     await AppBottomSheet.show<void>(
       context: context,
       title: 'ফিল্টার',
-      subtitle: 'ওয়ালেট অনুযায়ী আয়ের তালিকা দেখুন',
+      subtitle: 'ওয়ালেট ও উৎস অনুযায়ী আয়ের তালিকা দেখুন',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -424,21 +464,30 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              const AppChip(label: 'সব উৎস', selected: true),
-              for (final source in defaultIncomeSources)
+              AppChip(
+                label: 'সব উৎস',
+                selected: _selectedSource == null,
+                onTap: () {
+                  setState(() {
+                    _selectedSource = null;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              for (final source in _sourceOptions)
                 AppChip(
                   label: source.banglaLabel,
                   emoji: source.emoji,
                   color: AppColors.success,
+                  selected: _selectedSource == source.name,
+                  onTap: () {
+                    setState(() {
+                      _selectedSource = source.name;
+                    });
+                    Navigator.of(context).pop();
+                  },
                 ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'উৎস ফিল্টার এখন শুধু visual guide হিসেবে দেখানো হচ্ছে।',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: context.secondaryTextColor,
-            ),
           ),
         ],
       ),
@@ -453,6 +502,9 @@ class _IncomeTopPanel extends ConsumerWidget {
     required this.onSearchChanged,
     required this.selectedWalletId,
     required this.onWalletChanged,
+    required this.sources,
+    required this.selectedSource,
+    required this.onSourceChanged,
   });
 
   final TextEditingController controller;
@@ -460,6 +512,9 @@ class _IncomeTopPanel extends ConsumerWidget {
   final ValueChanged<String> onSearchChanged;
   final int? selectedWalletId;
   final ValueChanged<int?> onWalletChanged;
+  final List<IncomeSource> sources;
+  final String? selectedSource;
+  final ValueChanged<String?> onSourceChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -549,18 +604,24 @@ class _IncomeTopPanel extends ConsumerWidget {
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: defaultIncomeSources.length + 1,
+              itemCount: sources.length + 1,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return const AppChip(label: 'সব উৎস', selected: true);
+                  return AppChip(
+                    label: 'সব উৎস',
+                    selected: selectedSource == null,
+                    onTap: () => onSourceChanged(null),
+                  );
                 }
 
-                final source = defaultIncomeSources[index - 1];
+                final source = sources[index - 1];
                 return AppChip(
                   label: source.banglaLabel,
                   emoji: source.emoji,
                   color: AppColors.success,
+                  selected: selectedSource == source.name,
+                  onTap: () => onSourceChanged(source.name),
                 );
               },
             ),

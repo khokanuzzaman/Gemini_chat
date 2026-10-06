@@ -336,6 +336,95 @@ void main() {
       expect(find.text('কিছু পাওয়া যায়নি'), findsOneWidget);
     });
 
+    testWidgets('source chips FILTER (and stack with search/wallet)', (
+      tester,
+    ) async {
+      await pumpIncome(tester, ListCalls());
+      expect(find.byType(HomeActivityRow), findsNWidgets(3));
+
+      await tester.tap(find.text('ফ্রিল্যান্স').first);
+      await _settle(tester);
+      expect(find.byType(HomeActivityRow), findsOneWidget);
+      expect(find.text('+${BanglaFormatters.currency(700)}'), findsWidgets);
+
+      await tester.tap(find.text('বেতন').first);
+      await _settle(tester);
+      expect(find.byType(HomeActivityRow), findsNWidgets(2));
+
+      // "সব উৎস" clears it.
+      await tester.tap(find.text('সব উৎস').first);
+      await _settle(tester);
+      expect(find.byType(HomeActivityRow), findsNWidgets(3));
+    });
+
+    testWidgets(
+      'a source with no rows -> the filtered empty state, which clears',
+      (tester) async {
+        await pumpIncome(tester, ListCalls());
+        await tester.tap(find.text('ব্যবসা').first);
+        await _settle(tester);
+        expect(find.byType(HomeActivityRow), findsNothing);
+        expect(find.text('কিছু পাওয়া যায়নি'), findsOneWidget);
+        await tester.tap(find.text('ফিল্টার মুছুন'));
+        await _settle(tester);
+        expect(find.byType(HomeActivityRow), findsNWidgets(3));
+      },
+    );
+
+    testWidgets('a source outside the defaults still gets a chip', (
+      tester,
+    ) async {
+      await pumpIncome(
+        tester,
+        ListCalls(),
+        rows: [
+          listIncome(id: 1, date: _noon(0), source: 'Salary', description: 'ক'),
+          listIncome(
+            id: 2,
+            date: _noon(1),
+            source: 'Lottery',
+            description: 'খ',
+          ),
+        ],
+      );
+      // Last in the horizontal chip row, so scroll it into view.
+      final chips = tester.state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byType(ListView).last,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      chips.position.jumpTo(chips.position.maxScrollExtent);
+      await tester.pump();
+      await tester.tap(find.text('Lottery'));
+      await _settle(tester);
+      expect(find.byType(HomeActivityRow), findsOneWidget);
+      expect(find.text('খ'), findsOneWidget);
+    });
+
+    testWidgets('filter sheet: source chips filter; no "visual guide" text', (
+      tester,
+    ) async {
+      final key = GlobalKey<IncomeListBodyState>();
+      await pumpIncome(tester, ListCalls(), key: key);
+      key.currentState!.openFilter();
+      await _settle(tester);
+      expect(find.textContaining('visual guide'), findsNothing);
+      expect(find.text('উৎস'), findsOneWidget);
+
+      // The sheet's own "ফ্রিল্যান্স" chip (the top-panel one is behind it).
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Wrap),
+          matching: find.text('ফ্রিল্যান্স'),
+        ),
+      );
+      await _settle(tester);
+      expect(find.byType(HomeActivityRow), findsOneWidget);
+    });
+
     testWidgets('first-run empty state', (tester) async {
       await pumpIncome(tester, ListCalls(), rows: const []);
       expect(find.text('এখনো কোনো আয় নেই'), findsOneWidget);
