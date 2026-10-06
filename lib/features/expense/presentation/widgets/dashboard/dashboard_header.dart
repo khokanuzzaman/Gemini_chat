@@ -9,6 +9,13 @@ import '../../../../../core/widgets/widgets.dart';
 import '../../../../anomaly/presentation/providers/anomaly_provider.dart';
 import '../../providers/expense_providers.dart';
 
+/// Where the header chart button should land. When the red anomaly badge is
+/// showing, the user is being told "something unusual" — so take them to the
+/// অ্যানোমালি sub-tab; with no alerts it is just the Analytics summary.
+AnalyticsTab analyticsTabForAnomalyBadge(int highSeverityCount) {
+  return highSeverityCount > 0 ? AnalyticsTab.anomaly : AnalyticsTab.summary;
+}
+
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key});
 
@@ -57,7 +64,9 @@ class DashboardHeader extends ConsumerWidget {
               color: context.primaryTextColor,
             ),
             tooltip: 'বিশ্লেষণ',
-            onPressed: AppShellNavigation.openAnalytics,
+            onPressed: () => AppShellNavigation.openAnalytics(
+              tab: analyticsTabForAnomalyBadge(anomalyCount),
+            ),
           ),
         ),
         const GlobalSettingsButton(),

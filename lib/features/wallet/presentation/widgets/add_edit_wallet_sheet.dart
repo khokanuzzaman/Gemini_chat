@@ -196,6 +196,11 @@ class _AddEditWalletSheetState extends ConsumerState<AddEditWalletSheet> {
             decoration: InputDecoration(
               labelText: 'প্রারম্ভিক ব্যালেন্স',
               prefixText: '${BanglaFormatters.currencySymbol} ',
+              // Guardrail: opening balance and income both raise net worth, so
+              // entering the same money in both double-counts it.
+              helperText:
+                  'এটি শুরুর ব্যালেন্স — এই টাকা আবার আয় হিসেবে যোগ করবেন না।',
+              helperMaxLines: 2,
             ),
             validator: (value) {
               final amount = _parseAmount(value);

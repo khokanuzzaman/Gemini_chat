@@ -9,14 +9,14 @@ class _AnalyticsScreenContent extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
-  late int _selectedTabIndex;
+  late AnalyticsTab _selectedTab;
 
-  bool get _isAnomalyTabSelected => _selectedTabIndex == 4;
+  bool get _isAnomalyTabSelected => _selectedTab == AnalyticsTab.anomaly;
 
   @override
   void initState() {
     super.initState();
-    _selectedTabIndex = AppShellNavigation.analyticsTab.value;
+    _selectedTab = AppShellNavigation.analyticsTab.value;
     AppShellNavigation.analyticsTab.addListener(_handleExternalAnalyticsTab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _triggerPredictionLoadIfVisible();
@@ -73,9 +73,9 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
                 ),
                 child: AppSegmentedTabs(
                   tabs: tabs.map((tab) => tab.label).toList(growable: false),
-                  selectedIndex: _selectedTabIndex,
+                  selectedIndex: _selectedTab.index,
                   compact: tabs.length >= 4,
-                  onChanged: _selectDisplayTab,
+                  onChanged: (index) => _selectTab(AnalyticsTab.values[index]),
                 ),
               ),
               Expanded(
@@ -84,7 +84,7 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
                   switchInCurve: AppMotion.standard,
                   switchOutCurve: AppMotion.standard,
                   child: KeyedSubtree(
-                    key: ValueKey(_selectedTabIndex),
+                    key: ValueKey(_selectedTab),
                     child: _buildSelectedTab(
                       context: context,
                       state: state,
@@ -106,14 +106,23 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     );
   }
 
+  /// One entry per [AnalyticsTab], in enum order (the order IS the display
+  /// order, so the segmented control index maps straight onto the enum).
   List<_AnalyticsTabItem> _buildTabs() {
-    return const [
-      _AnalyticsTabItem(label: 'সারাংশ', displayIndex: 0),
-      _AnalyticsTabItem(label: 'ক্যাটাগরি', displayIndex: 1),
-      _AnalyticsTabItem(label: 'ওয়ালেট', displayIndex: 2),
-      _AnalyticsTabItem(label: 'আয়', displayIndex: 3),
-      _AnalyticsTabItem(label: 'অ্যানোমালি', displayIndex: 4),
+    return [
+      for (final tab in AnalyticsTab.values)
+        _AnalyticsTabItem(tab: tab, label: _labelFor(tab)),
     ];
+  }
+
+  String _labelFor(AnalyticsTab tab) {
+    return switch (tab) {
+      AnalyticsTab.summary => 'সারাংশ',
+      AnalyticsTab.category => 'ক্যাটাগরি',
+      AnalyticsTab.wallet => 'ওয়ালেট',
+      AnalyticsTab.income => 'আয়',
+      AnalyticsTab.anomaly => 'অ্যানোমালি',
+    };
   }
 
   Widget _buildSelectedTab({
@@ -121,31 +130,30 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     required AnalyticsState state,
     required AnomalyState anomalyState,
   }) {
-    return switch (_selectedTabIndex) {
-      0 => _buildScrollableTab(
+    return switch (_selectedTab) {
+      AnalyticsTab.summary => _buildScrollableTab(
         onRefresh: () =>
             ref.read(analyticsControllerProvider.notifier).refresh(),
         child: _SummaryTabContent(state: state),
       ),
-      1 => _buildScrollableTab(
+      AnalyticsTab.category => _buildScrollableTab(
         onRefresh: () =>
             ref.read(analyticsControllerProvider.notifier).refresh(),
         child: _CategoryTabContent(state: state),
       ),
-      2 => _buildScrollableTab(
+      AnalyticsTab.wallet => _buildScrollableTab(
         onRefresh: () =>
             ref.read(analyticsControllerProvider.notifier).refresh(),
         child: _WalletTabContent(selectedMonth: state.selectedMonth),
       ),
-      3 => _buildScrollableTab(
+      AnalyticsTab.income => _buildScrollableTab(
         onRefresh: _refreshIncomeTab,
         child: _IncomeTabContent(selectedMonth: state.selectedMonth),
       ),
-      4 => Padding(
+      AnalyticsTab.anomaly => Padding(
         padding: const EdgeInsets.only(top: AppSpacing.md),
         child: AnomalyView(includeTopPadding: false),
       ),
-      _ => const SizedBox.shrink(),
     };
   }
 
@@ -208,26 +216,26 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     );
   }
 
-  void _selectDisplayTab(int displayIndex) {
-    if (_selectedTabIndex == displayIndex) {
+  void _selectTab(AnalyticsTab tab) {
+    if (_selectedTab == tab) {
       return;
     }
 
     setState(() {
-      _selectedTabIndex = displayIndex;
+      _selectedTab = tab;
     });
-    AppShellNavigation.analyticsTab.value = displayIndex;
+    AppShellNavigation.analyticsTab.value = tab;
     _triggerPredictionLoadIfVisible();
   }
 
   void _handleExternalAnalyticsTab() {
-    final targetDisplayIndex = AppShellNavigation.analyticsTab.value;
-    if (targetDisplayIndex == _selectedTabIndex) {
+    final target = AppShellNavigation.analyticsTab.value;
+    if (target == _selectedTab) {
       return;
     }
 
     setState(() {
-      _selectedTabIndex = targetDisplayIndex;
+      _selectedTab = target;
     });
     _triggerPredictionLoadIfVisible();
   }
@@ -238,7 +246,7 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
     }
     // Analytics is a pushed screen now, so being mounted means it is the
     // visible screen; only the Summary sub-tab needs the prediction.
-    if (_selectedTabIndex != 0) {
+    if (_selectedTab != AnalyticsTab.summary) {
       return;
     }
     ref.read(predictionProvider.notifier).loadPrediction();
@@ -246,10 +254,10 @@ class _AnalyticsScreenState extends ConsumerState<_AnalyticsScreenContent> {
 }
 
 class _AnalyticsTabItem {
-  const _AnalyticsTabItem({required this.label, required this.displayIndex});
+  const _AnalyticsTabItem({required this.tab, required this.label});
 
+  final AnalyticsTab tab;
   final String label;
-  final int displayIndex;
 }
 
 class _MonthNavigator extends StatelessWidget {

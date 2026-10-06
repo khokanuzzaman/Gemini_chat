@@ -19,7 +19,7 @@ class AnomalyInsightPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = highCount > 0 ? AppColors.error : AppColors.warning;
     return AppCard(
-      onTap: () => AppShellNavigation.openAnalytics(tabIndex: 1),
+      onTap: () => AppShellNavigation.openAnalytics(tab: AnalyticsTab.anomaly),
       padding: const EdgeInsets.all(16),
       child: AppListTile(
         title: '${BanglaFormatters.count(count)}টি অস্বাভাবিক খরচ',

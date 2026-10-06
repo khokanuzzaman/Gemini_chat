@@ -14,6 +14,11 @@ import '../../features/split/presentation/screens/split_bill_screen.dart';
 /// enabled (Phase 2); with AI off the shell shows the other four.
 enum AppTab { home, chat, expenses, plan, more }
 
+/// The sub-tabs inside the Analytics screen, in display order. Always refer to
+/// these by name — never by index — so a re-order can't silently misroute a
+/// caller (the home anomaly card once opened ক্যাটাগরি instead of অ্যানোমালি).
+enum AnalyticsTab { summary, category, wallet, income, anomaly }
+
 /// The tabs the shell renders, in order. চ্যাট appears only when AI is enabled,
 /// so Phase 2 re-adds it in its §4 position simply by flipping the flag.
 List<AppTab> visibleAppTabs({required bool aiEnabled}) => <AppTab>[
@@ -36,9 +41,10 @@ class AppShellNavigation {
     AppTab.home,
   );
 
-  /// The Analytics screen's internal sub-tab (Summary/Category/Wallet/Income/
-  /// Anomaly). Read by [AnalyticsScreen] when it opens.
-  static final ValueNotifier<int> analyticsTab = ValueNotifier<int>(0);
+  /// The Analytics screen's selected sub-tab. Read by [AnalyticsScreen] when it
+  /// opens and kept in sync while it is open.
+  static final ValueNotifier<AnalyticsTab> analyticsTab =
+      ValueNotifier<AnalyticsTab>(AnalyticsTab.summary);
 
   static void openDashboard() => _setTab(AppTab.home);
 
@@ -51,10 +57,10 @@ class AppShellNavigation {
 
   static void openMore() => _setTab(AppTab.more);
 
-  /// Analytics is no longer a tab — it opens as a pushed screen. [tabIndex]
-  /// selects its inner sub-tab.
-  static void openAnalytics({int tabIndex = 0}) {
-    analyticsTab.value = tabIndex;
+  /// Analytics is no longer a tab — it opens as a pushed screen. [tab] selects
+  /// its inner sub-tab.
+  static void openAnalytics({AnalyticsTab tab = AnalyticsTab.summary}) {
+    analyticsTab.value = tab;
     _pushFromRoot(const AnalyticsScreen());
   }
 
@@ -95,7 +101,7 @@ class AppShellNavigation {
         openDashboard();
         break;
       case 'anomaly_alert':
-        openAnalytics(tabIndex: 4);
+        openAnalytics(tab: AnalyticsTab.anomaly);
         break;
       case 'weekly_report':
         openAnalytics();

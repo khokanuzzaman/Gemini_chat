@@ -442,13 +442,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: _version,
             trailing: const SizedBox.shrink(),
           ),
-          AppListTile(
-            leadingIcon: Icons.memory_rounded,
-            leadingColor: context.appColors.primary,
-            title: AppStrings.poweredBy,
-            subtitle: 'GPT-4o mini · Whisper · ML Kit OCR',
-            trailing: const SizedBox.shrink(),
-          ),
+          // Names the AI providers — only true (and only shown) when AI is on.
+          if (FeatureFlags.aiEnabled)
+            AppListTile(
+              leadingIcon: Icons.memory_rounded,
+              leadingColor: context.appColors.primary,
+              title: AppStrings.poweredBy,
+              subtitle: 'GPT-4o mini · Whisper · ML Kit OCR',
+              trailing: const SizedBox.shrink(),
+            ),
           AppListTile(
             leadingIcon: Icons.link_rounded,
             leadingColor: context.appColors.primary,
