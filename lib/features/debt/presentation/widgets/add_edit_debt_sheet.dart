@@ -14,6 +14,7 @@ import '../../domain/utils/emi_calculator.dart';
 import '../models/mutation_result.dart';
 import '../providers/debt_providers.dart';
 import '../utils/debt_ui.dart';
+import '../../../../core/money/whole_taka.dart';
 
 Future<MutationResult?> showAddEditDebtSheet(
   BuildContext context, {
@@ -204,7 +205,12 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
           TextFormField(
             controller: _amountController,
             readOnly: _isEditing,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            // New principal is whole taka (it moves the wallet by this amount).
+            // An existing debt's principal is read-only, so it is never re-validated.
+            keyboardType: TextInputType.number,
+            inputFormatters: _isEditing
+                ? null
+                : [FilteringTextInputFormatter.digitsOnly],
             style: AppTextStyles.titleLarge.copyWith(
               color: _isEMI
                   ? context.appColors.primary
@@ -225,9 +231,15 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                       .withValues(alpha: 0.08),
             ),
             validator: (value) {
+              if (_isEditing) {
+                return null; // read-only, may legitimately hold paisa
+              }
               final amount = double.tryParse(value?.trim() ?? '');
-              if (amount == null || amount <= 0) {
+              if (amount == null || amount < 1) {
                 return 'সঠিক টাকার পরিমাণ দিন';
+              }
+              if (!isWholeTaka(amount)) {
+                return 'পূর্ণ টাকায় দিন (পয়সা নয়)';
               }
               return null;
             },

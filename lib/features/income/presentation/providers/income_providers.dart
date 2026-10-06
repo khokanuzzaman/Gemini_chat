@@ -17,6 +17,7 @@ import '../../domain/usecases/get_income_for_month_usecase.dart';
 import '../../domain/usecases/get_income_totals_usecase.dart';
 import '../../domain/usecases/save_income_usecase.dart';
 import '../../domain/usecases/update_income_usecase.dart';
+import '../../../../core/money/whole_taka.dart';
 
 final incomeRefreshTokenProvider = StateProvider<int>((ref) => 0);
 
@@ -148,7 +149,11 @@ class IncomeMutationController {
         );
       }
 
+      if (!isRecordableAmount(income.amount)) {
+        return const DetectedIncomeSaveResult(error: 'সঠিক পরিমাণ লিখুন');
+      }
       final normalized = income.copyWith(
+        amount: wholeTaka(income.amount),
         walletId: resolvedWalletId,
         isManual: false,
       );
@@ -189,7 +194,11 @@ class IncomeMutationController {
         return 'কোনো ওয়ালেট পাওয়া যায়নি';
       }
 
+      if (!isRecordableAmount(income.amount)) {
+        return 'সঠিক পরিমাণ লিখুন';
+      }
       final normalized = income.copyWith(
+        amount: wholeTaka(income.amount),
         walletId: resolvedWalletId,
         isManual: true,
       );
@@ -235,14 +244,20 @@ class IncomeMutationController {
         return 'কোনো ওয়ালেট পাওয়া যায়নি';
       }
 
+      // Round each item BEFORE summing, so the batch credit == sum of records.
       final normalized = incomes
+          .where((entry) => isRecordableAmount(entry.amount))
           .map(
             (entry) => entry.copyWith(
+              amount: wholeTaka(entry.amount),
               walletId: resolvedWalletId,
               isManual: false,
             ),
           )
           .toList(growable: false);
+      if (normalized.isEmpty) {
+        return 'সঠিক পরিমাণ লিখুন';
+      }
 
       // One atomic ledger op for the whole batch: all N income rows + a single
       // summed credit commit together (deliberate C1 fix — no partial apply).
@@ -306,12 +321,17 @@ class IncomeMutationController {
   }
 
   Future<String?> updateIncome(
-    IncomeEntity newIncome,
+    IncomeEntity input,
     IncomeEntity oldIncome,
   ) async {
-    if (newIncome.id == null) {
+    if (input.id == null) {
       return 'এই আয়টি আপডেট করা যাচ্ছে না';
     }
+    if (!isRecordableAmount(input.amount)) {
+      return 'সঠিক পরিমাণ লিখুন';
+    }
+    // Whole taka, once: the record and the amended wallet delta agree.
+    final newIncome = input.copyWith(amount: wholeTaka(input.amount));
 
     try {
       // Record update + wallet move in one atomic ledger op. Income credit that

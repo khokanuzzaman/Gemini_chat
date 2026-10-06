@@ -6,6 +6,7 @@ import '../../domain/entities/debt_entity.dart';
 import '../../domain/utils/emi_calculator.dart';
 import '../models/debt_model.dart';
 import '../models/debt_payment_model.dart';
+import '../../domain/utils/debt_amounts.dart';
 
 class DebtLocalDataSource {
   const DebtLocalDataSource(this._isar);
@@ -171,14 +172,19 @@ class DebtLocalDataSource {
       debt.totalInstallments,
       debt.paidInstallments + 1,
     );
+    if (installmentPaymentAmount(
+          emiAmount: debt.emiAmount,
+          remaining: debt.remainingAmount,
+        ) <=
+        0) {
+      return null;
+    }
     final payment = DebtPaymentModel()
       ..debtId = debtId
-      ..amount = math
-          .min(
-            math.max(0.0, debt.emiAmount),
-            math.max(0.0, debt.remainingAmount),
-          )
-          .toDouble()
+      ..amount = installmentPaymentAmount(
+        emiAmount: debt.emiAmount,
+        remaining: debt.remainingAmount,
+      )
       ..walletId = walletId
       ..paidAt = DateTime.now()
       ..isInstallment = true
@@ -436,6 +442,11 @@ class DebtLocalDataSource {
     debt.remainingAmount = (debt.remainingAmount - payment.amount)
         .clamp(0.0, double.infinity)
         .toDouble();
+    // Below ৳1 can't be paid in whole taka: it is settled (so a debt that already
+    // carries paisa, e.g. ৳1,250.40, can always be closed).
+    if (debt.remainingAmount < debtDustThreshold) {
+      debt.remainingAmount = 0;
+    }
 
     if (debt.isEMI && payment.isInstallment) {
       debt.paidInstallments = math.min(

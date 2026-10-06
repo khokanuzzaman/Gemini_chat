@@ -31,6 +31,7 @@ import '../../domain/usecases/get_expense_list_usecase.dart';
 import '../../domain/usecases/save_expense_usecase.dart';
 import '../../domain/usecases/update_expense_usecase.dart';
 import 'expense_refresh_provider.dart';
+import '../../../../core/money/whole_taka.dart';
 
 export 'expense_refresh_provider.dart';
 
@@ -320,10 +321,15 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     }
   }
 
-  Future<String?> updateExpense(ExpenseEntity expense) async {
-    if (expense.id == null) {
+  Future<String?> updateExpense(ExpenseEntity input) async {
+    if (input.id == null) {
       return 'এই খরচটি আপডেট করা যাচ্ছে না';
     }
+    if (!isRecordableAmount(input.amount)) {
+      return 'সঠিক পরিমাণ লিখুন';
+    }
+    // Whole taka, once: the record and the amended wallet delta agree.
+    final expense = input.copyWith(amount: wholeTaka(input.amount));
 
     try {
       final currentState = state.valueOrNull;
@@ -591,8 +597,13 @@ class ExpenseMutationController {
         );
       }
 
+      // Whole taka, once, before anything is built: the record and the wallet
+      // delta below then see the SAME amount (and dedupe compares like with like).
+      if (!isRecordableAmount(expenseData.amount)) {
+        return const DetectedExpenseSaveResult(error: 'সঠিক পরিমাণ লিখুন');
+      }
       final expense = ExpenseEntity(
-        amount: expenseData.amount,
+        amount: wholeTaka(expenseData.amount),
         category: expenseData.category,
         description: expenseData.description.trim().isEmpty
             ? AppStrings.expenseLabel
@@ -655,9 +666,11 @@ class ExpenseMutationController {
 
       final validExpenses = expenses
           .where((expense) => expense.isValid)
+          // Round each item BEFORE summing, so the batch delta == sum of records.
+          .where((expense) => isRecordableAmount(expense.amount))
           .map(
             (expense) => ExpenseEntity(
-              amount: expense.amount,
+              amount: wholeTaka(expense.amount),
               category: expense.category,
               description: expense.description.trim().isEmpty
                   ? AppStrings.expenseLabel
@@ -749,8 +762,12 @@ class ExpenseMutationController {
       final dateValue = receiptData['date'] as String? ?? '';
       final merchant = receiptData['merchant'] as String? ?? 'Receipt';
       final summary = receiptData['summary'] as String? ?? '';
+      final rawTotal = total is num ? total.toDouble() : 0.0;
+      if (!isRecordableAmount(rawTotal)) {
+        return 'সঠিক পরিমাণ লিখুন';
+      }
       final expense = ExpenseEntity(
-        amount: total is num ? total.toDouble() : 0,
+        amount: wholeTaka(rawTotal),
         category: receiptData['category'] as String? ?? 'Other',
         description: summary.trim().isEmpty ? merchant : summary.trim(),
         date: ExpenseData.parseDateValue(dateValue),
@@ -798,7 +815,11 @@ class ExpenseMutationController {
       final normalizedDescription = expense.description.trim().isEmpty
           ? AppStrings.expenseLabel
           : expense.description.trim();
+      if (!isRecordableAmount(expense.amount)) {
+        return 'সঠিক পরিমাণ লিখুন';
+      }
       final normalizedExpense = expense.copyWith(
+        amount: wholeTaka(expense.amount),
         description: normalizedDescription,
         walletId: resolvedWalletId,
         isManual: true,

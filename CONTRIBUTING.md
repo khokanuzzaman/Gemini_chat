@@ -251,6 +251,26 @@ live in `widgets/home/`; with ZERO expenses AND ZERO income Home shows `HomeWelc
   `build/r1_preview/*.png` (git-ignored; no emoji glyphs on the host, so wallet emojis show
   as boxes there but not on a device).
 
+## Money is whole taka (record == wallet)
+Expense and income RECORDS store an integer; the wallet ledger applies a double delta. A
+fractional amount reaching both would leave the record at ৳121 and the wallet at ৳120.50.
+- **Round ONCE at the boundary** with `wholeTaka()` (`core/money/whole_taka.dart`, the same
+  `.round()` the mapper uses) BEFORE building the entity, then use that same value for the
+  record and the delta. Every controller path does (manual, detected single + batch — each
+  item rounded before summing —, receipt/AI, edit/update, income equivalents, debt payments
+  and their mirrored expense). Don't add a path that builds an entity from a raw double.
+- An amount that rounds to ৳0 is rejected (`isRecordableAmount`), not saved as a ৳0 record.
+- **Debts are whole taka too** (new principal and every payment; the sheets are digits-only).
+  A balance below ৳1 is dust and counts as settled (`debtDustThreshold`), so an existing
+  fractional debt (e.g. ৳1,250.40) closes with a ৳1,250 payment; a debt already under ৳1
+  accepts ৳1. `installmentPaymentAmount()` is the ONE definition of an EMI payment, used by
+  both the controller (wallet delta) and the datasource (payment row).
+- A wallet's OPENING balance stays a double (a starting point, not a transaction).
+- Wallets that drifted before this fix are NOT reconciled (their opening/debt/goal history
+  can't be reconstructed from records); a wallet whose `currentBalance − initialBalance` is
+  not whole may be one. Tests: `test/core/money/` (incl. a mutation check — with rounding
+  disabled they fail).
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

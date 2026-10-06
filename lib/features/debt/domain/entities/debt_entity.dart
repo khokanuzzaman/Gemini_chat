@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../utils/debt_amounts.dart';
 
 enum DebtType { iOwe, theyOwe }
 
@@ -92,12 +93,15 @@ class DebtEntity {
   int get remainingInstallments =>
       math.max(0, totalInstallments - paidInstallments);
 
+  /// What the next payment is, in whole taka (what the wallet will move).
   double get nextInstallmentAmount {
     if (!isEMI) {
-      return remainingAmount;
+      return maxWholeTakaPayment(remainingAmount);
     }
-    final scheduledAmount = emiAmount > 0 ? emiAmount : remainingAmount;
-    return math.min(remainingAmount, scheduledAmount).toDouble();
+    return installmentPaymentAmount(
+      emiAmount: emiAmount > 0 ? emiAmount : remainingAmount,
+      remaining: remainingAmount,
+    );
   }
 
   DebtEntity copyWith({

@@ -34,6 +34,8 @@ import '../../domain/usecases/settle_debt_usecase.dart';
 import '../../domain/usecases/update_debt_usecase.dart';
 import '../../domain/utils/emi_calculator.dart';
 import '../models/mutation_result.dart';
+import '../../../../core/money/whole_taka.dart';
+import '../../domain/utils/debt_amounts.dart';
 
 final debtRefreshTokenProvider = StateProvider<int>((ref) => 0);
 
@@ -370,6 +372,9 @@ class DebtMutationController {
     if (validationError != null) {
       return MutationResult.failure(validationError);
     }
+    if (!isRecordableAmount(debt.originalAmount)) {
+      return MutationResult.failure('সঠিক টাকার পরিমাণ দিন');
+    }
 
     try {
       final warnings = <String>[];
@@ -527,10 +532,13 @@ class DebtMutationController {
 
   Future<MutationResult> addPayment(
     int debtId,
-    double amount, {
+    double rawAmount, {
     int? walletId,
     String? note,
   }) async {
+    // Whole taka, once: the payment row, the mirrored expense and the wallet delta
+    // below all use this same amount.
+    final amount = wholeTaka(rawAmount);
     final debt = await _ref.read(getDebtByIdUseCaseProvider).call(debtId);
     if (debt == null) {
       return MutationResult.failure('ধার-দেনার রেকর্ডটি খুঁজে পাওয়া যায়নি');
@@ -541,10 +549,10 @@ class DebtMutationController {
         currentStatus == DebtStatus.cancelled) {
       return MutationResult.failure('এই রেকর্ডে আর পরিশোধ যোগ করা যাবে না');
     }
-    if (amount <= 0) {
+    if (amount < 1) {
       return MutationResult.failure('সঠিক পরিশোধের পরিমাণ দিন');
     }
-    if (amount > debt.remainingAmount) {
+    if (amount > maxWholeTakaPayment(debt.remainingAmount)) {
       return MutationResult.failure(
         'পরিশোধের পরিমাণ বাকি টাকার চেয়ে বেশি হতে পারবে না',
       );
@@ -819,8 +827,11 @@ class DebtMutationController {
     required DebtEntity debt,
     required int? resolvedWalletId,
   }) {
+    // A NEW debt's principal is whole taka (it moves the wallet by this amount).
     final normalizedDebt = debt.copyWith(
       personName: debt.personName.trim(),
+      originalAmount: wholeTaka(debt.originalAmount),
+      emiAmount: wholeTaka(debt.emiAmount),
       walletId: resolvedWalletId,
       createdAt: debt.createdAt,
     );

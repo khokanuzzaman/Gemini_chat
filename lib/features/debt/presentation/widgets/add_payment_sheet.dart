@@ -10,6 +10,9 @@ import '../../domain/entities/debt_entity.dart';
 import '../models/mutation_result.dart';
 import '../providers/debt_providers.dart';
 import '../utils/debt_ui.dart';
+import 'package:flutter/services.dart';
+import '../../../../core/money/whole_taka.dart';
+import '../../domain/utils/debt_amounts.dart';
 
 Future<MutationResult?> showAddPaymentSheet(
   BuildContext context, {
@@ -106,18 +109,20 @@ class _AddPaymentSheetState extends ConsumerState<AddPaymentSheet> {
                 label: '৫০%',
                 color: accent,
                 onTap: () {
-                  _amountController.text = _formatAmount(
-                    widget.debt.remainingAmount / 2,
-                  );
+                  // Whole taka, at least ৳1.
+                  final half =
+                      (maxWholeTakaPayment(widget.debt.remainingAmount) / 2)
+                          .floor();
+                  _amountController.text = (half < 1 ? 1 : half).toString();
                 },
               ),
               AppChip(
                 label: 'পুরোটা',
                 color: accent,
                 onTap: () {
-                  _amountController.text = _formatAmount(
+                  _amountController.text = maxWholeTakaPayment(
                     widget.debt.remainingAmount,
-                  );
+                  ).toStringAsFixed(0);
                 },
               ),
             ],
@@ -126,22 +131,28 @@ class _AddPaymentSheetState extends ConsumerState<AddPaymentSheet> {
           TextFormField(
             controller: _amountController,
             autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            // Whole taka only: the payment, its expense record and the wallet
+            // all move by the same integer.
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: AppTextStyles.titleLarge.copyWith(color: accent),
             decoration: InputDecoration(
-              labelText: 'পরিশোধের পরিমাণ',
+              labelText: 'পরিশোধের পরিমাণ (পূর্ণ টাকা)',
               hintText:
-                  'সর্বোচ্চ: ${BanglaFormatters.currency(widget.debt.remainingAmount)}',
+                  'সর্বোচ্চ: ${BanglaFormatters.currency(maxWholeTakaPayment(widget.debt.remainingAmount))}',
               prefixText: '${BanglaFormatters.currencySymbol} ',
               filled: true,
               fillColor: accent.withValues(alpha: 0.08),
             ),
             validator: (value) {
               final amount = double.tryParse(value?.trim() ?? '');
-              if (amount == null || amount <= 0) {
+              if (amount == null || amount < 1) {
                 return 'সঠিক টাকার পরিমাণ দিন';
               }
-              if (amount > widget.debt.remainingAmount) {
+              if (!isWholeTaka(amount)) {
+                return 'পূর্ণ টাকায় দিন (পয়সা নয়)';
+              }
+              if (amount > maxWholeTakaPayment(widget.debt.remainingAmount)) {
                 return 'বাকি টাকার চেয়ে বেশি দেওয়া যাবে না';
               }
               return null;
@@ -216,10 +227,5 @@ class _AddPaymentSheetState extends ConsumerState<AddPaymentSheet> {
   String? _normalizeText(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
-  }
-
-  String _formatAmount(double amount) {
-    final hasFraction = (amount - amount.round()).abs() >= 0.01;
-    return hasFraction ? amount.toStringAsFixed(2) : amount.toStringAsFixed(0);
   }
 }
