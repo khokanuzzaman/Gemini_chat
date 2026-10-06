@@ -65,6 +65,13 @@ extension ExpenseSourcePolicy on ExpenseSource {
     ExpenseSource.goalDeposit => false,
   };
 
+  /// The খরচ list may edit or delete this row. Only an ordinary expense is
+  /// owned by the expense list: a debtPayment mirrors a DebtPayment (and moves
+  /// the debt's remaining amount), a goalDeposit mirrors a goal contribution.
+  /// Changing or removing the mirror alone would desync the owner, so those
+  /// are changed from their own screen, where the whole thing reverses together.
+  bool get editableFromExpenseList => this == ExpenseSource.expense;
+
   /// Appears as an outflow in cash flow — all real money movement is visible.
   bool get countsInCashFlow => switch (this) {
     ExpenseSource.expense => true,

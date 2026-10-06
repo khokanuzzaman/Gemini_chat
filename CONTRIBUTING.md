@@ -292,6 +292,28 @@ recurring" action lives there) — R3 restyles both.
 - Preview without a phone: `R2_PREVIEW=1 flutter test test/features/expense/add_entry_preview_test.dart`
   -> `build/r2_preview/*.png`.
 
+## EMI / goal rows are read-only in the খরচ list (R3)
+
+An expense record with `sourceType != ExpenseSource.expense` is a **mirror** owned
+by another feature: a `debtPayment` row mirrors a `DebtPayment` (and moved the
+debt's remaining amount), a `goalDeposit` row mirrors a goal contribution.
+Editing or deleting only the mirror amends the wallet and the record but not the
+owner, so the books disagree. Therefore:
+
+- `ExpenseListController.updateExpense` / `deleteExpense` **refuse** those rows
+  (`ExpenseSource.editableFromExpenseList`). The check looks at the *stored* row
+  as well as the entity the caller passed, so relabelling an entity with
+  `copyWith(sourceType: expense)` does not get around it. Nothing is written.
+- The list opens `showManagedExpenseSheet` instead (read-only, with "দেনা-পাওনা
+  থেকে পরিবর্তন করুন" → debt detail). Swipe-to-delete is off for these rows.
+- A payment is undone from the **debt detail** screen ("পরিশোধ মুছুন" → confirm →
+  `DebtMutationController.deletePayment`), which reverses the payment, the mirror
+  expense, the wallet and the debt's remaining amount in one ledger op.
+- Any new surface that edits/deletes expenses must go through the same
+  controller methods (never `ExpenseLocalDataSource` directly) so the guard
+  applies. A new mirrored source = add it to `ExpenseSource` (append only) and it
+  is read-only here by default.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

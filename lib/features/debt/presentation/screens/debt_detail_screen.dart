@@ -168,6 +168,17 @@ class DebtDetailScreen extends ConsumerWidget {
                             wallets,
                             detail.payments[index].walletId,
                           ),
+                          onDelete: () => _confirmDeletePayment(
+                            context,
+                            ref,
+                            debt,
+                            detail.payments[index],
+                            _findWallet(
+                              wallets,
+                              detail.payments[index].walletId ??
+                                  debt.walletId,
+                            ),
+                          ),
                         ),
                         if (index != detail.payments.length - 1)
                           Divider(
@@ -347,6 +358,65 @@ class DebtDetailScreen extends ConsumerWidget {
     final result = await ref
         .read(debtMutationControllerProvider)
         .settleDebt(debt.id);
+    if (!context.mounted) {
+      return;
+    }
+    showDebtMutationResultSnackBar(context, result);
+  }
+
+  /// Undoes ONE payment: the payment, its mirror expense (iOwe), the wallet
+  /// effect and the debt's remaining amount all reverse in one ledger op
+  /// ([DebtMutationController.deletePayment]). This is also where an EMI row
+  /// from the খরচ list is changed, since that list shows it read-only.
+  Future<void> _confirmDeletePayment(
+    BuildContext context,
+    WidgetRef ref,
+    DebtEntity debt,
+    DebtPaymentEntity payment,
+    WalletEntity? wallet,
+  ) async {
+    final amount = BanglaFormatters.currency(payment.amount);
+    final walletLine = wallet == null
+        ? null
+        : debt.type == DebtType.iOwe
+        ? '${wallet.emoji} ${wallet.name} ওয়ালেটে $amount ফেরত যাবে।'
+        : '${wallet.emoji} ${wallet.name} ওয়ালেট থেকে $amount কমবে।';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('পরিশোধ মুছবেন?'),
+          content: Text(
+            [
+              '$amount এর এই পরিশোধ মুছে যাবে এবং বাকি পরিমাণ আবার বাড়বে।',
+              ?walletLine,
+              if (debt.type == DebtType.iOwe)
+                'খরচের তালিকা থেকেও এই এন্ট্রি সরে যাবে।',
+            ].join('\n'),
+          ),
+          actions: [
+            AppActionButton(
+              label: 'না',
+              variant: AppActionButtonVariant.ghost,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+            ),
+            AppActionButton(
+              label: 'পরিশোধ মুছুন',
+              variant: AppActionButtonVariant.danger,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final result = await ref
+        .read(debtMutationControllerProvider)
+        .deletePayment(payment.id);
     if (!context.mounted) {
       return;
     }
@@ -594,11 +664,13 @@ class _PaymentTile extends StatelessWidget {
     required this.debt,
     required this.payment,
     required this.wallet,
+    required this.onDelete,
   });
 
   final DebtEntity debt;
   final DebtPaymentEntity payment;
   final WalletEntity? wallet;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -617,15 +689,29 @@ class _PaymentTile extends StatelessWidget {
         ? 'কিস্তি #${BanglaFormatters.count(payment.installmentNumber!)}'
         : '${BanglaFormatters.currency(payment.amount)} পরিশোধ';
 
-    return AppListTile(
-      title: title,
-      subtitle: subtitleParts.join(' · '),
-      leadingIcon: Icons.payment_rounded,
-      leadingColor: leadingColor,
-      trailingAmount: payment.amount,
-      trailingAmountIsIncome: debt.type == DebtType.theyOwe,
-      trailingAmountIsExpense: debt.type == DebtType.iOwe,
-      dense: true,
+    return Row(
+      children: [
+        Expanded(
+          child: AppListTile(
+            title: title,
+            subtitle: subtitleParts.join(' · '),
+            leadingIcon: Icons.payment_rounded,
+            leadingColor: leadingColor,
+            trailingAmount: payment.amount,
+            trailingAmountIsIncome: debt.type == DebtType.theyOwe,
+            trailingAmountIsExpense: debt.type == DebtType.iOwe,
+            onLongPress: onDelete,
+            dense: true,
+          ),
+        ),
+        IconButton(
+          onPressed: onDelete,
+          icon: const Icon(Icons.delete_outline_rounded),
+          tooltip: 'পরিশোধ মুছুন',
+          iconSize: 20,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
     );
   }
 }

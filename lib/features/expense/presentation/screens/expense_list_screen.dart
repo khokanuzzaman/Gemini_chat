@@ -17,9 +17,11 @@ import '../../../wallet/presentation/providers/wallet_provider.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../../domain/entities/expense_entity.dart';
 import '../../domain/entities/expense_list_filter.dart';
+import '../../domain/entities/expense_source.dart';
 import '../providers/expense_providers.dart';
 import '../utils/expense_category_meta.dart';
 import '../widgets/add_entry/add_entry_sheet.dart';
+import '../widgets/expense_list/managed_expense_sheet.dart';
 
 part '../widgets/expense_list/expense_list_screen_content.dart';
 

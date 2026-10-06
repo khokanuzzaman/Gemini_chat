@@ -21,6 +21,7 @@ import '../../data/repositories/expense_repository_impl.dart';
 import '../../domain/entities/analytics_data.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../../domain/entities/expense_entity.dart';
+import '../../domain/entities/expense_source.dart';
 import '../../domain/entities/expense_source_filters.dart';
 import '../../domain/entities/expense_list_filter.dart';
 import '../../domain/repositories/expense_repository.dart';
@@ -278,6 +279,10 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     if (expense.id == null) {
       return 'এই খরচটি মুছা যাচ্ছে না';
     }
+    final managedBy = await _managedElsewhereMessage(expense);
+    if (managedBy != null) {
+      return managedBy;
+    }
 
     try {
       final currentState = state.valueOrNull;
@@ -327,6 +332,10 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
     }
     if (!isRecordableAmount(input.amount)) {
       return 'সঠিক পরিমাণ লিখুন';
+    }
+    final managedBy = await _managedElsewhereMessage(input);
+    if (managedBy != null) {
+      return managedBy;
     }
     // Whole taka, once: the record and the amended wallet delta agree.
     final expense = input.copyWith(amount: wholeTaka(input.amount));
@@ -388,6 +397,26 @@ class ExpenseListController extends AsyncNotifier<ExpenseListState> {
         .read(getExpenseListUseCaseProvider)
         .call(_filter);
     return ExpenseListState(expenses: expenses, filter: _filter);
+  }
+
+  /// Non-null (a user-facing reason) when this row belongs to another feature
+  /// and must be changed there. Checks BOTH the entity the caller passed and
+  /// the STORED row, so a caller cannot launder a debtPayment through
+  /// `copyWith(sourceType: ...)`. Nothing is written when this returns non-null.
+  Future<String?> _managedElsewhereMessage(ExpenseEntity expense) async {
+    final stored =
+        _findExpenseInState(state.valueOrNull?.expenses, expense.id!) ??
+        await _findExpenseById(expense.id!);
+    for (final source in [expense.sourceType, ?stored?.sourceType]) {
+      if (!source.editableFromExpenseList) {
+        return switch (source) {
+          ExpenseSource.debtPayment =>
+            'এটি দেনা-পাওনার পরিশোধ — দেনা-পাওনা থেকে পরিবর্তন করুন',
+          _ => 'এটি লক্ষ্যের জমা — লক্ষ্য থেকে পরিবর্তন করুন',
+        };
+      }
+    }
+    return null;
   }
 
   void _notifyExpenseChanged() {

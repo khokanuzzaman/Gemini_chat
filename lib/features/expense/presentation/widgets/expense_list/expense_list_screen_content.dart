@@ -201,6 +201,11 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
       showAddEntrySheet(context);
 
   Future<void> _openEditExpense(ExpenseEntity expense) async {
+    // Debt/goal-owned rows are read-only here; see showManagedExpenseSheet.
+    if (!expense.sourceType.editableFromExpenseList) {
+      await showManagedExpenseSheet(context, expense);
+      return;
+    }
     final updated = await AppBottomSheet.show<bool>(
       context: context,
       title: 'খরচ সম্পাদনা করুন',
@@ -218,6 +223,10 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
   }
 
   Future<void> _confirmDeleteExpense(ExpenseEntity expense) async {
+    if (!expense.sourceType.editableFromExpenseList) {
+      await showManagedExpenseSheet(context, expense);
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -769,7 +778,11 @@ class _ExpenseCard extends ConsumerWidget {
       key: ValueKey(
         'expense-card-${expense.id}-${expense.date.toIso8601String()}',
       ),
-      direction: DismissDirection.endToStart,
+      // Managed (EMI/goal) rows never swipe-delete; onDelete routes them to
+      // the read-only sheet if reached some other way (long-press).
+      direction: expense.sourceType.editableFromExpenseList
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       confirmDismiss: (_) async {
         await onDelete();
         return false;
