@@ -271,6 +271,27 @@ fractional amount reaching both would leave the record at ৳121 and the wallet 
   not whole may be one. Tests: `test/core/money/` (incl. a mutation check — with rounding
   disabled they fail).
 
+## Add entry sheet (R2) — rules
+ONE sheet adds an expense or income by hand: `showAddEntrySheet(context, initialType:)`
+(`widgets/add_entry/`). Home FAB, the খরচ tab, the empty state, the offline banner, chat and
+the income list's add button all come through it (`showManualAddSheet` is a thin wrapper).
+`AddEditIncomeSheet` is now EDIT-only, and the expense edit sheet is unchanged (its "mark as
+recurring" action lives there) — R3 restyles both.
+- **Save path is untouched:** `saveManualExpense` / `saveManualIncome`, same validation and
+  messages; the note maps to `description` (expenses have no separate note field).
+- **Whole taka, custom keypad:** `AmountInput` (`core/money/`) is the pure input model —
+  digits only, no decimal key, ≤9 digits, Bengali display with live grouping. Hardware
+  keyboards work (digits/numpad/backspace/delete/enter) but are ignored while the note is
+  being typed. Keys are labelled buttons ≥48dp.
+- **Layout contract:** keypad + save are pinned at the bottom and always on screen; the
+  chips/wallet/date/note area scrolls. While the note is focused the keypad steps aside for
+  the system keyboard and the form collapses to amount + date + note. `add_entry_overflow_test`
+  checks 320×568 … 411×850, ×1.0/×1.3, light/dark, both types, keyboard open and closed.
+- **Last-used choice** (category for খরচ, source for আয়) is remembered per type in
+  SharedPreferences and falls back to Food / nothing when it no longer exists.
+- Preview without a phone: `R2_PREVIEW=1 flutter test test/features/expense/add_entry_preview_test.dart`
+  -> `build/r2_preview/*.png`.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

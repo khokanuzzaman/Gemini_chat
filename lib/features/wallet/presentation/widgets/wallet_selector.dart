@@ -11,11 +11,15 @@ class WalletSelectorWidget extends ConsumerWidget {
     required this.selectedWalletId,
     required this.onChanged,
     this.label = 'ওয়ালেট',
+    this.selectedColor,
   });
 
   final int? selectedWalletId;
   final ValueChanged<int> onChanged;
   final String? label;
+
+  /// Fill of the selected chip (defaults to the primary fill).
+  final Color? selectedColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -83,12 +87,14 @@ class WalletSelectorWidget extends ConsumerWidget {
                             ),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? context.tokens.primaryFill
+                                  ? (selectedColor ??
+                                        context.tokens.primaryFill)
                                   : context.mutedSurfaceColor,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                 color: isSelected
-                                    ? context.tokens.primaryFill
+                                    ? (selectedColor ??
+                                          context.tokens.primaryFill)
                                     : context.borderColor,
                               ),
                             ),
@@ -123,14 +129,20 @@ class WalletSelectorWidget extends ConsumerWidget {
           loading: () => SizedBox(
             height: 42,
             child: AppShimmer(
-              child: Row(
-                children: const [
-                  _WalletChipPlaceholder(width: 96),
-                  SizedBox(width: 8),
-                  _WalletChipPlaceholder(width: 104),
-                  SizedBox(width: 8),
-                  _WalletChipPlaceholder(width: 92),
-                ],
+              // Scrollable (but inert) so the three placeholders (308dp) can't
+              // overflow a 320dp-wide phone while wallets load.
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                child: Row(
+                  children: const [
+                    _WalletChipPlaceholder(width: 96),
+                    SizedBox(width: 8),
+                    _WalletChipPlaceholder(width: 104),
+                    SizedBox(width: 8),
+                    _WalletChipPlaceholder(width: 92),
+                  ],
+                ),
               ),
             ),
           ),

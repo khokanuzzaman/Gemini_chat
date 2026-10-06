@@ -10,6 +10,8 @@ import '../../domain/entities/income_entity.dart';
 import '../../domain/entities/income_source.dart';
 import '../providers/income_providers.dart';
 import '../widgets/add_edit_income_sheet.dart';
+import '../../../expense/presentation/widgets/add_entry/add_entry_sheet.dart';
+import '../../../expense/presentation/widgets/add_entry/entry_type.dart';
 
 /// Standalone আয় screen (pushed from আরও / openIncome). Wraps [IncomeListBody]
 /// in its own scaffold; the segmented খরচ tab reuses the body directly.
@@ -196,21 +198,8 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
     return grouped;
   }
 
-  Future<void> _openAddSheet() async {
-    final saved = await showAddEditIncomeSheet(context);
-    if (saved != true || !mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('আয় সংরক্ষণ হয়েছে'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-  }
+  Future<void> _openAddSheet() =>
+      showAddEntrySheet(context, initialType: EntryType.income);
 
   Future<void> _openEditSheet(IncomeEntity entry) async {
     final updated = await showAddEditIncomeSheet(

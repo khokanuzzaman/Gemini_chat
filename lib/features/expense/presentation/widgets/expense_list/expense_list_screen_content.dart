@@ -197,24 +197,8 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
     });
   }
 
-  Future<void> _openManualAdd(BuildContext context) async {
-    final saved = await Navigator.of(
-      context,
-    ).push<bool>(AppSlideUpRoute(builder: (_) => const ManualAddScreen()));
-
-    if (saved != true || !context.mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('খরচ সংরক্ষণ হয়েছে'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-  }
+  Future<void> _openManualAdd(BuildContext context) =>
+      showAddEntrySheet(context);
 
   Future<void> _openEditExpense(ExpenseEntity expense) async {
     final updated = await AppBottomSheet.show<bool>(
