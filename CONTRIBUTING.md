@@ -201,6 +201,21 @@ Phase 1 shows no ads, so the app does not use the Advertising ID. Firebase Analy
    (`apkanalyzer manifest permissions app-release.apk | grep -i AD`) before each release.
 4. Re-check the merged release manifest and the privacy policy text.
 
+## Upcoming obligations (G4) — rules
+`upcomingObligationsProvider` (`features/obligations/`) is the ONE "what's due" list
+(read-only; no new data): active monthly/weekly recurring entries + debts I owe
+(`iOwe`, open, with a due date), next 30 days plus anything overdue.
+- **Don't use `RecurringExpenseEntity.nextExpected`.** It is stamped once when an entry is
+  created and never advanced, so it goes stale; the next date is derived from
+  `dayOfMonth`/`dayOfWeek` relative to today (day 31 clamps per month, from the original
+  day: Jan 31 -> Feb 28 -> Mar 31).
+- **De-dup signature:** an EMI payment expense marked recurring leaves a recurring entry
+  with category `EMI` and the debt's person name as description (what
+  `_debtExpenseDescription` writes). That entry is dropped in favour of the debt
+  instalment. Never de-dup on amount/date — it would hide a rent that shares a day.
+- Daily recurring entries are habits, not obligations, and are excluded. The provider
+  recomputes on data changes / Home refresh, not at midnight.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
