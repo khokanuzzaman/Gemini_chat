@@ -182,6 +182,25 @@ then-current plugin APIs**. To restore:
    before enabling OCR on iOS.
 8. Re-run both test modes, build a release APK + AAB, and re-measure per-ABI size.
 
+## Advertising ID is removed in Phase 1 — re-adding it with AdMob (Phase 2)
+Phase 1 shows no ads, so the app does not use the Advertising ID. Firebase Analytics adds
+`com.google.android.gms.permission.AD_ID` and `ACCESS_ADSERVICES_AD_ID` /
+`ACCESS_ADSERVICES_ATTRIBUTION` transitively; `AndroidManifest.xml` strips them with
+`tools:node="remove"` and sets `google_analytics_adid_collection_enabled`,
+`..._default_allow_ad_personalization_signals`, `..._default_allow_ad_storage` and
+`..._default_allow_ad_user_data` to `false`. Analytics events are unaffected
+(`analytics_storage` is untouched). When AdMob (or any ad SDK) is added in Phase 2:
+1. Delete the three `tools:node="remove"` permission lines and flip the four
+   `google_analytics_*` meta-data values (ad storage / user data / personalization are
+   consent-gated — wire them to the consent flow, don't just set them `true`).
+2. **Update the Play Console "Advertising ID" declaration** (Policy > App content) to
+   "yes, the app uses it", with the purpose (advertising).
+3. **Update Data Safety**: declare device/other IDs collected for advertising, and whether
+   they are shared; add the ad SDK's disclosures. The Phase 1 listing must say the app
+   does NOT use the Advertising ID — keep it consistent with the merged manifest
+   (`apkanalyzer manifest permissions app-release.apk | grep -i AD`) before each release.
+4. Re-check the merged release manifest and the privacy policy text.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
