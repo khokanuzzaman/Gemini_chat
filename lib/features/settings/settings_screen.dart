@@ -452,6 +452,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               trailing: const SizedBox.shrink(),
             ),
           AppListTile(
+            leadingIcon: Icons.description_outlined,
+            leadingColor: context.appColors.primary,
+            title: 'ওপেন সোর্স লাইসেন্স',
+            subtitle: 'অ্যাপে ব্যবহৃত ফন্ট ও লাইব্রেরির লাইসেন্স',
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: AppStrings.appName,
+              applicationVersion: _version,
+            ),
+          ),
+          AppListTile(
             leadingIcon: Icons.link_rounded,
             leadingColor: context.appColors.primary,
             title: 'GitHub লিংক কপি করুন',
