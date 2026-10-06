@@ -98,6 +98,26 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
   `build/app/outputs/mapping/release/missing_rules.txt` is absent/empty, then smoke
   test on a device.
 
+## Net-worth snapshots (G1) — rules
+- `NetWorthSnapshotModel` records মোট সম্পদ once per local day, forward-only (no
+  backfill — opening balances and debt principal bypass expense records, so a
+  reconstruction would be silently wrong). Capture is open-based: first frame +
+  every resume (`NetWorthSnapshotService.captureIfNeeded`); days the app wasn't
+  opened are gaps, never invented.
+- One row per `dayKey` (`yyyymmdd`); later same-day resumes refresh it only if the
+  total or a wallet balance changed. The first open after a month-end keeps its real
+  date. Retention: daily 90 days -> weekly to 12 months -> the first AND last
+  snapshot of every month forever.
+- **Net worth has ONE definition: `netWorthOf()`** (`wallet/domain/entities/
+  net_worth.dart`), shared by `totalBalanceProvider` and the snapshots. Don't
+  re-implement the sum.
+- **Every new Isar collection must be added to all of:** `Isar.open` in `main.dart`,
+  `IsarExportService` (export + import), `clearAllUserCollections()`
+  (`core/database/clear_all_data.dart`, "সব ডেটা মুছুন"), and the schema lists in the
+  backup tests.
+- Backup format stays `version: 1`; `netWorthSnapshots` is an additive key. Restoring
+  an older backup without it keeps local snapshots (that history can't be rebuilt).
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
@@ -175,6 +195,11 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
   migration (task 3) deliberately preserves this as-is — it is a behavior-
   preserving refactor, not a dedupe fix. Closing the race (e.g. a uniqueness
   guard inside the write transaction) is a separate follow-up.
+
+- **"সব ডেটা মুছুন" does not clear categories.** `clearAllUserCollections()` leaves
+  `CategoryModel` rows (custom categories survive delete-all). Pre-existing and left
+  as-is deliberately; decide whether delete-all should also reset categories to the
+  defaults before launch (privacy copy says "সব ডেটা").
 
 ## Commit Style
 - `feat:` new feature

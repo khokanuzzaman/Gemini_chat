@@ -6,6 +6,7 @@ import 'package:isar_community/isar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backup_encryption_service.dart';
+import '../../features/net_worth/data/net_worth_snapshot_service.dart';
 import 'backup_exception.dart';
 import 'backup_models.dart';
 import 'backup_progress.dart';
@@ -262,6 +263,8 @@ class BackupOrchestrator {
         totalBytes: decompressed.length,
       );
       await exportService.importAll(isar, decoded);
+      // Wallet balances just changed: re-record today's net worth (best-effort).
+      await NetWorthSnapshotService(isar: isar).captureIfNeeded(force: true);
 
       _emitProgress(
         onProgress,

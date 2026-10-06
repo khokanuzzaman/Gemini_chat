@@ -28,6 +28,8 @@ import 'core/database/models/sms_ledger_entry_model.dart';
 import 'core/database/models/sms_ledger_sync_state_model.dart';
 import 'core/database/models/split_bill_model.dart';
 import 'core/database/models/wallet_model.dart';
+import 'features/net_worth/data/models/net_worth_snapshot_model.dart';
+import 'features/net_worth/presentation/providers/net_worth_snapshot_provider.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
 import 'core/analytics/analytics_providers.dart';
 import 'core/config/feature_flags.dart';
@@ -263,6 +265,7 @@ Future<Isar> _openIsar() async {
       IncomeRecordModelSchema,
       DebtModelSchema,
       DebtPaymentModelSchema,
+      NetWorthSnapshotModelSchema,
     ],
     directory: directory.path,
     name: instanceName,
@@ -286,6 +289,7 @@ class _ExpenseTrackerAppState extends ConsumerState<ExpenseTrackerApp> {
     WidgetsBinding.instance.addObserver(_appLifecycleObserver);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(anomalyProvider.notifier).detectIfNeeded();
+      unawaited(ref.read(netWorthSnapshotServiceProvider).captureIfNeeded());
     });
   }
 

@@ -30,6 +30,9 @@ import 'package:gemini_chat/features/category/data/models/category_model.dart';
 import 'package:gemini_chat/features/chat/data/models/message_model.dart';
 import 'package:gemini_chat/features/debt/data/models/debt_model.dart';
 import 'package:gemini_chat/features/debt/data/models/debt_payment_model.dart';
+import 'package:gemini_chat/features/net_worth/data/models/net_worth_snapshot_model.dart';
+import 'package:gemini_chat/features/net_worth/data/net_worth_snapshot_service.dart';
+import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
 import 'package:gemini_chat/features/prediction/data/models/prediction_cache_model.dart';
 
 void main() {
@@ -214,6 +217,51 @@ void main() {
         );
       },
     );
+
+    test(
+      'restoreBackup re-records today\'s net worth from the restored wallets',
+      () async {
+        final stamp = DateTime(2026, 4, 29, 9);
+        await isar.writeTxn(() async {
+          await isar.walletModels.put(
+            WalletModel()
+              ..name = 'নগদ'
+              ..type = WalletType.cash
+              ..emoji = '👛'
+              ..initialBalance = 0
+              ..currentBalance = 1234
+              ..sortOrder = 0
+              ..createdAt = stamp
+              ..updatedAt = stamp,
+          );
+        });
+        expect((await orchestrator.createBackup()).success, isTrue);
+
+        // The phone changed after the backup: different balance, stale snapshot.
+        final wallet = (await isar.walletModels.where().findFirst())!;
+        wallet.currentBalance = 5;
+        await isar.writeTxn(() => isar.walletModels.put(wallet));
+        await NetWorthSnapshotService(isar: isar).captureIfNeeded(force: true);
+        final todayKey = dayKeyOf(DateTime.now());
+        expect(
+          (await isar.netWorthSnapshotModels
+                  .filter()
+                  .dayKeyEqualTo(todayKey)
+                  .findFirst())!
+              .total,
+          5,
+        );
+
+        expect((await orchestrator.restoreBackup()).success, isTrue);
+
+        final today = await isar.netWorthSnapshotModels
+            .filter()
+            .dayKeyEqualTo(todayKey)
+            .findAll();
+        expect(today, hasLength(1));
+        expect(today.single.total, 1234, reason: 'refreshed after the restore');
+      },
+    );
   });
 }
 
@@ -331,6 +379,7 @@ Future<Isar> _openIsar(Directory directory, String name) {
       IncomeRecordModelSchema,
       DebtModelSchema,
       DebtPaymentModelSchema,
+      NetWorthSnapshotModelSchema,
     ],
     directory: directory.path,
     name: '${name}_${DateTime.now().microsecondsSinceEpoch}',

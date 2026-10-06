@@ -21,6 +21,7 @@ import 'package:gemini_chat/features/category/data/models/category_model.dart';
 import 'package:gemini_chat/features/chat/data/models/message_model.dart';
 import 'package:gemini_chat/features/debt/data/models/debt_model.dart';
 import 'package:gemini_chat/features/debt/data/models/debt_payment_model.dart';
+import 'package:gemini_chat/features/net_worth/data/models/net_worth_snapshot_model.dart';
 import 'package:gemini_chat/features/prediction/data/models/prediction_cache_model.dart';
 
 void main() {
@@ -221,6 +222,7 @@ Future<Isar> _openIsar(Directory directory, String name) {
       IncomeRecordModelSchema,
       DebtModelSchema,
       DebtPaymentModelSchema,
+      NetWorthSnapshotModelSchema,
     ],
     directory: directory.path,
     name: '${name}_${DateTime.now().microsecondsSinceEpoch}',

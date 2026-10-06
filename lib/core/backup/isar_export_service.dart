@@ -9,6 +9,7 @@ import '../../features/debt/data/models/debt_model.dart';
 import '../../features/debt/data/models/debt_payment_model.dart';
 import '../../features/debt/domain/entities/debt_entity.dart';
 import '../../features/goals/domain/entities/goal_entity.dart';
+import '../../features/net_worth/data/models/net_worth_snapshot_model.dart';
 import '../../features/prediction/data/models/prediction_cache_model.dart';
 import '../../features/recurring/domain/entities/recurring_expense_entity.dart';
 import '../../features/wallet/domain/entities/wallet_entity.dart';
@@ -48,6 +49,10 @@ class IsarExportService {
         .where()
         .findAll();
     final predictionCaches = await isar.predictionCacheModels.where().findAll();
+    final netWorthSnapshots = await isar.netWorthSnapshotModels
+        .where()
+        .sortByDayKey()
+        .findAll();
 
     return <String, dynamic>{
       'version': 1,
@@ -84,6 +89,11 @@ class IsarExportService {
             .toList(growable: false),
         'predictionCaches': predictionCaches
             .map(_predictionCacheToMap)
+            .toList(growable: false),
+        // G1. Added after format v1 shipped: additive, so old apps ignore the
+        // key (unknown keys are skipped) and old backups simply lack it.
+        'netWorthSnapshots': netWorthSnapshots
+            .map(_netWorthSnapshotToMap)
             .toList(growable: false),
       },
     };
@@ -181,6 +191,14 @@ class IsarExportService {
               _decodePredictionCaches(value),
             );
             break;
+          case 'netWorthSnapshots':
+            // Only when the backup HAS the key: an older backup has no snapshot
+            // history, and the local history can't be rebuilt, so it is kept.
+            await isar.netWorthSnapshotModels.clear();
+            await isar.netWorthSnapshotModels.putAll(
+              _decodeNetWorthSnapshots(value),
+            );
+            break;
           default:
             // Unknown collection keys are ignored to keep future compatibility.
             break;
@@ -197,6 +215,41 @@ class IsarExportService {
         await isar.categoryModels.putAll(defaults);
       });
     }
+  }
+
+  Map<String, dynamic> _netWorthSnapshotToMap(NetWorthSnapshotModel model) {
+    return <String, dynamic>{
+      'dayKey': model.dayKey,
+      'capturedAt': _serializeDate(model.capturedAt),
+      'createdAt': _serializeDate(model.createdAt),
+      'total': model.total,
+      'perWalletJson': model.perWalletJson,
+    };
+  }
+
+  List<NetWorthSnapshotModel> _decodeNetWorthSnapshots(dynamic raw) {
+    return _asMapList(raw)
+        .map((row) {
+          final capturedAt = _asDate(row['capturedAt']);
+          return NetWorthSnapshotModel()
+            ..dayKey = _asInt(row['dayKey'])
+            ..capturedAt = capturedAt
+            ..createdAt = _asDate(row['createdAt'], fallback: capturedAt)
+            ..total = _asDouble(row['total'])
+            ..perWalletJson = _asString(row['perWalletJson'], fallback: '[]');
+        })
+        .where((snapshot) => snapshot.dayKey > 0)
+        // One row per day: keep the latest refresh if a backup has duplicates.
+        .fold<Map<int, NetWorthSnapshotModel>>({}, (byDay, snapshot) {
+          final current = byDay[snapshot.dayKey];
+          if (current == null ||
+              snapshot.capturedAt.isAfter(current.capturedAt)) {
+            byDay[snapshot.dayKey] = snapshot;
+          }
+          return byDay;
+        })
+        .values
+        .toList(growable: false);
   }
 
   Map<String, dynamic> _expenseToMap(ExpenseRecordModel model) {

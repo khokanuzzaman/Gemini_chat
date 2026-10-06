@@ -6,6 +6,7 @@ import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_refresh_provider.dart';
 import '../../data/datasources/wallet_local_datasource.dart';
 import '../../data/repositories/wallet_repository_impl.dart';
+import '../../domain/entities/net_worth.dart';
 import '../../domain/entities/wallet_entity.dart';
 import '../../domain/repositories/wallet_repository.dart';
 import '../../domain/usecases/archive_wallet_usecase.dart';
@@ -92,9 +93,7 @@ final totalBalanceProvider = Provider<double>((ref) {
   if (wallets == null) {
     return 0;
   }
-  return wallets
-      .where((wallet) => !wallet.isArchived)
-      .fold<double>(0, (sum, wallet) => sum + wallet.currentBalance);
+  return netWorthOf(wallets);
 });
 
 final walletMonthlySpentProvider = FutureProvider.family<double, int>((
@@ -182,8 +181,6 @@ class WalletNotifier extends AsyncNotifier<List<WalletEntity>> {
 
   Future<List<WalletEntity>> _loadWallets() async {
     final wallets = await ref.read(getWalletsUseCaseProvider).call();
-    final sorted = [...wallets]
-      ..sort((first, second) => first.sortOrder.compareTo(second.sortOrder));
-    return sorted;
+    return sortedBySortOrder(wallets);
   }
 }
