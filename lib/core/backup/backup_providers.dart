@@ -457,7 +457,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
         errorMessage: 'স্বয়ংক্রিয় ব্যাকআপ চলছে। একটু পরে চেষ্টা করুন।',
       );
     }
-    if (!await _consumeManualBackupUsage()) {
+    if (!await _canStartManualBackup()) {
       return BackupResult(
         success: false,
         errorMessage:
@@ -492,6 +492,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       return result;
     }
 
+    await _consumeManualBackupUsage();
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.remove(AutoBackupKeys.lastFailedAt);
     await prefs.remove(AutoBackupKeys.lastErrorCode);
@@ -656,16 +657,19 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     ref.invalidate(predictionProvider);
   }
 
-  Future<bool> _consumeManualBackupUsage() async {
+  /// Gate only — does NOT consume. The daily manual-backup allowance is spent
+  /// by [_consumeManualBackupUsage] after the upload SUCCEEDS, so a network
+  /// glitch never burns the day's backup.
+  Future<bool> _canStartManualBackup() async {
     if (await _isPremiumUser()) {
       return true;
     }
 
     try {
-      final gate = await ref
+      final reached = await ref
           .read(usageTrackerServiceProvider)
-          .checkAndConsume(UsageLimits.cloudBackup);
-      if (!gate.isAllowed) {
+          .hasReachedLimit(UsageLimits.cloudBackup);
+      if (reached) {
         state = AsyncData(
           _current.copyWith(
             isBackingUp: false,
@@ -678,11 +682,26 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
         );
         return false;
       }
-
-      ref.read(usageRefreshTokenProvider.notifier).state++;
       return true;
     } catch (_) {
+      // Usage tracking is best-effort: never block a backup on it.
       return true;
+    }
+  }
+
+  /// Spends one manual backup for today. Called only after a successful upload.
+  Future<void> _consumeManualBackupUsage() async {
+    if (await _isPremiumUser()) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(usageTrackerServiceProvider)
+          .increment(UsageLimits.cloudBackup);
+      ref.read(usageRefreshTokenProvider.notifier).state++;
+    } catch (_) {
+      // Best-effort, as above.
     }
   }
 
