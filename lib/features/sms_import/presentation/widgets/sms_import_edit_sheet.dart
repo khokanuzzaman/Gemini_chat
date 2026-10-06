@@ -94,7 +94,7 @@ class _SmsImportEditSheetState extends ConsumerState<_SmsImportEditSheet> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: AppTextStyles.heroAmount.copyWith(
               color: _draft.isIncome
-                  ? AppColors.success
+                  ? context.tokens.successText
                   : context.primaryTextColor,
               fontSize: 28,
             ),

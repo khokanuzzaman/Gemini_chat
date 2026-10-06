@@ -187,8 +187,8 @@ class _ExpenseConfirmationWidgetState
                       child: OutlinedButton(
                         onPressed: widget.onCancel,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: const BorderSide(color: AppColors.error),
+                          foregroundColor: context.tokens.dangerText,
+                          side: BorderSide(color: context.tokens.dangerText),
                         ),
                         child: const Text(AppStrings.cancelButton),
                       ),
@@ -199,10 +199,8 @@ class _ExpenseConfirmationWidgetState
                         onPressed: () =>
                             widget.onSave(_expense, effectiveWalletId),
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
+                          backgroundColor: context.tokens.successFill,
+                          foregroundColor: context.tokens.onFill,
                         ),
                         child: const Text(AppStrings.saveButton),
                       ),

@@ -786,7 +786,7 @@ class _Checklist extends StatelessWidget {
         children: [
           Text(
             'Save করার আগে দেখুন',
-            style: AppTextStyles.chipLabel.copyWith(color: AppColors.success),
+            style: AppTextStyles.chipLabel.copyWith(color: context.tokens.successText),
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(

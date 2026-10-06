@@ -64,17 +64,17 @@ class _MultipleExpenseConfirmationWidgetState
     );
 
     return ChatDataCardShell(
-      accentColor: AppColors.primary,
+      accentColor: context.appColors.primary,
       maxWidthFactor: 0.9,
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ChatCardHeader(
+            ChatCardHeader(
               icon: Icons.playlist_add_check_circle_rounded,
               title: 'গ্রুপ খরচ draft',
               subtitle: 'চাইলে item বাছাই বা তারিখ edit করুন',
-              accentColor: AppColors.primary,
+              accentColor: context.appColors.primary,
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -85,19 +85,19 @@ class _MultipleExpenseConfirmationWidgetState
                   icon: Icons.receipt_long_rounded,
                   label:
                       '${BanglaFormatters.count(_displayExpenses.length)}টি খরচ',
-                  accentColor: AppColors.primary,
+                  accentColor: context.appColors.primary,
                 ),
                 ChatStatChip(
                   icon: Icons.payments_rounded,
                   label: BanglaFormatters.currency(selectedTotal),
-                  accentColor: AppColors.primary,
+                  accentColor: context.appColors.primary,
                 ),
                 if (!allSameDate)
                   ChatStatChip(
                     icon: Icons.calendar_month_rounded,
                     label:
                         '${BanglaFormatters.count(groupedExpenses.length)} দিন',
-                    accentColor: AppColors.primary,
+                    accentColor: context.appColors.primary,
                   ),
               ],
             ),
@@ -214,14 +214,14 @@ class _MultipleExpenseConfirmationWidgetState
                 ChatStatChip(
                   icon: Icons.checklist_rounded,
                   label: '${BanglaFormatters.count(selectedCount)}টি বাছাই',
-                  accentColor: AppColors.primary,
+                  accentColor: context.appColors.primary,
                 ),
                 ChatStatChip(
                   icon: Icons.account_balance_wallet_rounded,
                   label: allSameDate
                       ? 'মোট ${BanglaFormatters.currency(selectedTotal)}'
                       : '${BanglaFormatters.count(selectedDays)} দিন • ${BanglaFormatters.currency(selectedTotal)}',
-                  accentColor: AppColors.primary,
+                  accentColor: context.appColors.primary,
                 ),
               ],
             ),
@@ -232,8 +232,8 @@ class _MultipleExpenseConfirmationWidgetState
                   child: OutlinedButton(
                     onPressed: widget.onCancel,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
+                      foregroundColor: context.tokens.dangerText,
+                      side: BorderSide(color: context.tokens.dangerText),
                     ),
                     child: const Text(AppStrings.cancelButton),
                   ),
@@ -246,8 +246,8 @@ class _MultipleExpenseConfirmationWidgetState
                         : () =>
                             widget.onSave(selectedExpenses, effectiveWalletId),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      backgroundColor: context.tokens.successFill,
+                      foregroundColor: context.tokens.onFill,
                     ),
                     child: const Text(AppStrings.saveButton),
                   ),
@@ -377,12 +377,12 @@ class _GroupHeader extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(
+          color: context.appColors.primary.withValues(
             alpha: context.isDarkMode ? 0.18 : 0.08,
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.primary.withValues(
+            color: context.appColors.primary.withValues(
               alpha: context.isDarkMode ? 0.28 : 0.14,
             ),
           ),

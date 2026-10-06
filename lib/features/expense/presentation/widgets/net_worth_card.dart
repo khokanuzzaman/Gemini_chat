@@ -17,18 +17,18 @@ class NetWorthCard extends ConsumerWidget {
 
     return walletsAsync.when(
       loading: () => const ShimmerBox(height: 130, radius: 20),
-      error: (error, _) => _ErrorCard(
-        onRetry: () => ref.invalidate(walletProvider),
-      ),
+      error: (error, _) =>
+          _ErrorCard(onRetry: () => ref.invalidate(walletProvider)),
       data: (wallets) {
-        final activeWallets =
-            wallets.where((wallet) => !wallet.isArchived).toList();
+        final activeWallets = wallets
+            .where((wallet) => !wallet.isArchived)
+            .toList();
         if (activeWallets.isEmpty) {
           return _EmptyCard(
             onTap: () {
-              Navigator.of(context).push(
-                buildAppRoute(const WalletManagementScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(buildAppRoute(const WalletManagementScreen()));
             },
           );
         }
@@ -36,26 +36,19 @@ class NetWorthCard extends ConsumerWidget {
         final total = ref.watch(totalBalanceProvider);
         return InkWell(
           onTap: () {
-            Navigator.of(context).push(
-              buildAppRoute(const WalletManagementScreen()),
-            );
+            Navigator.of(
+              context,
+            ).push(buildAppRoute(const WalletManagementScreen()));
           },
           borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primaryDark,
-                  AppColors.primary.withValues(alpha: 0.9),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: context.primaryGradient,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
+                  color: context.tokens.heroStart.withValues(alpha: 0.25),
                   blurRadius: 24,
                   offset: const Offset(0, 12),
                 ),
@@ -70,7 +63,7 @@ class NetWorthCard extends ConsumerWidget {
                       Text(
                         'মোট সম্পদ',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.lightBackground.withValues(alpha: 0.8),
+                          color: context.tokens.onHeroMuted,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -78,7 +71,7 @@ class NetWorthCard extends ConsumerWidget {
                       Text(
                         BanglaFormatters.currency(total),
                         style: AppTextStyles.displayMedium.copyWith(
-                          color: AppColors.lightBackground,
+                          color: context.tokens.onHero,
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
                         ),
@@ -87,15 +80,15 @@ class NetWorthCard extends ConsumerWidget {
                       Text(
                         '${BanglaFormatters.count(activeWallets.length)} টি ওয়ালেট থেকে',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.lightBackground.withValues(alpha: 0.75),
+                          color: context.tokens.onHeroMuted,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.account_balance_wallet_rounded,
-                  color: AppColors.lightBackground,
+                  color: context.tokens.onHero,
                   size: 36,
                 ),
               ],
@@ -126,13 +119,10 @@ class _EmptyCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.add_circle_outline, color: AppColors.primary),
+            Icon(Icons.add_circle_outline, color: context.appColors.primary),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'ওয়ালেট যোগ করুন',
-                style: AppTextStyles.titleMedium,
-              ),
+              child: Text('ওয়ালেট যোগ করুন', style: AppTextStyles.titleMedium),
             ),
           ],
         ),
@@ -159,9 +149,7 @@ class _ErrorCard extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.error),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text('মোট সম্পদ লোড করা যায়নি'),
-          ),
+          const Expanded(child: Text('মোট সম্পদ লোড করা যায়নি')),
           IconButton(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),

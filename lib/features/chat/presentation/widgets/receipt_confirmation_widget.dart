@@ -292,10 +292,8 @@ class _ReceiptConfirmationWidgetState
                           effectiveWalletId,
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
+                          backgroundColor: context.tokens.successFill,
+                          foregroundColor: context.tokens.onFill,
                         ),
                         child: const Text(AppStrings.saveButton),
                       ),
@@ -305,10 +303,8 @@ class _ReceiptConfirmationWidgetState
                       child: FilledButton(
                         onPressed: widget.onCancel,
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary,
+                          backgroundColor: context.tokens.dangerFill,
+                          foregroundColor: context.tokens.onFill,
                         ),
                         child: const Text(AppStrings.cancelButton),
                       ),

@@ -1,52 +1,71 @@
 import 'package:flutter/material.dart';
 
+import 'app_tokens.dart';
+
+// Re-export so every file that imports the theme also gets `context.tokens`.
+export 'app_tokens.dart';
+
 class AppColors {
   const AppColors._();
 
-  static const primary = Color(0xFF1A73E8);
-  static const primaryDark = Color(0xFF1557B0);
-  static const primaryLight = Color(0xFFE8F0FE);
-  static const darkPrimary = Color(0xFF4A9EFF);
+  // LEGACY NAMES, re-pointed at the indigo + brass tokens (see AppTokens).
+  //
+  // These are static consts, so they cannot follow dark mode. Use them ONLY
+  // for fills, icons, brand art and gradients — never for TEXT. Text colour
+  // must come from `context.tokens` (or the `context.*Color` accessors), which
+  // switch with the theme and are checked for >= 4.5:1.
+  static const primary = Color(0xFF5647C4);
+  static const primaryDark = Color(0xFF3A2F86);
+  static const primaryLight = Color(0xFFEEEBFB);
+  static const darkPrimary = Color(0xFF9A8CF0);
 
-  static const success = Color(0xFF34A853);
-  static const warning = Color(0xFFFBBC04);
-  static const error = Color(0xFFEA4335);
-  static const info = Color(0xFF1A73E8);
+  /// Indigo for FILL / ICON use from code that has no BuildContext (status and
+  /// wallet-type colour maps). >= 3.78:1 on light and dark surfaces and canvas.
+  /// Not for text, and not as a label-carrying button fill.
+  static const primaryMid = Color(0xFF7A6ED0);
 
-  static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurface = Color(0xFFF8F9FA);
+  // Fill / icon tones (>= 3:1 on light AND dark surfaces).
+  static const success = Color(0xFF2E9E6B);
+  static const warning = Color(0xFFD0721D);
+  static const error = Color(0xFFD93F4B);
+  static const info = Color(0xFF5647C4);
+
+  static const lightBackground = Color(0xFFF3F1FA); // canvas
+  static const lightSurface = Color(0xFFFAF9FE); // surface-2
   static const lightCard = Color(0xFFFFFFFF);
-  static const lightBorder = Color(0xFFE8EAED);
-  static const lightText = Color(0xFF202124);
-  static const lightTextSecondary = Color(0xFF5F6368);
-  static const lightTextHint = Color(0xFF9AA0A6);
+  static const lightBorder = Color(0xFFE7E3F3);
+  static const lightText = Color(0xFF1B1733);
+  static const lightTextSecondary = Color(0xFF6B6782);
+  static const lightTextHint = Color(0xFF6B6782);
 
-  static const darkBackground = Color(0xFF121212);
-  static const darkSurface = Color(0xFF1E1E1E);
-  static const darkCard = Color(0xFF2D2D2D);
-  static const darkBorder = Color(0xFF3C3C3C);
-  static const darkText = Color(0xFFE8EAED);
-  static const darkTextSecondary = Color(0xFF9AA0A6);
-  static const darkTextHint = Color(0xFF5F6368);
+  static const darkBackground = Color(0xFF14121F); // canvas
+  static const darkSurface = Color(0xFF1B1829); // surface-2
+  static const darkCard = Color(0xFF221E33); // surface
+  static const darkBorder = Color(0xFF312C46);
+  static const darkText = Color(0xFFEFEDF7);
+  static const darkTextSecondary = Color(0xFF9C97B4);
+  static const darkTextHint = Color(0xFF9C97B4);
 
-  static const userBubbleLight = Color(0xFF1A73E8);
-  static const aiBubbleLight = Color(0xFFF1F3F4);
+  static const userBubbleLight = Color(0xFF5647C4);
+  static const aiBubbleLight = Color(0xFFEEEBFB);
   static const userBubbleTextLight = Color(0xFFFFFFFF);
-  static const aiBubbleTextLight = Color(0xFF202124);
+  static const aiBubbleTextLight = Color(0xFF1B1733);
 
-  static const userBubbleDark = Color(0xFF1557B0);
-  static const aiBubbleDark = Color(0xFF2D2D2D);
+  static const userBubbleDark = Color(0xFF6D59E9);
+  static const aiBubbleDark = Color(0xFF221E33);
   static const userBubbleTextDark = Color(0xFFFFFFFF);
-  static const aiBubbleTextDark = Color(0xFFE8EAED);
+  static const aiBubbleTextDark = Color(0xFFEFEDF7);
 
   static const grey50 = lightSurface;
-  static const grey100 = Color(0xFFF1F3F4);
+  static const grey100 = Color(0xFFE7E3F3);
   static const grey200 = lightBorder;
-  static const grey400 = Color(0xFFBDC1C6);
-  static const grey600 = Color(0xFF80868B);
-  static const grey800 = Color(0xFF3C4043);
+  static const grey400 = Color(0xFFB8B3CC);
+  static const grey600 = Color(0xFF6B6782);
+  static const grey800 = Color(0xFF3F3A57);
   static const grey900 = lightText;
 
+  // Category / wallet identity colours: user-facing DATA palette (stored per
+  // category), deliberately NOT part of the brand tokens.
   static const food = Color(0xFFFF6D00);
   static const transport = Color(0xFF1A73E8);
   static const healthcare = Color(0xFFEA4335);
@@ -60,117 +79,121 @@ class AppElevation {
   const AppElevation._();
 
   static List<BoxShadow> get level1 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+  ];
 
-  static List<BoxShadow> get level2 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-        ),
-      ];
+  /// Spec card shadow: `0 18px 40px -22px rgba(40,30,90,.45)`.
+  static List<BoxShadow> get level2 => const [
+    BoxShadow(
+      color: Color(0x73281E5A),
+      blurRadius: 40,
+      spreadRadius: -22,
+      offset: Offset(0, 18),
+    ),
+  ];
 
   static List<BoxShadow> get level3 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.08),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.08),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+  ];
 
   static List<BoxShadow> get level4 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.12),
-          blurRadius: 32,
-          offset: const Offset(0, 12),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.12),
+      blurRadius: 32,
+      offset: const Offset(0, 12),
+    ),
+  ];
 
   static List<BoxShadow> get darkLevel1 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.2),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+  ];
 
-  static List<BoxShadow> get darkLevel2 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.25),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-        ),
-      ];
+  /// Dark-mode card shadow: same geometry, deeper and darker.
+  static List<BoxShadow> get darkLevel2 => const [
+    BoxShadow(
+      color: Color(0x99000000),
+      blurRadius: 40,
+      spreadRadius: -22,
+      offset: Offset(0, 18),
+    ),
+  ];
 
   static List<BoxShadow> get darkLevel3 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.32),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.32),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+  ];
 
   static List<BoxShadow> get darkLevel4 => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.4),
-          blurRadius: 32,
-          offset: const Offset(0, 12),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.4),
+      blurRadius: 32,
+      offset: const Offset(0, 12),
+    ),
+  ];
 }
 
 class AppGradients {
   const AppGradients._();
 
   static const LinearGradient primary = LinearGradient(
-    colors: [Color(0xFF1A73E8), Color(0xFF1557B0)],
+    colors: [Color(0xFF5647C4), Color(0xFF3A2F86)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient primaryDark = LinearGradient(
-    colors: [Color(0xFF4A9EFF), Color(0xFF1557B0)],
+    colors: [Color(0xFF5647C4), Color(0xFF3A2F86)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient success = LinearGradient(
-    colors: [Color(0xFF34A853), Color(0xFF1B7A33)],
+    colors: [Color(0xFF237852), Color(0xFF1B5F40)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient warning = LinearGradient(
-    colors: [Color(0xFFFBBC04), Color(0xFFE89800)],
+    colors: [Color(0xFF9F5716), Color(0xFF7C430F)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient danger = LinearGradient(
-    colors: [Color(0xFFEA4335), Color(0xFFB31412)],
+    colors: [Color(0xFFCC2835), Color(0xFF9E1B27)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient surfaceLight = LinearGradient(
-    colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFF)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFFAF9FE)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient surfaceDark = LinearGradient(
-    colors: [Color(0xFF1E1E1E), Color(0xFF171C26)],
+    colors: [Color(0xFF221E33), Color(0xFF1B1829)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient income = LinearGradient(
-    colors: [Color(0xFF00C853), Color(0xFF00897B)],
+    colors: [Color(0xFF237852), Color(0xFF1B5F40)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -324,10 +347,19 @@ class AppSpacing {
   static const xl = 32.0;
   static const xxl = 48.0;
 
+  // The spec's scale: 4 · 8 · 12 · 16 · 20 · 24 · 32.
+  static const s4 = 4.0;
+  static const s8 = 8.0;
+  static const s12 = 12.0;
+  static const s16 = 16.0;
+  static const s20 = 20.0;
+  static const s24 = 24.0;
+  static const s32 = 32.0;
+
   static const cardPadding = 20.0;
   static const cardGap = 16.0;
   static const sectionGap = 24.0;
-  static const screenPadding = 20.0;
+  static const screenPadding = 16.0; // spec: horizontal screen padding 16
   static const tightGap = 12.0;
   static const looseGap = 32.0;
 }
@@ -341,11 +373,11 @@ class AppRadius {
   static const xl = Radius.circular(24);
   static const full = Radius.circular(100);
 
-  static const card = Radius.circular(20);
+  static const card = Radius.circular(18); // spec: cards ~18
   static const heroCard = Radius.circular(24);
   static const button = Radius.circular(16);
   static const chip = Radius.circular(100);
-  static const sheet = Radius.circular(28);
+  static const sheet = Radius.circular(24); // spec: sheet top ~24
   static const input = Radius.circular(14);
 
   static const cardAll = BorderRadius.all(card);
@@ -357,97 +389,79 @@ class AppRadius {
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData lightTheme() {
-    const colorScheme = ColorScheme.light(
-      primary: AppColors.primary,
-      secondary: AppColors.primaryLight,
-      error: AppColors.error,
-      surface: AppColors.lightSurface,
-      onSurface: AppColors.lightText,
-      onPrimary: AppColors.userBubbleTextLight,
-      outline: AppColors.lightBorder,
+  static ThemeData lightTheme() => _build(Brightness.light, AppTokens.light);
+
+  static ThemeData darkTheme() => _build(Brightness.dark, AppTokens.dark);
+
+  static ThemeData _build(Brightness brightness, AppTokens t) {
+    final isDark = brightness == Brightness.dark;
+
+    // `primary` is the indigo for TEXT/ICONS (light on dark surfaces). Fills use
+    // `t.primaryFill` + `t.onFill` explicitly in the component themes below; the
+    // scheme's own onPrimary pairs with `primary` (system pickers etc.).
+    final colorScheme = ColorScheme(
+      brightness: brightness,
+      primary: t.primary,
+      onPrimary: isDark ? t.canvas : t.onFill,
+      primaryContainer: t.primarySoft,
+      onPrimaryContainer: t.primaryDeep,
+      secondary: t.primarySoft,
+      onSecondary: t.primaryDeep,
+      error: t.dangerText,
+      onError: isDark ? t.canvas : t.onFill,
+      errorContainer: t.dangerSoft,
+      onErrorContainer: t.dangerText,
+      surface: t.surface,
+      onSurface: t.ink,
+      onSurfaceVariant: t.muted,
+      outline: t.inputOutline,
+      outlineVariant: t.line,
+      surfaceTint: Colors.transparent,
+      surfaceContainerLowest: isDark ? t.canvas : t.surface,
+      surfaceContainerLow: t.surface2,
+      surfaceContainer: isDark ? t.surface : t.canvas,
+      surfaceContainerHigh: t.primarySoft,
+      surfaceContainerHighest: t.line,
+      inverseSurface: t.ink,
+      onInverseSurface: t.surface,
+      inversePrimary: t.primary,
     );
 
-    return _themeData(
-      brightness: Brightness.light,
-      colorScheme: colorScheme,
-      background: AppColors.lightBackground,
-      card: AppColors.lightCard,
-      divider: AppColors.lightBorder,
-      shadow: AppColors.lightText.withValues(alpha: 0.06),
-      text: AppColors.lightText,
-      secondaryText: AppColors.lightTextSecondary,
-      hintText: AppColors.lightTextHint,
-      navSelected: AppColors.primary,
-      navUnselected: AppColors.lightTextSecondary,
-      inputFill: AppColors.lightSurface,
-    );
-  }
-
-  static ThemeData darkTheme() {
-    const colorScheme = ColorScheme.dark(
-      primary: AppColors.darkPrimary,
-      secondary: AppColors.primaryLight,
-      error: AppColors.error,
-      surface: AppColors.darkSurface,
-      onSurface: AppColors.darkText,
-      onPrimary: AppColors.userBubbleTextDark,
-      outline: AppColors.darkBorder,
-    );
-
-    return _themeData(
-      brightness: Brightness.dark,
-      colorScheme: colorScheme,
-      background: AppColors.darkBackground,
-      card: AppColors.darkCard,
-      divider: AppColors.darkBorder,
-      shadow: AppColors.darkBackground.withValues(alpha: 0.36),
-      text: AppColors.darkText,
-      secondaryText: AppColors.darkTextSecondary,
-      hintText: AppColors.darkTextHint,
-      navSelected: AppColors.darkPrimary,
-      navUnselected: AppColors.darkTextSecondary,
-      inputFill: AppColors.darkSurface,
-    );
-  }
-
-  static ThemeData _themeData({
-    required Brightness brightness,
-    required ColorScheme colorScheme,
-    required Color background,
-    required Color card,
-    required Color divider,
-    required Color shadow,
-    required Color text,
-    required Color secondaryText,
-    required Color hintText,
-    required Color navSelected,
-    required Color navUnselected,
-    required Color inputFill,
-  }) {
     final textTheme = TextTheme(
-      displayLarge: AppTextStyles.displayLarge.copyWith(color: text),
-      displayMedium: AppTextStyles.displayMedium.copyWith(color: text),
-      titleLarge: AppTextStyles.titleLarge.copyWith(color: text),
-      titleMedium: AppTextStyles.titleMedium.copyWith(color: text),
-      bodyLarge: AppTextStyles.bodyLarge.copyWith(color: text),
-      bodyMedium: AppTextStyles.bodyMedium.copyWith(color: text),
-      bodySmall: AppTextStyles.bodySmall.copyWith(color: secondaryText),
-      labelSmall: AppTextStyles.caption.copyWith(color: secondaryText),
+      displayLarge: AppTextStyles.displayLarge.copyWith(color: t.ink),
+      displayMedium: AppTextStyles.displayMedium.copyWith(color: t.ink),
+      titleLarge: AppTextStyles.titleLarge.copyWith(color: t.ink),
+      titleMedium: AppTextStyles.titleMedium.copyWith(color: t.ink),
+      bodyLarge: AppTextStyles.bodyLarge.copyWith(color: t.ink),
+      bodyMedium: AppTextStyles.bodyMedium.copyWith(color: t.ink),
+      bodySmall: AppTextStyles.bodySmall.copyWith(color: t.muted),
+      labelSmall: AppTextStyles.caption.copyWith(color: t.muted),
     );
+
+    OutlineInputBorder inputBorder(Color color, [double width = 1]) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: BorderSide(color: color, width: width),
+      );
+    }
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: background,
-      cardColor: card,
-      dividerColor: divider,
-      shadowColor: shadow,
+      extensions: <ThemeExtension<dynamic>>[t],
+      scaffoldBackgroundColor: t.canvas,
+      canvasColor: t.canvas,
+      cardColor: t.surface,
+      dividerColor: t.line,
+      shadowColor: isDark
+          ? t.canvas.withValues(alpha: 0.36)
+          : t.ink.withValues(alpha: 0.06),
       textTheme: textTheme,
+      dividerTheme: DividerThemeData(color: t.line, space: 1),
       appBarTheme: AppBarTheme(
-        backgroundColor: background,
-        foregroundColor: text,
+        backgroundColor: t.canvas,
+        foregroundColor: t.ink,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -455,20 +469,16 @@ class AppTheme {
         centerTitle: false,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: background,
+        backgroundColor: t.canvas,
         indicatorColor: Colors.transparent,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           return IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? navSelected
-                : navUnselected,
+            color: states.contains(WidgetState.selected) ? t.primary : t.muted,
           );
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return AppTextStyles.bodySmall.copyWith(
-            color: states.contains(WidgetState.selected)
-                ? navSelected
-                : navUnselected,
+            color: states.contains(WidgetState.selected) ? t.primary : t.muted,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w700
                 : FontWeight.w500,
@@ -477,44 +487,46 @@ class AppTheme {
         elevation: 0,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: background,
-        selectedItemColor: navSelected,
-        unselectedItemColor: navUnselected,
+        backgroundColor: t.canvas,
+        selectedItemColor: t.primary,
+        unselectedItemColor: t.muted,
         elevation: 0,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: card,
+        color: t.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: divider),
+          borderRadius: AppRadius.cardAll,
+          side: BorderSide(color: t.line),
         ),
         margin: EdgeInsets.zero,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: card,
+        backgroundColor: t.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: t.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: AppRadius.sheet),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: inputFill,
-        hintStyle: TextStyle(color: hintText, fontSize: 14),
-        labelStyle: TextStyle(color: secondaryText),
-        prefixIconColor: secondaryText,
-        suffixIconColor: secondaryText,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: colorScheme.primary, width: 1.3),
-        ),
+        fillColor: t.surface2,
+        // Text-field edges use inputOutline (>= 3:1); `line` is decorative.
+        hintStyle: TextStyle(color: t.hint, fontSize: 14),
+        labelStyle: TextStyle(color: t.muted),
+        prefixIconColor: t.muted,
+        suffixIconColor: t.muted,
+        border: inputBorder(t.inputOutline),
+        enabledBorder: inputBorder(t.inputOutline),
+        focusedBorder: inputBorder(t.primary, 1.5),
+        errorBorder: inputBorder(t.dangerText),
+        focusedErrorBorder: inputBorder(t.dangerText, 1.5),
+        errorStyle: TextStyle(color: t.dangerText),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 12,
@@ -522,13 +534,11 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+          backgroundColor: t.primaryFill,
+          foregroundColor: t.onFill,
           minimumSize: const Size.fromHeight(52),
           elevation: 0,
-          textStyle: AppTextStyles.titleMedium.copyWith(
-            color: colorScheme.onPrimary,
-          ),
+          textStyle: AppTextStyles.titleMedium.copyWith(color: t.onFill),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -536,8 +546,8 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+          backgroundColor: t.primaryFill,
+          foregroundColor: t.onFill,
           minimumSize: const Size.fromHeight(52),
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -547,8 +557,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: text,
-          side: BorderSide(color: divider),
+          foregroundColor: t.ink,
+          side: BorderSide(color: t.inputOutline),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -556,53 +566,68 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
-          textStyle: AppTextStyles.titleMedium.copyWith(
-            color: colorScheme.primary,
-          ),
+          foregroundColor: t.primary,
+          textStyle: AppTextStyles.titleMedium.copyWith(color: t.primary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: inputFill,
-        selectedColor: colorScheme.primary,
-        disabledColor: divider,
-        side: BorderSide(color: divider),
+        backgroundColor: t.surface2,
+        selectedColor: t.primaryFill,
+        disabledColor: t.line,
+        side: BorderSide(color: t.line),
         labelStyle: AppTextStyles.bodySmall.copyWith(
-          color: secondaryText,
+          color: t.muted,
           fontWeight: FontWeight.w600,
         ),
         secondaryLabelStyle: AppTextStyles.bodySmall.copyWith(
-          color: colorScheme.onPrimary,
+          color: t.onFill,
           fontWeight: FontWeight.w700,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
+        backgroundColor: t.primaryFill,
+        foregroundColor: t.onFill,
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            return states.contains(WidgetState.selected)
-                ? colorScheme.onPrimary
-                : text;
+            return states.contains(WidgetState.selected) ? t.onFill : t.ink;
           }),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? colorScheme.primary
-                : inputFill;
+                ? t.primaryFill
+                : t.surface2;
           }),
-          side: WidgetStateProperty.all(BorderSide(color: divider)),
+          side: WidgetStateProperty.all(BorderSide(color: t.inputOutline)),
         ),
       ),
+      switchTheme: SwitchThemeData(
+        // White thumb on a primaryFill track (>= 4.5:1); the off state is
+        // outlined with inputOutline so the control edge stays >= 3:1.
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? t.onFill
+              : t.inputOutline;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? t.primaryFill
+              : t.surface2;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : t.inputOutline;
+        }),
+      ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: card,
-        contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: text),
+        backgroundColor: t.surface,
+        contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: t.ink),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -636,24 +661,19 @@ extension AppThemeContext on BuildContext {
   Color get aiBubbleTextColor =>
       isDarkMode ? AppColors.aiBubbleTextDark : AppColors.aiBubbleTextLight;
 
-  Color get errorBubbleColor =>
-      isDarkMode ? const Color(0xFF3D1515) : const Color(0xFFFFEBEE);
-  Color get errorBubbleTextColor =>
-      isDarkMode ? const Color(0xFFFFDAD4) : const Color(0xFF8B1E14);
-  Color get errorBubbleBorderColor => AppColors.error;
+  Color get errorBubbleColor => tokens.dangerSoft;
+  Color get errorBubbleTextColor => tokens.dangerText;
+  Color get errorBubbleBorderColor => tokens.danger;
 
-  Color get ragChipBackgroundColor => isDarkMode
-      ? AppColors.darkPrimary.withValues(alpha: 0.18)
-      : AppColors.primaryLight;
+  Color get ragChipBackgroundColor => tokens.primarySoft;
   Color get ragChipTextColor => appColors.primary;
 
-  Color get mutedSurfaceColor =>
-      isDarkMode ? AppColors.darkSurface : AppColors.lightSurface;
+  Color get mutedSurfaceColor => tokens.surface2;
 
+  /// The shell background: the flat canvas (spec), expressed as a gradient so
+  /// existing `BoxDecoration(gradient: …)` call sites keep working.
   LinearGradient get shellBackgroundGradient => LinearGradient(
-    colors: isDarkMode
-        ? [AppColors.darkBackground, const Color(0xFF171C26)]
-        : [const Color(0xFFFDFEFF), const Color(0xFFF7FAFF)],
+    colors: [tokens.canvas, tokens.canvas],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -677,8 +697,8 @@ extension AppThemeContext on BuildContext {
     };
   }
 
-  LinearGradient get primaryGradient =>
-      isDarkMode ? AppGradients.primaryDark : AppGradients.primary;
+  /// The hero gradient — deep indigo with white text in BOTH modes.
+  LinearGradient get primaryGradient => tokens.heroGradient;
 
   LinearGradient get surfaceGradient =>
       isDarkMode ? AppGradients.surfaceDark : AppGradients.surfaceLight;
@@ -715,12 +735,11 @@ extension AppThemeContext on BuildContext {
     );
   }
 
-  Color get incomeColor => AppColors.success;
-  Color get expenseColor => AppColors.error;
-  Color get incomeBackgroundColor =>
-      AppColors.success.withValues(alpha: isDarkMode ? 0.15 : 0.08);
-  Color get expenseBackgroundColor =>
-      AppColors.error.withValues(alpha: isDarkMode ? 0.15 : 0.08);
+  // Amount colours are TEXT colours: theme-aware and >= 4.5:1.
+  Color get incomeColor => tokens.successText;
+  Color get expenseColor => tokens.expenseText;
+  Color get incomeBackgroundColor => tokens.successSoft;
+  Color get expenseBackgroundColor => tokens.expenseSoft;
 
   Color ragCardBackground(Color tint) =>
       isDarkMode ? cardBackgroundColor : tint.withValues(alpha: 0.08);

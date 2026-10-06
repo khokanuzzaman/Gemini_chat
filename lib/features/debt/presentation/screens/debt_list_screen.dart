@@ -572,7 +572,7 @@ class _DebtListCard extends ConsumerWidget {
               '${BanglaFormatters.count(debt.paidInstallments)}/${BanglaFormatters.count(debt.totalInstallments)} কিস্তি · মাসিক ${BanglaFormatters.currency(debt.emiAmount)} · পরবর্তী: ${debt.nextInstallmentDate == null ? 'নির্ধারিত নয়' : BanglaFormatters.dayMonth(debt.nextInstallmentDate!)}',
               style: AppTextStyles.bodySmall.copyWith(
                 color: status == DebtStatus.overdue
-                    ? AppColors.error
+                    ? context.tokens.dangerText
                     : context.secondaryTextColor,
                 fontWeight: status == DebtStatus.overdue
                     ? FontWeight.w700
@@ -595,7 +595,7 @@ class _DebtListCard extends ConsumerWidget {
                     'তারিখ: ${BanglaFormatters.fullDate(debt.dueDate!)}',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: status == DebtStatus.overdue
-                          ? AppColors.error
+                          ? context.tokens.dangerText
                           : context.secondaryTextColor,
                       fontWeight: status == DebtStatus.overdue
                           ? FontWeight.w700
@@ -610,7 +610,7 @@ class _DebtListCard extends ConsumerWidget {
             Text(
               debt.isEMI ? 'কিস্তির সময় পেরিয়ে গেছে' : 'মেয়াদ পেরিয়ে গেছে',
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.error,
+                color: context.tokens.dangerText,
                 fontWeight: FontWeight.w700,
               ),
             ),

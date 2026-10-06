@@ -83,12 +83,12 @@ class WalletSelectorWidget extends ConsumerWidget {
                             ),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Theme.of(context).colorScheme.primary
+                                  ? context.tokens.primaryFill
                                   : context.mutedSurfaceColor,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                 color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
+                                    ? context.tokens.primaryFill
                                     : context.borderColor,
                               ),
                             ),
@@ -104,9 +104,7 @@ class WalletSelectorWidget extends ConsumerWidget {
                                   wallet.name,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary
+                                        ? context.tokens.onFill
                                         : context.primaryTextColor,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,

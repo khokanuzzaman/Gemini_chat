@@ -31,8 +31,8 @@ class RagSummaryWidget extends StatelessWidget {
         : data.aiText;
 
     return RagAnimatedCard(
-      borderColor: context.ragCardBorder(AppColors.primary),
-      backgroundColor: context.ragCardBackground(AppColors.primary),
+      borderColor: context.ragCardBorder(context.appColors.primary),
+      backgroundColor: context.ragCardBackground(context.appColors.primary),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -45,7 +45,7 @@ class RagSummaryWidget extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             ChatSectionSurface(
-              accentColor: AppColors.primary,
+              accentColor: context.appColors.primary,
               child: Column(
                 children: [
                   Text(
@@ -106,7 +106,7 @@ class RagSummaryWidget extends StatelessWidget {
                   icon: Icons.calendar_month_rounded,
                   label:
                       '${BanglaFormatters.count(data.transactionCount ?? 0)}টি লেনদেন',
-                  accentColor: AppColors.primary,
+                  accentColor: context.appColors.primary,
                 ),
                 if (leadingCategory != null)
                   ChatStatChip(
@@ -119,9 +119,9 @@ class RagSummaryWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ChatSectionSurface(
-              accentColor: AppColors.primary,
+              accentColor: context.appColors.primary,
               backgroundColor: context.ragChipBackgroundColor,
-              borderColor: context.ragCardBorder(AppColors.primary),
+              borderColor: context.ragCardBorder(context.appColors.primary),
               child: Text(
                 '💡 "$insight"',
                 style: TextStyle(

@@ -194,7 +194,7 @@ class _RecurringExpenseCard extends ConsumerWidget {
                             Text(
                               'রিমাইন্ডার চালু',
                               style: AppTextStyles.caption.copyWith(
-                                color: AppColors.warning,
+                                color: context.tokens.warningText,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

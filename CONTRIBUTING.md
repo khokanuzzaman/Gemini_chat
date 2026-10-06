@@ -19,6 +19,32 @@ default AOT build-script step fails because a native-build-hook dependency makes
 `dart compile aot-snapshot` bail (`'dart compile' does not support build hooks`).
 JIT mode avoids that path. Commit the regenerated `*.g.dart` alongside the model change.
 
+## Design tokens (indigo + brass) — rules for UI code
+The palette lives in `lib/core/theme/app_tokens.dart` (`context.tokens`), built
+into `ThemeData` by `app_theme.dart`. It is a re-skin of the old Google-blue
+palette; spec in `docs/design/DESIGN_SPEC.md`.
+- **Screens consume tokens, never colour literals.** `test/core/theme/
+  no_hardcoded_colors_test.dart` is a ratchet: a new `Color(0x…)` or palette
+  `Colors.*` outside `lib/core/theme/` fails; cleaning a file requires lowering its
+  allowance. (`Colors.white/black/transparent` are fine.)
+- **Text vs fill.** Text colours must be >= 4.5:1: use `successText`, `dangerText`,
+  `warningText`, `expenseText`, `muted`, `ink`, `primary` — all theme-aware. The
+  static `AppColors.success/error/warning/primaryMid` are for FILLS and ICONS only
+  (>= 3:1 in both modes); a static const can never pass 4.5:1 on both a light and a
+  dark surface. `test/core/theme/app_tokens_contrast_test.dart` enforces the table.
+- **Filled controls** use `primaryFill` / `successFill` / `dangerFill` with the
+  white `onFill` label (>= 4.5:1 in both modes). In dark mode `primary` (text/icon)
+  and `primaryFill` (fills) are different values on purpose.
+- **Brass is a jewel** — money / security / premium accents, EMI-and-debt markers
+  and the SMS auto-import card only. In LIGHT mode it is a fill (with `onBrass`)
+  or a `brassSoft` background, never text or an icon on white (2.14:1).
+- **Text-field borders** use `inputOutline` (>= 3:1); `line`/`outline` are decorative.
+- **Colours from data** (category, wallet, debt-status accents) go through
+  `readableOn()` / `labelOnFill()` in `lib/core/theme/contrast.dart` (`AppChip` does
+  this for you). Stored category colours are user data — never re-tint them.
+- **Hero** (`heroGradient`, `onHero`, `onHeroMuted`) is deep indigo with white text
+  in BOTH modes.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

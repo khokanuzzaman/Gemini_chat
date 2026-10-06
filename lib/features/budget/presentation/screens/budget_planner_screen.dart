@@ -429,7 +429,7 @@ class _BudgetSetupForm extends StatelessWidget {
                           child: Text(
                             incomeErrorText!,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.error,
+                              color: context.tokens.dangerText,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

@@ -36,7 +36,7 @@ class RecordingIndicator extends StatelessWidget {
             child: Text(
               'ভয়েস রেকর্ড হচ্ছে $duration',
               style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.error,
+                color: context.tokens.dangerText,
                 fontWeight: FontWeight.w600,
               ),
             ),

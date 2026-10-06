@@ -22,8 +22,8 @@ class RagTodayWidget extends StatelessWidget {
     final total = data.totalAmount ?? 0;
 
     return RagAnimatedCard(
-      borderColor: context.ragCardBorder(AppColors.primary),
-      backgroundColor: context.ragCardBackground(AppColors.primary),
+      borderColor: context.ragCardBorder(context.appColors.primary),
+      backgroundColor: context.ragCardBackground(context.appColors.primary),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(

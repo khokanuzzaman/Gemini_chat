@@ -562,7 +562,7 @@ class _GeneralInfoCard extends StatelessWidget {
             Text(
               'মেয়াদোত্তীর্ণ!',
               style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.error,
+                color: context.tokens.dangerText,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -681,7 +681,7 @@ class _DebtActionBar extends StatelessWidget {
                       child: Text(
                         'মেয়াদোত্তীর্ণ!',
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.error,
+                          color: context.tokens.dangerText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

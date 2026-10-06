@@ -203,8 +203,8 @@ class _MultipleIncomeConfirmationWidgetState
                   child: OutlinedButton(
                     onPressed: _isSaving ? null : widget.onCancel,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
+                      foregroundColor: context.tokens.dangerText,
+                      side: BorderSide(color: context.tokens.dangerText),
                     ),
                     child: const Text(AppStrings.cancelButton),
                   ),
@@ -216,8 +216,8 @@ class _MultipleIncomeConfirmationWidgetState
                         ? null
                         : () => _save(effectiveWalletId),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      backgroundColor: context.tokens.successFill,
+                      foregroundColor: context.tokens.onFill,
                     ),
                     child: _isSaving
                         ? const SizedBox(
@@ -332,8 +332,8 @@ class _IncomeRow extends StatelessWidget {
                     const SizedBox(width: 10),
                     Text(
                       BanglaFormatters.currency(income.amount),
-                      style: const TextStyle(
-                        color: AppColors.success,
+                      style: TextStyle(
+                        color: context.tokens.successText,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -356,8 +356,8 @@ class _IncomeRow extends StatelessWidget {
                         ),
                         child: Text(
                           label,
-                          style: const TextStyle(
-                            color: AppColors.success,
+                          style: TextStyle(
+                            color: context.tokens.successText,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),

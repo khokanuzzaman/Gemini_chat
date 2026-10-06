@@ -44,7 +44,7 @@ class AppHeroCard extends StatelessWidget {
                 height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: context.tokens.onHero.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -57,16 +57,12 @@ class AppHeroCard extends StatelessWidget {
                     Text(
                       label,
                       style: AppTextStyles.heroLabel.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: context.tokens.onHeroMuted,
                       ),
                     ),
                     const Spacer(),
                     if (icon != null)
-                      Icon(
-                        icon,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        size: 20,
-                      ),
+                      Icon(icon, color: context.tokens.onHeroMuted, size: 20),
                   ],
                 ),
                 Column(
@@ -75,7 +71,7 @@ class AppHeroCard extends StatelessWidget {
                     Text(
                       amount,
                       style: AppTextStyles.heroAmount.copyWith(
-                        color: Colors.white,
+                        color: context.tokens.onHero,
                       ),
                     ),
                     if (subtitle != null) ...[
@@ -83,7 +79,7 @@ class AppHeroCard extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: Colors.white.withValues(alpha: 0.75),
+                          color: context.tokens.onHeroMuted,
                         ),
                       ),
                     ],

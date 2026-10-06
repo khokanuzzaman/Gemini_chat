@@ -81,28 +81,31 @@ class AppActionButton extends StatelessWidget {
   }
 
   _ButtonColors _resolveColors(BuildContext context) {
+    final tokens = context.tokens;
+    // Every filled variant is a *Fill token with a white onFill label (>= 4.5:1
+    // in both modes); secondary/ghost use indigo text (>= 4.5:1 on surfaces).
     return switch (variant) {
       AppActionButtonVariant.primary => _ButtonColors(
-        background: context.appColors.primary,
-        foreground: Colors.white,
+        background: tokens.primaryFill,
+        foreground: tokens.onFill,
       ),
       AppActionButtonVariant.success => _ButtonColors(
-        background: AppColors.success,
-        foreground: Colors.white,
+        background: tokens.successFill,
+        foreground: tokens.onFill,
       ),
       AppActionButtonVariant.danger => _ButtonColors(
-        background: AppColors.error,
-        foreground: Colors.white,
+        background: tokens.dangerFill,
+        foreground: tokens.onFill,
       ),
       AppActionButtonVariant.secondary => _ButtonColors(
-        background: context.appColors.primary.withValues(
+        background: tokens.primary.withValues(
           alpha: context.isDarkMode ? 0.18 : 0.1,
         ),
-        foreground: context.appColors.primary,
+        foreground: tokens.primary,
       ),
       AppActionButtonVariant.ghost => _ButtonColors(
         background: Colors.transparent,
-        foreground: context.appColors.primary,
+        foreground: tokens.primary,
         border: context.borderColor,
       ),
     };

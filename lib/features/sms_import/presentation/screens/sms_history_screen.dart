@@ -641,7 +641,7 @@ class _InlineErrorCard extends StatelessWidget {
             child: Text(
               message,
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.error,
+                color: context.tokens.dangerText,
                 height: 1.4,
               ),
             ),

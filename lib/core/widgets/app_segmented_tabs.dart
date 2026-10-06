@@ -47,7 +47,7 @@ class AppSegmentedTabs extends StatelessWidget {
                   padding: EdgeInsets.symmetric(vertical: compact ? 8 : 12),
                   decoration: BoxDecoration(
                     color: i == selectedIndex
-                        ? context.appColors.primary
+                        ? context.tokens.primaryFill
                         : Colors.transparent,
                     borderRadius: const BorderRadius.all(AppRadius.chip),
                     boxShadow: i == selectedIndex
@@ -59,7 +59,7 @@ class AppSegmentedTabs extends StatelessWidget {
                     tabs[i],
                     style: AppTextStyles.chipLabel.copyWith(
                       color: i == selectedIndex
-                          ? Colors.white
+                          ? context.tokens.onFill
                           : context.secondaryTextColor,
                       fontWeight: i == selectedIndex
                           ? FontWeight.w700

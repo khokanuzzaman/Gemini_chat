@@ -368,7 +368,7 @@ class _IncomeAmountFieldCard extends StatelessWidget {
               Text(
                 '৳',
                 style: AppTextStyles.heroAmount.copyWith(
-                  color: AppColors.success,
+                  color: context.tokens.successText,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -381,7 +381,7 @@ class _IncomeAmountFieldCard extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                   style: AppTextStyles.heroAmount.copyWith(
-                    color: AppColors.success,
+                    color: context.tokens.successText,
                   ),
                   decoration: const InputDecoration(
                     hintText: '0',
@@ -441,7 +441,7 @@ class _DateSelectorRow extends StatelessWidget {
             Text(
               'পরিবর্তন করুন',
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.success,
+                color: context.tokens.successText,
                 fontWeight: FontWeight.w600,
               ),
             ),

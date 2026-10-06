@@ -45,8 +45,8 @@ class MonthSummaryStrip extends ConsumerWidget {
                       text: difference.isNegative ? '↓ ' : '↑ ',
                       style: TextStyle(
                         color: difference.isNegative
-                            ? AppColors.success
-                            : AppColors.error,
+                            ? context.tokens.successText
+                            : context.tokens.dangerText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -54,8 +54,8 @@ class MonthSummaryStrip extends ConsumerWidget {
                       text: BanglaFormatters.currency(difference.abs()),
                       style: TextStyle(
                         color: difference.isNegative
-                            ? AppColors.success
-                            : AppColors.error,
+                            ? context.tokens.successText
+                            : context.tokens.dangerText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

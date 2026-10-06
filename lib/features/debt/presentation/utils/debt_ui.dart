@@ -45,7 +45,7 @@ extension DebtStatusPresentation on DebtStatus {
   };
 
   Color get accentColor => switch (this) {
-    DebtStatus.active => AppColors.primary,
+    DebtStatus.active => AppColors.primaryMid,
     DebtStatus.settled => AppColors.success,
     DebtStatus.overdue => AppColors.error,
     DebtStatus.cancelled => AppColors.grey600,

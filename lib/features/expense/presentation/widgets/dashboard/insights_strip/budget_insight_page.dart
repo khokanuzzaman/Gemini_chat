@@ -35,14 +35,14 @@ class BudgetInsightPage extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children: [
               Icon(
                 Icons.account_balance_wallet_outlined,
-                color: AppColors.primary,
+                color: context.appColors.primary,
                 size: 20,
               ),
-              SizedBox(width: 8),
-              Text('মাসিক বাজেট', style: AppTextStyles.titleMedium),
+              const SizedBox(width: 8),
+              const Text('মাসিক বাজেট', style: AppTextStyles.titleMedium),
             ],
           ),
           const SizedBox(height: 8),

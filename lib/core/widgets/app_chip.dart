@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/contrast.dart';
 
 /// A reusable chip for filters, tags, and badges.
 class AppChip extends StatelessWidget {
@@ -30,11 +31,22 @@ class AppChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = color ?? context.appColors.primary;
-    final bgColor = selected
-        ? accentColor
-        : accentColor.withValues(alpha: context.isDarkMode ? 0.15 : 0.08);
-    final fgColor = selected ? Colors.white : accentColor;
+    final tokens = context.tokens;
+    // A custom [color] comes from DATA (category / wallet / status accents), so
+    // the label colour is made readable here instead of at every call site:
+    // - selected: primaryFill + onFill by default; a custom fill gets whichever
+    //   of white / ink reads better.
+    // - unselected: the accent as text on its own soft tint, nudged to >= 4.5:1.
+    final accentColor = color ?? tokens.primary;
+    final tint = accentColor.withValues(
+      alpha: context.isDarkMode ? 0.15 : 0.08,
+    );
+    final tintOnSurface = Color.alphaBlend(tint, tokens.surface);
+    final selectedFill = color ?? tokens.primaryFill;
+    final bgColor = selected ? selectedFill : tint;
+    final fgColor = selected
+        ? (color == null ? tokens.onFill : labelOnFill(selectedFill))
+        : readableOn(accentColor, tintOnSurface);
     final labelWidget = Text(
       label,
       maxLines: 1,

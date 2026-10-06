@@ -354,7 +354,7 @@ class _FeatureComparisonCard extends StatelessWidget {
                 child: Text(
                   'Premium ⭐',
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.success,
+                    color: context.tokens.successText,
                     fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
@@ -431,7 +431,7 @@ class _FeatureComparisonRow extends StatelessWidget {
                 child: Text(
                   premiumValue.replaceFirst('✓ ', ''),
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.success,
+                    color: context.tokens.successText,
                     fontWeight: FontWeight.w700,
                   ),
                   textAlign: TextAlign.center,
@@ -676,7 +676,7 @@ class _PricingCard extends StatelessWidget {
               Text(
                 'দীর্ঘমেয়াদে বেশি সাশ্রয়ী',
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.success,
+                  color: context.tokens.successText,
                   fontWeight: FontWeight.w700,
                 ),
               ),

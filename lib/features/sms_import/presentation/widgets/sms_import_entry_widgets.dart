@@ -504,7 +504,7 @@ class _PendingBadge extends StatelessWidget {
       child: Text(
         '${BanglaFormatters.count(count)} pending',
         style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.warning,
+          color: context.tokens.warningText,
           fontWeight: FontWeight.w700,
         ),
       ),

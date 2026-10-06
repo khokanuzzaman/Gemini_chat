@@ -67,8 +67,8 @@ class DebtInsightPage extends ConsumerWidget {
                 TextSpan(
                   text:
                       'পাওনা: ${BanglaFormatters.currency(summary.totalOwedToMe)}',
-                  style: const TextStyle(
-                    color: AppColors.success,
+                  style: TextStyle(
+                    color: context.tokens.successText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -76,8 +76,8 @@ class DebtInsightPage extends ConsumerWidget {
                 TextSpan(
                   text:
                       'দেনা: ${BanglaFormatters.currency(summary.totalIOwe)}',
-                  style: const TextStyle(
-                    color: AppColors.error,
+                  style: TextStyle(
+                    color: context.tokens.dangerText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -97,7 +97,7 @@ class DebtInsightPage extends ConsumerWidget {
             Text(
               '⚠️ ${BanglaFormatters.count(summary.upcomingEMICount)} কিস্তি এই সপ্তাহে · ${BanglaFormatters.currency(summary.upcomingEMITotal)}',
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.warning,
+                color: context.tokens.warningText,
                 fontWeight: FontWeight.w700,
               ),
             ),

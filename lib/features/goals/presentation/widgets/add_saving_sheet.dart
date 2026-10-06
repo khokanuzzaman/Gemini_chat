@@ -166,7 +166,7 @@ class _AddSavingSheetState extends ConsumerState<AddSavingSheet> {
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           textAlign: TextAlign.center,
-          style: AppTextStyles.heroAmount.copyWith(color: AppColors.success),
+          style: AppTextStyles.heroAmount.copyWith(color: context.tokens.successText),
           decoration: InputDecoration(
             labelText: 'পরিমাণ',
             prefixText: '${BanglaFormatters.currencySymbol} ',
@@ -198,7 +198,7 @@ class _AddSavingSheetState extends ConsumerState<AddSavingSheet> {
                   child: Text(
                     'এই amount দিলে লক্ষ্য পূরণ হবে',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.success,
+                      color: context.tokens.successText,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

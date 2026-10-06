@@ -404,7 +404,7 @@ class _AmountFieldCard extends StatelessWidget {
                     child: Text(
                       errorText!,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.error,
+                        color: context.tokens.dangerText,
                         fontWeight: FontWeight.w600,
                       ),
                       textAlign: TextAlign.center,

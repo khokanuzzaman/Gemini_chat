@@ -39,8 +39,9 @@ class AppStatCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: (iconColor ?? context.appColors.primary)
-                        .withValues(alpha: 0.12),
+                    color: (iconColor ?? context.appColors.primary).withValues(
+                      alpha: 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -98,12 +99,15 @@ class _TrendBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = trend.isPositive ? AppColors.success : AppColors.error;
+    final tokens = context.tokens;
+    // Text-capable tones on their own soft tints (>= 4.5:1).
+    final color = trend.isPositive ? tokens.successText : tokens.dangerText;
+    final tint = trend.isPositive ? tokens.successSoft : tokens.dangerSoft;
     final icon = trend.isPositive ? Icons.trending_up : Icons.trending_down;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: tint,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(

@@ -1584,7 +1584,7 @@ class _IncomeSourceRow extends StatelessWidget {
             ),
             Text(
               '${(percentage * 100).toStringAsFixed(0)}%',
-              style: AppTextStyles.chipLabel.copyWith(color: AppColors.success),
+              style: AppTextStyles.chipLabel.copyWith(color: context.tokens.successText),
             ),
           ],
         ),
@@ -1894,7 +1894,7 @@ bool _isCurrentMonth(DateTime month) {
 
 Color _walletBaseColor(WalletEntity? wallet) {
   return switch (wallet?.type) {
-    WalletType.bkash => AppColors.primary,
+    WalletType.bkash => AppColors.primaryMid,
     WalletType.nagad => AppColors.success,
     WalletType.rocket => AppColors.warning,
     WalletType.bank => AppColors.food,

@@ -10,11 +10,18 @@ class SavingsRateInfoSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    // Used as TEXT on its own tint, so the text-capable tones.
     final rateColor = rate >= 20
-        ? AppColors.success
+        ? tokens.successText
         : (rate >= 10
-            ? AppColors.warning
-            : (rate >= 0 ? AppColors.primary : AppColors.error));
+              ? tokens.warningText
+              : (rate >= 0 ? tokens.primary : tokens.dangerText));
+    final rateTint = rate >= 20
+        ? tokens.successSoft
+        : (rate >= 10
+              ? tokens.warningSoft
+              : (rate >= 0 ? tokens.primarySoft : tokens.dangerSoft));
 
     return SafeArea(
       top: false,
@@ -52,9 +59,12 @@ class SavingsRateInfoSheet extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: rateColor.withValues(alpha: 0.12),
+                  color: rateTint,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(

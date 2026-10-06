@@ -610,7 +610,7 @@ class _ErrorBanner extends StatelessWidget {
             child: Text(
               message,
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.error,
+                color: context.tokens.dangerText,
                 height: 1.4,
               ),
             ),
@@ -1071,7 +1071,7 @@ class _CandidateRow extends ConsumerWidget {
             BanglaFormatters.preciseCurrency(draft.amount),
             style: AppTextStyles.titleMedium.copyWith(
               color: candidate.isIncome
-                  ? AppColors.success
+                  ? context.tokens.successText
                   : context.primaryTextColor,
             ),
           );
@@ -1191,7 +1191,7 @@ class _CandidateRow extends ConsumerWidget {
                   child: Text(
                     errorText!,
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.error,
+                      color: context.tokens.dangerText,
                     ),
                   ),
                 ),

@@ -75,7 +75,7 @@ class GoalCard extends StatelessWidget {
                       '${BanglaFormatters.count(goal.daysRemaining)} দিন বাকি',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: goal.daysRemaining < 30
-                            ? AppColors.warning
+                            ? context.tokens.warningText
                             : context.secondaryTextColor,
                       ),
                     ),
@@ -199,7 +199,7 @@ class GoalCard extends StatelessWidget {
                 'লক্ষ্য পূরণ হয়েছে',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.success,
+                  color: context.tokens.successText,
                   fontWeight: FontWeight.w600,
                 ),
               ),

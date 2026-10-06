@@ -167,8 +167,8 @@ class _IncomeConfirmationWidgetState
                 const SizedBox(height: 8),
                 Text(
                   BanglaFormatters.currency(draftAmount),
-                  style: const TextStyle(
-                    color: AppColors.success,
+                  style: TextStyle(
+                    color: context.tokens.successText,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                   ),
@@ -219,8 +219,8 @@ class _IncomeConfirmationWidgetState
                       }
                     });
                   },
-                  style: const TextStyle(
-                    color: AppColors.success,
+                  style: TextStyle(
+                    color: context.tokens.successText,
                     fontWeight: FontWeight.w700,
                     fontSize: 20,
                   ),
@@ -273,8 +273,8 @@ class _IncomeConfirmationWidgetState
                   child: OutlinedButton(
                     onPressed: _isSaving ? null : widget.onCancel,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
+                      foregroundColor: context.tokens.dangerText,
+                      side: BorderSide(color: context.tokens.dangerText),
                     ),
                     child: const Text(AppStrings.cancelButton),
                   ),
@@ -284,8 +284,8 @@ class _IncomeConfirmationWidgetState
                   child: FilledButton(
                     onPressed: _isSaving ? null : () => _save(effectiveWalletId),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      backgroundColor: context.tokens.successFill,
+                      foregroundColor: context.tokens.onFill,
                     ),
                     child: _isSaving
                         ? const SizedBox(

@@ -37,7 +37,7 @@ class BackupScreen extends ConsumerWidget {
                 child: Text(
                   backupState.errorMessage!,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.error,
+                    color: context.tokens.dangerText,
                   ),
                 ),
               ),

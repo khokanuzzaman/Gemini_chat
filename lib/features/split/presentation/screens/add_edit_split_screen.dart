@@ -463,8 +463,8 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                                           .bodySmall
                                           ?.copyWith(
                                             color: customSharesMatch
-                                                ? AppColors.success
-                                                : AppColors.error,
+                                                ? context.tokens.successText
+                                                : context.tokens.dangerText,
                                             fontWeight: FontWeight.w700,
                                           ),
                                     ),
@@ -541,8 +541,8 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: person.balance >= 0
-                                          ? AppColors.success
-                                          : AppColors.error,
+                                          ? context.tokens.successText
+                                          : context.tokens.dangerText,
                                       fontWeight: FontWeight.w700,
                                     ),
                               ),

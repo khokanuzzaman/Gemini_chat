@@ -255,7 +255,7 @@ class ChatInputArea extends ConsumerWidget {
                           '$currentCount/$maxMessageLength',
                           style: AppTextStyles.caption.copyWith(
                             color: isOverLimit
-                                ? AppColors.error
+                                ? context.tokens.dangerText
                                 : context.secondaryTextColor,
                             fontWeight: currentCount > 0 || isOverLimit
                                 ? FontWeight.w700
