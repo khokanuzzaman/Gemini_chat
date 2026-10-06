@@ -218,6 +218,30 @@ Phase 1 shows no ads, so the app does not use the Advertising ID. Firebase Analy
 - Daily recurring entries are habits, not obligations, and are excluded. The provider
   recomputes on data changes / Home refresh, not at midnight.
 
+## Home (R1) — rules
+Order: header · মোট সম্পদ hero (+ wallet chips) · এই মাসের খরচ · ONE attention slot
+(restore banner > backup reminder) · SMS card · ইনসাইট · সাম্প্রতিক লেনদেন · FAB. Widgets
+live in `widgets/home/`; with ZERO expenses AND ZERO income Home shows `HomeWelcome` instead.
+- **Colours: tokens only** in `widgets/home/` (`home_tokens_only_test` — stricter than the
+  global ratchet: not even static `AppColors.*`). On a `brassSoft` background use
+  `context.brassGlyph` (dark glyph in light mode, brass in dark mode); never brass text/
+  icons on light surfaces. Brass buttons are a FILL with `onBrass` text.
+- **Numbers come from existing providers; derived values are pure, tested functions** —
+  `spendingDelta()` (% vs last month, hidden when last month is 0, capped at 999) and
+  `mergeRecentActivity()` (expense + income, top 5). Don't compute in widgets.
+- `spendingDelta` compares a PARTIAL month with a full one (spec'd), so it reads "less"
+  early in the month. Pro-rating would be a new calculation — decide before changing it.
+- Insights rows only appear when they have something to say: budget · upcoming (G4,
+  `upcomingObligationsProvider`) · prediction · anomaly. New rows go in
+  `home_insights_card.dart`.
+- Don't put "→" (U+2192) or other symbols in text: the bundled fonts have no glyph for
+  them (use an `Icon`).
+- **Tests:** `home_states_test` (content per state), `home_overflow_test` (7 states × light/
+  dark × 320/360dp × ×1.0/×1.3, real fonts). To eyeball a change without a phone:
+  `R1_PREVIEW=1 flutter test test/features/expense/home_states_test.dart` writes
+  `build/r1_preview/*.png` (git-ignored; no emoji glyphs on the host, so wallet emojis show
+  as boxes there but not on a device).
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

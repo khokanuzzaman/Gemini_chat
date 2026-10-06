@@ -57,6 +57,7 @@ class BanglaFormatters {
   static final DateFormat _monthFormat = DateFormat('MMMM yyyy', 'bn');
   static final DateFormat _fullDateFormat = DateFormat('d MMMM yyyy', 'bn');
   static final DateFormat _dayMonthFormat = DateFormat('d MMM', 'bn');
+  static final DateFormat _dayMonthLongFormat = DateFormat('d MMMM', 'bn');
   static final DateFormat _timeFormat = DateFormat('h:mm a', 'bn');
 
   static String currency(num amount) {
@@ -75,6 +76,11 @@ class BanglaFormatters {
 
   static String fullDate(DateTime date) {
     return _fullDateFormat.format(date);
+  }
+
+  /// "১৬ অক্টোবর" (full month name, no year).
+  static String dayMonthLong(DateTime date) {
+    return _dayMonthLongFormat.format(date);
   }
 
   static String dayMonth(DateTime date) {

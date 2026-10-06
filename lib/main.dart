@@ -54,7 +54,6 @@ import 'features/category/domain/category_registry.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/anomaly/presentation/providers/anomaly_provider.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
-import 'features/expense/presentation/providers/expense_providers.dart';
 import 'features/expense/presentation/screens/dashboard_screen.dart';
 import 'features/expense/presentation/screens/expenses_tab_screen.dart';
 import 'features/more/presentation/screens/more_screen.dart';
@@ -456,10 +455,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
   Widget _screenFor(AppTab tab) {
     switch (tab) {
       case AppTab.home:
-        return DashboardScreen(
-          onOpenExpenses: _openExpenses,
-          onOpenChat: () => _setCurrentTab(AppTab.chat),
-        );
+        return const DashboardScreen();
       case AppTab.chat:
         return const ChatScreen();
       case AppTab.expenses:
@@ -484,19 +480,6 @@ class _MainShellState extends ConsumerState<_MainShell> {
       selectedIcon: _NavIcon(icon: icon, label: label, active: true),
       label: label,
     );
-  }
-
-  void _openExpenses(String? category) async {
-    final controller = ref.read(expenseListControllerProvider.notifier);
-    await controller.clearFilters();
-    if (category != null) {
-      await controller.setCategory(category);
-    }
-
-    if (!mounted) {
-      return;
-    }
-    _setCurrentTab(AppTab.expenses);
   }
 
   void _handleExternalTabChange() {

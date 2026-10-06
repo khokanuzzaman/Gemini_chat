@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:gemini_chat/core/navigation/app_shell_navigation.dart';
-import 'package:gemini_chat/features/expense/presentation/widgets/dashboard/dashboard_header.dart';
-import 'package:gemini_chat/features/expense/presentation/widgets/dashboard/insights_strip/anomaly_insight_page.dart';
+import 'package:gemini_chat/core/theme/app_theme.dart';
+import 'package:gemini_chat/features/expense/presentation/widgets/home/home_header.dart';
+import 'package:gemini_chat/features/expense/presentation/widgets/home/home_insights_card.dart';
 
 void main() {
   setUp(() => AppShellNavigation.analyticsTab.value = AnalyticsTab.summary);
@@ -12,12 +13,13 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: AnomalyInsightPage(count: 3, highCount: 1)),
+      MaterialApp(
+        theme: AppTheme.lightTheme(),
+        home: const Scaffold(body: AnomalyInsightRow(count: 3, highCount: 1)),
       ),
     );
 
-    await tester.tap(find.byType(AnomalyInsightPage));
+    await tester.tap(find.byType(AnomalyInsightRow));
     await tester.pump();
 
     // Navigator is not mounted in this test, so only the requested sub-tab is

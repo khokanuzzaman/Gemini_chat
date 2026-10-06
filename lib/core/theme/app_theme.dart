@@ -706,6 +706,12 @@ extension AppThemeContext on BuildContext {
   ColorScheme get appColors => appTheme.colorScheme;
   bool get isDarkMode => appTheme.brightness == Brightness.dark;
 
+  /// The icon/text colour to use ON a `brassSoft` background: dark `onBrass` in
+  /// light mode, `brass` itself in dark mode (where brassSoft is a dark brown, so
+  /// a dark glyph would vanish). Both are >= 4.5:1 on brassSoft (see
+  /// app_tokens_contrast_test).
+  Color get brassGlyph => isDarkMode ? tokens.brass : tokens.onBrass;
+
   Color get surfaceColor => appColors.surface;
   Color get backgroundColor => appTheme.scaffoldBackgroundColor;
   Color get cardBackgroundColor => appTheme.cardColor;
