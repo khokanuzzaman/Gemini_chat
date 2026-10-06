@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/utils/category_icon.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../../recurring/domain/recurring_schedule.dart';
 
 class UpcomingRecurringCard extends StatelessWidget {
   const UpcomingRecurringCard({super.key, required this.patterns});
@@ -19,9 +20,9 @@ class UpcomingRecurringCard extends StatelessWidget {
             .map((pattern) {
               return AppListTile(
                 title: pattern.description,
-                subtitle: pattern.nextExpected == null
-                    ? 'তারিখ নেই'
-                    : BanglaFormatters.fullDate(pattern.nextExpected!),
+                subtitle: BanglaFormatters.fullDate(
+                  nextDueDate(pattern, today: DateTime.now()),
+                ),
                 leading: CircleAvatar(
                   backgroundColor: CategoryIcon.getColor(
                     pattern.category,

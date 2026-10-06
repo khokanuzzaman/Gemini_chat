@@ -6,6 +6,7 @@ import 'package:gemini_chat/features/debt/presentation/providers/debt_providers.
 import 'package:gemini_chat/features/obligations/domain/upcoming_obligation.dart';
 import 'package:gemini_chat/features/obligations/presentation/providers/upcoming_obligations_provider.dart';
 import 'package:gemini_chat/features/recurring/domain/entities/recurring_expense_entity.dart';
+import 'package:gemini_chat/features/recurring/domain/recurring_schedule.dart';
 import 'package:gemini_chat/features/recurring/presentation/providers/recurring_provider.dart';
 
 RecurringExpenseEntity _recurring({

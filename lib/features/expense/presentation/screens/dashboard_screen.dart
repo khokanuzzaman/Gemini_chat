@@ -27,6 +27,7 @@ import '../widgets/dashboard/recent_transactions_card.dart';
 import '../widgets/dashboard/backup_reminder_card.dart';
 import '../widgets/dashboard/restore_backup_banner.dart';
 import '../widgets/dashboard/upcoming_recurring_card.dart';
+import '../../../recurring/domain/recurring_schedule.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({
@@ -47,9 +48,10 @@ class DashboardScreen extends ConsumerWidget {
     final now = DateTime.now();
     final upcomingRecurring = recurringExpenses
         .where((pattern) {
-          final next = pattern.nextExpected;
-          if (next == null) return false;
-          final days = next.difference(now).inDays;
+          final days = nextDueDate(
+            pattern,
+            today: now,
+          ).difference(dateOnly(now)).inDays;
           return days >= 0 && days <= 7;
         })
         .toList(growable: false);

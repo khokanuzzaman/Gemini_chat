@@ -205,10 +205,12 @@ Phase 1 shows no ads, so the app does not use the Advertising ID. Firebase Analy
 `upcomingObligationsProvider` (`features/obligations/`) is the ONE "what's due" list
 (read-only; no new data): active monthly/weekly recurring entries + debts I owe
 (`iOwe`, open, with a due date), next 30 days plus anything overdue.
-- **Don't use `RecurringExpenseEntity.nextExpected`.** It is stamped once when an entry is
-  created and never advanced, so it goes stale; the next date is derived from
-  `dayOfMonth`/`dayOfWeek` relative to today (day 31 clamps per month, from the original
-  day: Jan 31 -> Feb 28 -> Mar 31).
+- **Never display `RecurringExpenseEntity.nextExpected`.** It is stamped once when an entry
+  is created and never advanced, so it goes stale (the field is still stored, but not
+  trusted). Use `nextDueDate(entry, today:)` (`recurring/domain/recurring_schedule.dart`) —
+  the single shared answer used by the Recurring screen, Home, this list and the AI
+  context. It derives the date from `dayOfMonth`/`dayOfWeek` relative to today (day 31
+  clamps per month, from the original day: Jan 31 -> Feb 28 -> Mar 31).
 - **De-dup signature:** an EMI payment expense marked recurring leaves a recurring entry
   with category `EMI` and the debt's person name as description (what
   `_debtExpenseDescription` writes). That entry is dropped in favour of the debt

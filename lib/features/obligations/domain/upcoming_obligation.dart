@@ -1,7 +1,6 @@
-import 'dart:math' as math;
-
 import '../../debt/domain/entities/debt_entity.dart';
 import '../../recurring/domain/entities/recurring_expense_entity.dart';
+import '../../recurring/domain/recurring_schedule.dart';
 
 enum ObligationKind {
   /// An instalment (EMI) or the due date of a debt I owe.
@@ -55,73 +54,6 @@ class UpcomingObligations {
   int get overdueCount => items.where((item) => item.isOverdue).length;
   double get totalAmount =>
       items.fold<double>(0, (sum, item) => sum + item.amount);
-}
-
-DateTime dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
-
-int daysInMonth(int year, int month) => DateTime(year, month + 1, 0).day;
-
-/// [dayOfMonth] in the given month, clamped to the month's length
-/// (31 -> Apr 30 / Feb 28 or 29). Always computed from the ORIGINAL day, so
-/// 31 goes Jan 31 -> Feb 28 -> Mar 31, never drifting to the 28th.
-DateTime dayInMonthClamped(int year, int month, int dayOfMonth) {
-  final normalized = DateTime(
-    year,
-    month,
-    1,
-  ); // normalises month 13 -> next year
-  return DateTime(
-    normalized.year,
-    normalized.month,
-    math.min(dayOfMonth, daysInMonth(normalized.year, normalized.month)),
-  );
-}
-
-/// First monthly occurrence on or after [today] that is strictly after
-/// [lastOccurrence] (so a future-dated entry doesn't fire before its own date).
-DateTime nextMonthlyOccurrence({
-  required DateTime today,
-  required int dayOfMonth,
-  required DateTime lastOccurrence,
-}) {
-  final day = (dayOfMonth >= 1 && dayOfMonth <= 31)
-      ? dayOfMonth
-      : lastOccurrence.day;
-  final last = dateOnly(lastOccurrence);
-  final start = dateOnly(today);
-
-  var year = start.year;
-  var month = start.month;
-  var candidate = dayInMonthClamped(year, month, day);
-  while (candidate.isBefore(start) || !candidate.isAfter(last)) {
-    month += 1;
-    candidate = dayInMonthClamped(year, month, day);
-  }
-  return candidate;
-}
-
-/// First weekly occurrence (`dayOfWeek` 1=Mon..7=Sun, like [DateTime.weekday])
-/// on or after [today] and strictly after [lastOccurrence].
-DateTime nextWeeklyOccurrence({
-  required DateTime today,
-  required int dayOfWeek,
-  required DateTime lastOccurrence,
-}) {
-  final weekday = (dayOfWeek >= 1 && dayOfWeek <= 7)
-      ? dayOfWeek
-      : lastOccurrence.weekday;
-  final last = dateOnly(lastOccurrence);
-  final start = dateOnly(today);
-
-  var candidate = DateTime(
-    start.year,
-    start.month,
-    start.day + ((weekday - start.weekday) % 7),
-  );
-  while (!candidate.isAfter(last)) {
-    candidate = DateTime(candidate.year, candidate.month, candidate.day + 7);
-  }
-  return candidate;
 }
 
 String _normalize(String text) => text.trim().toLowerCase();
@@ -204,18 +136,7 @@ UpcomingObligations mergeUpcomingObligations({
         emiSignatures.contains(_normalize(entry.description))) {
       continue; // already represented by the debt instalment
     }
-    final due = switch (entry.frequency) {
-      RecurringFrequency.monthly => nextMonthlyOccurrence(
-        today: start,
-        dayOfMonth: entry.dayOfMonth,
-        lastOccurrence: entry.lastOccurrence,
-      ),
-      _ => nextWeeklyOccurrence(
-        today: start,
-        dayOfWeek: entry.dayOfWeek,
-        lastOccurrence: entry.lastOccurrence,
-      ),
-    };
+    final due = nextDueDate(entry, today: start);
     if (due.isAfter(end)) {
       continue;
     }

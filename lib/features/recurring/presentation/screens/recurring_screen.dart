@@ -6,6 +6,7 @@ import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/recurring_expense_entity.dart';
 import '../providers/recurring_provider.dart';
+import '../../domain/recurring_schedule.dart';
 
 class RecurringScreen extends ConsumerWidget {
   const RecurringScreen({super.key});
@@ -137,7 +138,7 @@ class _RecurringExpenseCard extends ConsumerWidget {
                   leadingColor: color,
                   title: pattern.description,
                   subtitle:
-                      '${_frequencyLabel(pattern.frequency)} · ${_nextExpectedLabel(pattern.nextExpected)}',
+                      '${_frequencyLabel(pattern.frequency)} · ${_nextDueLabel(pattern)}',
                   trailingAmount: pattern.averageAmount,
                   trailingAmountIsExpense: true,
                   trailing: Column(
@@ -255,10 +256,9 @@ String _frequencyLabel(RecurringFrequency frequency) {
   };
 }
 
-String _nextExpectedLabel(DateTime? date) {
-  if (date == null) {
-    return 'পরবর্তী তারিখ নেই';
-  }
+/// The "পরবর্তী" line, derived from the schedule (not the stale stored field).
+String _nextDueLabel(RecurringExpenseEntity pattern) {
+  final date = nextDueDate(pattern, today: DateTime.now());
   return 'পরবর্তী: ${BanglaFormatters.fullDate(date)}';
 }
 

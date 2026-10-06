@@ -5,6 +5,7 @@ import '../../../../core/providers/database_providers.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 import '../../data/datasources/recurring_local_datasource.dart';
 import '../../domain/entities/recurring_expense_entity.dart';
+import '../../domain/recurring_schedule.dart';
 
 /// Outcome of [RecurringNotifier.markExpenseAsRecurring].
 enum MarkRecurringResult { added, alreadyExists }
@@ -107,13 +108,15 @@ class RecurringNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
     final patterns = await ref
         .read(recurringLocalDataSourceProvider)
         .getAllPatterns();
+    final today = DateTime.now();
     final entities =
         patterns.map((pattern) => pattern.toEntity()).toList(growable: false)
-          ..sort((first, second) {
-            final firstDate = first.nextExpected ?? first.lastOccurrence;
-            final secondDate = second.nextExpected ?? second.lastOccurrence;
-            return firstDate.compareTo(secondDate);
-          });
+          ..sort(
+            (first, second) => nextDueDate(
+              first,
+              today: today,
+            ).compareTo(nextDueDate(second, today: today)),
+          );
     return entities;
   }
 }

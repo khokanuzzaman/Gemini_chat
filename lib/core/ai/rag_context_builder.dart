@@ -14,6 +14,7 @@ import '../database/models/expense_record_model.dart';
 import '../database/models/sms_ledger_entry_model.dart';
 import '../sms/parsed_transaction.dart';
 import '../utils/bangla_formatters.dart';
+import '../../features/recurring/domain/recurring_schedule.dart';
 
 class RagContext {
   const RagContext({required this.textForAi, required this.data});
@@ -337,7 +338,7 @@ class RagContextBuilder {
         ..writeln('## Upcoming Recurring Expenses');
       for (final pattern in recurring.take(5)) {
         buffer.writeln(
-          '- ${pattern.description} (${pattern.category}): ~${BanglaFormatters.currency(pattern.averageAmount)} next ${pattern.nextExpected == null ? 'unknown' : BanglaFormatters.fullDate(pattern.nextExpected!)}',
+          '- ${pattern.description} (${pattern.category}): ~${BanglaFormatters.currency(pattern.averageAmount)} next ${BanglaFormatters.fullDate(nextDueDate(pattern, today: now))}',
         );
       }
     }
