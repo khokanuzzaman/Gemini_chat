@@ -35,6 +35,7 @@ import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/preferences/app_preferences.dart';
+import 'core/theme/font_licenses.dart';
 import 'core/premium/premium_providers.dart';
 import 'core/premium/premium_service.dart';
 import 'core/providers/database_providers.dart';
@@ -71,6 +72,7 @@ const _notificationPermissionAskedKey = 'notification_permission_asked';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerFontLicenses();
   await initializeDateFormatting('bn');
   await dotenv.load(fileName: '.env');
   await Firebase.initializeApp();

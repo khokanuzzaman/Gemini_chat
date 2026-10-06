@@ -96,7 +96,8 @@ class WalletsInsightPage extends ConsumerWidget {
                             onTap: () {
                               Navigator.of(context).push(
                                 AppSlideRoute(
-                                  builder: (_) => const WalletManagementScreen(),
+                                  builder: (_) =>
+                                      const WalletManagementScreen(),
                                 ),
                               );
                             },
@@ -153,20 +154,24 @@ class _DashboardWalletCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(emoji, style: const TextStyle(fontSize: 28)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Text(
                   name,
-                  style: AppTextStyles.titleMedium.copyWith(color: Colors.white),
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: Colors.white,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: AppAmountText(
                     amount: balance,
-                    style: AppTextStyles.statValue.copyWith(color: Colors.white),
+                    style: AppTextStyles.statValue.copyWith(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -174,8 +179,11 @@ class _DashboardWalletCard extends ConsumerWidget {
             monthlySpent.when(
               data: (spent) => Text(
                 'এই মাসে খরচ: ${BanglaFormatters.currency(spent)}',
+                // 1.3, not the 1.5 body default: this is a 2-line caption in a
+                // fixed 224dp strip (R0b overflow check).
                 style: AppTextStyles.bodySmall.copyWith(
                   color: Colors.white.withValues(alpha: 0.8),
+                  height: 1.3,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

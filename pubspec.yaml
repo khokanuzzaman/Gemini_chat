@@ -108,6 +108,25 @@ flutter:
   assets:
     - .env
     - assets/icon/
+    - assets/fonts/licenses/
+
+  # Bundled fonts (offline-first: never fetched at runtime). All three are
+  # variable fonts under the SIL OFL; their licenses are in assets/fonts/licenses
+  # and are registered with the app's licenses page (see font_licenses.dart).
+  #   Inter           — body text (Latin)
+  #   Sora            — headings / display (Latin)
+  #   NotoSansBengali — Bengali, used as the fallback for both (digits, ৳ and all
+  #                     Bengali text render in it)
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-Variable.ttf
+    - family: NotoSansBengali
+      fonts:
+        - asset: assets/fonts/NotoSansBengali-Variable.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

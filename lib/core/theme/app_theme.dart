@@ -249,91 +249,153 @@ class AppMotion {
 class AppTextStyles {
   const AppTextStyles._();
 
+  // Typefaces (bundled, see pubspec.yaml). Inter carries body text, Sora the
+  // headings and big figures. Neither has Bengali glyphs, so every style falls
+  // back to Noto Sans Bengali — which is what Bengali digits, ৳ and all Bengali
+  // text actually render in. That makes the Bengali face the app's real
+  // identity; weights below are chosen with it in mind.
+  //
+  // Weight is selected by `fontWeight` alone: the variable fonts' `wght` axis
+  // follows it (verified by rendering 400/500/600/700 — see CONTRIBUTING.md).
+  // Do NOT also pin a `FontVariation('wght')` here: a variation overrides
+  // `fontWeight`, so every `.copyWith(fontWeight: …)` at a call site would
+  // silently stop working.
+  static const bodyFontFamily = 'Inter';
+  static const displayFontFamily = 'Sora';
+  static const bengaliFontFamily = 'NotoSansBengali';
+  static const _bengaliFallback = <String>[bengaliFontFamily];
+
+  // Line height: Noto Sans Bengali's natural height is ~1.32em and its tall
+  // matras/conjuncts need air, so running text uses 1.5 (the spec's Bangla
+  // target). Single-line display figures stay tighter, but never below 1.2.
+  // Letter-spacing is 0 on every style that has Bengali glyphs: tracking
+  // (especially negative) pulls conjunct components and matras into each other.
+
   static const displayLarge = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 32,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
   );
 
   static const displayMedium = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 24,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
   );
 
   static const titleLarge = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 18,
     fontWeight: FontWeight.w600,
+    height: 1.4,
   );
 
   static const titleMedium = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 16,
     fontWeight: FontWeight.w600,
+    height: 1.4,
   );
 
   static const bodyLarge = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 16,
-    fontWeight: FontWeight.normal,
+    fontWeight: FontWeight.w400,
     height: 1.5,
   );
 
   static const bodyMedium = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 14,
-    fontWeight: FontWeight.normal,
-    height: 1.4,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
   );
 
   static const bodySmall = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 12,
-    fontWeight: FontWeight.normal,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
   );
 
   static const caption = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 11,
-    fontWeight: FontWeight.normal,
+    fontWeight: FontWeight.w400,
     letterSpacing: 0.2,
+    height: 1.45,
   );
 
+  // The big money figures: Bengali digits + ৳ render in Noto Sans Bengali, whose
+  // digits are tabular (identical advance at every weight), so 700 is enough —
+  // 800 only clots the counters of ৯/৬/৪ at 36px.
   static const heroAmount = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 36,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -1.0,
-    height: 1.1,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
   );
 
   static const heroLabel = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 13,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.5,
-  );
-
-  static const statValue = TextStyle(
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.3,
-  );
-
-  static const statLabel = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.2,
-  );
-
-  static const sectionTitle = TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.2,
-  );
-
-  static const sectionSubtitle = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.w400,
     height: 1.4,
   );
 
+  static const statValue = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+  );
+
+  static const statLabel = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.2,
+    height: 1.4,
+  );
+
+  static const sectionTitle = TextStyle(
+    fontFamily: displayFontFamily,
+    fontFamilyFallback: _bengaliFallback,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    height: 1.4,
+  );
+
+  static const sectionSubtitle = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+  );
+
   static const chipLabel = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontFamilyFallback: _bengaliFallback,
     fontSize: 13,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.1,
+    height: 1.4,
   );
 }
 
@@ -448,6 +510,10 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      // Anything without an explicit AppTextStyles entry (Material defaults:
+      // buttons, text-field input, list tiles…) gets Inter + Bengali fallback.
+      fontFamily: AppTextStyles.bodyFontFamily,
+      fontFamilyFallback: const [AppTextStyles.bengaliFontFamily],
       colorScheme: colorScheme,
       extensions: <ThemeExtension<dynamic>>[t],
       scaffoldBackgroundColor: t.canvas,

@@ -45,6 +45,32 @@ palette; spec in `docs/design/DESIGN_SPEC.md`.
 - **Hero** (`heroGradient`, `onHero`, `onHeroMuted`) is deep indigo with white text
   in BOTH modes.
 
+## Typography (R0b) — rules for UI code
+Fonts are bundled (offline-first), all variable, all SIL OFL: **Inter** (body),
+**Sora** (headings / big figures), **Noto Sans Bengali** (fallback for both).
+Inter and Sora have no Bengali glyphs, so Bengali text, Bengali digits and ৳ all
+render in Noto Sans Bengali — it is the app's real face; judge amount styles by it.
+- **Use `AppTextStyles`** (or `Theme.of(context).textTheme`); never set `fontFamily`
+  by hand. Each style already carries the family + Bengali fallback.
+- **Weight = `fontWeight` only.** The variable `wght` axis follows it (proved by
+  `test/core/theme/app_fonts_test.dart`). Never pin a `FontVariation('wght')` in a
+  shared style: a variation overrides `fontWeight`, so every call-site
+  `copyWith(fontWeight: …)` would silently stop working. Big money figures stay at
+  600–700 (800 clots the counters of ৬/৯/৪).
+- **No negative `letterSpacing`** on anything that can hold Bengali (it jams
+  conjuncts and matras). Running text is `height: 1.5`; single-line figures >= 1.2.
+- **`flutter_test` does not load pubspec fonts** (everything renders in the Ahem box
+  font, so widths are meaningless). Layout/overflow tests must call
+  `loadAppFonts()` from `test/helpers/app_fonts.dart`.
+- Fixed-height cards must survive Bengali line heights and 1.3x system text:
+  `test/core/theme/font_overflow_test.dart` renders the tight screens (Home hero,
+  wallet strip, amount field, list rows, stat cards, bottom nav) at 320/360dp,
+  ×1.0/×1.3, light + dark. Add new tight widgets there.
+- Licenses: `lib/core/theme/font_licenses.dart` registers the OFL texts in
+  `assets/fonts/licenses/` with `LicenseRegistry`. **The app has no licenses page
+  yet** (no `showLicensePage`/`AboutListTile`); add an entry point under
+  Settings → About.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

@@ -30,7 +30,9 @@ class AppHeroCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: height,
+        // `height` is a minimum: Bengali's taller line height and larger system
+        // text sizes must grow the card, not overflow it.
+        constraints: BoxConstraints(minHeight: height),
         width: double.infinity,
         decoration: context.heroCardDecoration(gradient: gradient),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -48,44 +50,51 @@ class AppHeroCard extends StatelessWidget {
                 ),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      label,
-                      style: AppTextStyles.heroLabel.copyWith(
-                        color: context.tokens.onHeroMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (icon != null)
-                      Icon(icon, color: context.tokens.onHeroMuted, size: 20),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      amount,
-                      style: AppTextStyles.heroAmount.copyWith(
-                        color: context.tokens.onHero,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: height - 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
                       Text(
-                        subtitle!,
-                        style: AppTextStyles.bodySmall.copyWith(
+                        label,
+                        style: AppTextStyles.heroLabel.copyWith(
                           color: context.tokens.onHeroMuted,
                         ),
                       ),
+                      const Spacer(),
+                      if (icon != null)
+                        Icon(icon, color: context.tokens.onHeroMuted, size: 20),
                     ],
-                  ],
-                ),
-              ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          amount,
+                          style: AppTextStyles.heroAmount.copyWith(
+                            color: context.tokens.onHero,
+                          ),
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle!,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: context.tokens.onHeroMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
             if (trailing != null)
               Positioned(right: 0, bottom: 0, child: trailing!),

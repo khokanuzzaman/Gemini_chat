@@ -15,6 +15,17 @@ import 'goals_insight_page.dart';
 import 'prediction_insight_page.dart';
 import 'wallets_insight_page.dart';
 
+const _insightHeight = 224.0;
+
+/// The pages are fixed-height cards, so a larger system text size has to grow
+/// the strip too (Bengali's taller line height makes this bite at ~1.3x). Grows
+/// by 80% of the extra scale, capped, so 1.0x is unchanged at 224dp.
+@visibleForTesting
+double insightStripHeight(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+  return _insightHeight * (1 + (scale - 1) * 0.8);
+}
+
 class InsightsStrip extends ConsumerStatefulWidget {
   const InsightsStrip({super.key});
 
@@ -23,9 +34,9 @@ class InsightsStrip extends ConsumerStatefulWidget {
 }
 
 class _InsightsStripState extends ConsumerState<InsightsStrip> {
-  static const _insightHeight = 224.0;
-  late final PageController _controller =
-      PageController(viewportFraction: 0.92);
+  late final PageController _controller = PageController(
+    viewportFraction: 0.92,
+  );
 
   @override
   void dispose() {
@@ -81,7 +92,7 @@ class _InsightsStripState extends ConsumerState<InsightsStrip> {
     return Column(
       children: [
         SizedBox(
-          height: _insightHeight,
+          height: insightStripHeight(context),
           child: PageView(
             controller: _controller,
             padEnds: false,
@@ -130,9 +141,7 @@ class _PageDots extends StatelessWidget {
               width: active ? 16 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: active
-                    ? context.appColors.primary
-                    : context.borderColor,
+                color: active ? context.appColors.primary : context.borderColor,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
