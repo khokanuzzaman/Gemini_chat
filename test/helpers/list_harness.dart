@@ -9,6 +9,8 @@ import 'package:gemini_chat/features/expense/domain/entities/expense_list_filter
 import 'package:gemini_chat/features/expense/domain/entities/expense_source.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
 import 'package:gemini_chat/features/income/domain/entities/income_entity.dart';
+import 'package:gemini_chat/features/recurring/domain/entities/recurring_expense_entity.dart';
+import 'package:gemini_chat/features/recurring/presentation/providers/recurring_provider.dart';
 import 'package:gemini_chat/features/income/presentation/providers/income_providers.dart';
 import 'package:gemini_chat/features/wallet/domain/entities/wallet_entity.dart';
 import 'package:gemini_chat/features/wallet/presentation/providers/wallet_provider.dart';
@@ -18,6 +20,9 @@ import 'package:gemini_chat/features/wallet/presentation/providers/wallet_provid
 class ListCalls {
   final deletedExpenses = <ExpenseEntity>[];
   final deletedIncomes = <IncomeEntity>[];
+  final updatedExpenses = <ExpenseEntity>[];
+  final markedRecurring = <ExpenseEntity>[];
+  String? updateError;
   int clearFilters = 0;
 }
 
@@ -44,6 +49,28 @@ class FakeExpenseList extends ExpenseListController {
   @override
   Future<void> clearFilters() async {
     calls.clearFilters++;
+  }
+
+  @override
+  Future<String?> updateExpense(ExpenseEntity input) async {
+    calls.updatedExpenses.add(input);
+    return calls.updateError;
+  }
+}
+
+class FakeRecurring extends RecurringNotifier {
+  FakeRecurring(this.calls);
+  final ListCalls calls;
+
+  @override
+  Future<List<RecurringExpenseEntity>> build() async => const [];
+
+  @override
+  Future<MarkRecurringResult> markExpenseAsRecurring(
+    ExpenseEntity expense,
+  ) async {
+    calls.markedRecurring.add(expense);
+    return MarkRecurringResult.added;
   }
 }
 
@@ -135,7 +162,11 @@ List<Override> listOverrides({
   List<IncomeEntity> incomes = const [],
   required ListCalls calls,
   ExpenseListFilter filter = const ExpenseListFilter(),
+  IncomeMutationController? incomeMutation,
 }) => [
+  if (incomeMutation != null)
+    incomeMutationControllerProvider.overrideWithValue(incomeMutation),
+  recurringProvider.overrideWith(() => FakeRecurring(calls)),
   expenseListControllerProvider.overrideWith(
     () => FakeExpenseList(expenses, calls, filter: filter),
   ),

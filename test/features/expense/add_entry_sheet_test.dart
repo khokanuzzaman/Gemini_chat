@@ -446,7 +446,7 @@ void main() {
     });
 
     test(
-      'the income ADD button opens the unified sheet; AddEditIncomeSheet is edit-only',
+      'the income ADD button opens the unified sheet; the income sheet is edit-only',
       () {
         final incomeList = File(
           'lib/features/income/presentation/screens/income_list_screen.dart',
@@ -456,13 +456,13 @@ void main() {
           contains('showAddEntrySheet(context, initialType: EntryType.income)'),
         );
         final calls = RegExp(
-          r'showAddEditIncomeSheet\(([^)]*)\)',
+          r'showEditIncomeSheet\(([^)]*)\)',
           dotAll: true,
         ).allMatches(incomeList);
         for (final call in calls) {
           expect(
             call.group(1),
-            contains('existingIncome'),
+            contains('entry'),
             reason: 'only for editing',
           );
         }

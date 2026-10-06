@@ -2,54 +2,59 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/money/amount_input.dart';
-import '../../../../core/money/whole_taka.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/bangla_formatters.dart';
-import '../../../../core/widgets/widgets.dart';
-import '../../../expense/presentation/widgets/add_entry/entry_choice_chips.dart';
-import '../../../expense/presentation/widgets/add_entry/entry_edit_shell.dart';
-import '../../../expense/presentation/widgets/add_entry/entry_form_parts.dart';
-import '../../../wallet/presentation/providers/wallet_provider.dart';
-import '../../../wallet/presentation/widgets/wallet_selector.dart';
-import '../../domain/entities/income_entity.dart';
-import '../../domain/entities/income_source.dart';
-import '../providers/income_providers.dart';
+import '../../../../../core/analytics/analytics_providers.dart';
+import '../../../../../core/analytics/usage_analytics.dart';
+import '../../../../../core/money/amount_input.dart';
+import '../../../../../core/money/whole_taka.dart';
+import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/utils/bangla_formatters.dart';
+import '../../../../../core/widgets/widgets.dart';
+import '../../../../category/presentation/providers/category_provider.dart';
+import '../../../../recurring/presentation/providers/recurring_provider.dart';
+import '../../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../../wallet/presentation/widgets/wallet_selector.dart';
+import '../../../domain/entities/expense_entity.dart';
+import '../../providers/expense_providers.dart';
+import '../../utils/expense_category_meta.dart';
+import '../add_entry/add_entry_sheet.dart' show categoryDisplayName;
+import '../add_entry/entry_choice_chips.dart';
+import '../add_entry/entry_edit_shell.dart';
+import '../add_entry/entry_form_parts.dart';
 
-/// Opens the income edit sheet. Resolves to what happened ([EntryEditResult]) or
-/// null if it was dismissed. Adding income goes through `showAddEntrySheet`.
-Future<EntryEditResult?> showEditIncomeSheet(
+/// Opens the expense edit sheet. Resolves to what happened ([EntryEditResult]) or
+/// null if it was dismissed / marked recurring (which reports itself).
+Future<EntryEditResult?> showEditExpenseSheet(
   BuildContext context,
-  IncomeEntity income,
+  ExpenseEntity expense,
 ) {
   return showModalBottomSheet<EntryEditResult>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => EditIncomeSheet(income: income),
+    builder: (_) => EditExpenseSheet(expense: expense),
   );
 }
 
-/// Edit an income with the add sheet's pieces: amount (keypad on tap), source
-/// chips, wallet, date, "প্রতি মাসে". Income keeps BOTH a description and its own
-/// separate note. Saves through `IncomeMutationController.updateIncome` (whole
-/// taka, ledger amend); delete goes through `IncomeListController.deleteIncome`
-/// (ledger reverse).
-class EditIncomeSheet extends ConsumerStatefulWidget {
-  const EditIncomeSheet({super.key, required this.income});
+/// Edit an expense with the same pieces as the add sheet: the amount (keypad
+/// opens on tap), category chips, wallet and date — plus the time row, a
+/// "নিয়মিত খরচ" shortcut and delete. Saves through the EXISTING
+/// `ExpenseListController.updateExpense` (whole taka, ledger amend); delete goes
+/// through `deleteExpense` (ledger reverse). Both refuse EMI/goal rows, which
+/// never reach this sheet.
+class EditExpenseSheet extends ConsumerStatefulWidget {
+  const EditExpenseSheet({super.key, required this.expense});
 
-  final IncomeEntity income;
+  final ExpenseEntity expense;
 
   @override
-  ConsumerState<EditIncomeSheet> createState() => _EditIncomeSheetState();
+  ConsumerState<EditExpenseSheet> createState() => _EditExpenseSheetState();
 }
 
-class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
+class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
   late AmountInput _amount;
-  late String _source;
+  late String _category;
   late DateTime _date;
-  late bool _isRecurring;
   int? _walletId;
   bool _keypadOpen = false;
   bool _isBusy = false;
@@ -57,44 +62,34 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
   String? _formError;
 
   final _description = TextEditingController();
-  final _note = TextEditingController();
   final _descriptionFocus = FocusNode();
   final _shellFocus = FocusNode();
-  final _noteFocus = FocusNode();
-
-  bool get _typing => _descriptionFocus.hasFocus || _noteFocus.hasFocus;
 
   @override
   void initState() {
     super.initState();
-    final income = widget.income;
-    // A legacy fractional amount is shown, and saved, rounded (see the expense
-    // sheet): the record and the wallet delta then use the same whole taka.
-    _amount = AmountInput.fromValue(wholeTaka(income.amount).toInt());
-    _source = income.source;
-    _date = income.date;
-    _walletId = income.walletId;
-    _isRecurring = income.isRecurring;
-    _description.text = income.description;
-    _note.text = income.note ?? '';
-    void onFocus() {
+    final expense = widget.expense;
+    // A legacy fractional amount (e.g. ৳120.50 from before whole-taka) is shown,
+    // and saved if the user saves, rounded — the same rounding the record and the
+    // wallet delta use, so they cannot disagree.
+    _amount = AmountInput.fromValue(wholeTaka(expense.amount).toInt());
+    _category = expense.category;
+    _date = expense.date;
+    _walletId = expense.walletId;
+    _description.text = expense.description;
+    _descriptionFocus.addListener(() {
       if (!mounted) return;
       setState(() {
-        if (_typing) _keypadOpen = false;
+        if (_descriptionFocus.hasFocus) _keypadOpen = false;
       });
-    }
-
-    _descriptionFocus.addListener(onFocus);
-    _noteFocus.addListener(onFocus);
+    });
   }
 
   @override
   void dispose() {
     _description.dispose();
-    _note.dispose();
     _descriptionFocus.dispose();
     _shellFocus.dispose();
-    _noteFocus.dispose();
     super.dispose();
   }
 
@@ -123,7 +118,7 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
   }
 
   KeyEventResult _onHardwareKey(FocusNode node, KeyEvent event) {
-    if (!_keypadOpen || _typing || event is KeyUpEvent) {
+    if (!_keypadOpen || _descriptionFocus.hasFocus || event is KeyUpEvent) {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
@@ -168,6 +163,23 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
     });
   }
 
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_date),
+    );
+    if (picked == null) return;
+    setState(() {
+      _date = DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        picked.hour,
+        picked.minute,
+      );
+    });
+  }
+
   Future<void> _save() async {
     final amount = _amount.value.toDouble();
     final walletId = _walletId ?? ref.read(activeWalletProvider)?.id;
@@ -175,8 +187,8 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
       setState(() => _amountError = 'সঠিক পরিমাণ লিখুন');
       return;
     }
-    if (_source.trim().isEmpty) {
-      setState(() => _formError = 'একটি উৎস নির্বাচন করুন');
+    if (_category.trim().isEmpty) {
+      setState(() => _formError = 'একটি ক্যাটাগরি বেছে নিন');
       return;
     }
     if (walletId == null) {
@@ -188,24 +200,17 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
       _isBusy = true;
       _formError = null;
     });
-    final existing = widget.income;
-    final note = _note.text.trim();
     final error = await ref
-        .read(incomeMutationControllerProvider)
-        .updateIncome(
-          IncomeEntity(
-            id: existing.id,
+        .read(expenseListControllerProvider.notifier)
+        .updateExpense(
+          widget.expense.copyWith(
             amount: amount,
-            source: _source,
+            category: _category,
+            // Empty is fine: the list shows the category name instead.
             description: _description.text.trim(),
             date: _date,
             walletId: walletId,
-            isRecurring: _isRecurring,
-            isManual: true,
-            note: note.isEmpty ? null : note,
-            createdAt: existing.createdAt,
           ),
-          existing,
         );
     if (!mounted) return;
     if (error != null) {
@@ -219,14 +224,12 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
   }
 
   Future<void> _delete() async {
-    final income = widget.income;
-    final label =
-        findIncomeSourceByName(income.source)?.banglaLabel ?? income.source;
+    final expense = widget.expense;
     final confirmed = await confirmDeleteEntry(
       context,
-      title: 'আয় মুছে ফেলবেন?',
+      title: 'খরচ মুছে ফেলবেন?',
       body:
-          '${income.description.trim().isEmpty ? label : income.description.trim()}\n${BanglaFormatters.currency(income.amount)}',
+          '${expense.description.trim().isEmpty ? categoryDisplayName(expense.category) : expense.description.trim()}\n${BanglaFormatters.currency(expense.amount)}',
     );
     if (!confirmed || !mounted) return;
 
@@ -235,8 +238,8 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
       _formError = null;
     });
     final error = await ref
-        .read(incomeListControllerProvider.notifier)
-        .deleteIncome(income);
+        .read(expenseListControllerProvider.notifier)
+        .deleteExpense(expense);
     if (!mounted) return;
     if (error != null) {
       setState(() {
@@ -248,15 +251,56 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
     Navigator.of(context).pop(EntryEditResult.deleted);
   }
 
+  Future<void> _markRecurring() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    // A recurring pattern needs a name: an expense saved without a description
+    // is listed under its category.
+    final expense = widget.expense.description.trim().isEmpty
+        ? widget.expense.copyWith(
+            description: categoryDisplayName(widget.expense.category),
+          )
+        : widget.expense;
+    final result = await ref
+        .read(recurringProvider.notifier)
+        .markExpenseAsRecurring(expense);
+    if (!mounted) return;
+    final added = result == MarkRecurringResult.added;
+    if (added) {
+      ref
+          .read(usageAnalyticsProvider)
+          .entryMethodUsed(AnalyticsEntryMethod.markRecurring);
+    }
+    navigator.pop();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            added
+                ? 'নিয়মিত খরচ হিসেবে চিহ্নিত হয়েছে'
+                : 'এই খরচ আগে থেকেই নিয়মিত হিসেবে চিহ্নিত আছে',
+          ),
+          backgroundColor: added ? AppColors.success : null,
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    // The income's own source stays selectable even if it is not one of the
-    // defaults (e.g. imported), so opening and saving never re-files it.
-    final known = {for (final source in defaultIncomeSources) source.name};
+    final names = ref
+        .watch(categoryProvider)
+        .map((category) => category.name)
+        .toList(growable: false);
+    // The expense's own category stays selectable even if it was since removed,
+    // so opening and saving never silently re-files it.
+    final categoryIds = names.contains(_category)
+        ? names
+        : [_category, ...names];
 
     return EntrySheetShell(
-      title: 'আয় সম্পাদনা',
+      title: 'খরচ সম্পাদনা',
       onKeyEvent: _onHardwareKey,
       focusNode: _shellFocus,
       body: Column(
@@ -264,7 +308,7 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
         children: [
           EntryAmountEditor(
             amount: _amount,
-            isIncome: true,
+            isIncome: false,
             expanded: _keypadOpen,
             error: _amountError,
             onToggle: _toggleKeypad,
@@ -275,28 +319,26 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
           const SizedBox(height: 12),
           EntryChoiceChips(
             choices: [
-              if (!known.contains(_source))
-                EntryChoice(id: _source, label: _source, emoji: '💰'),
-              for (final source in defaultIncomeSources)
+              for (final name in categoryIds)
                 EntryChoice(
-                  id: source.name,
-                  label: source.banglaLabel,
-                  emoji: source.emoji,
+                  id: name,
+                  label: categoryDisplayName(name),
+                  icon: resolveExpenseCategory(name).icon,
                 ),
             ],
-            selectedId: _source,
+            selectedId: _category,
             onSelected: (id) => setState(() {
-              _source = id;
+              _category = id;
               _formError = null;
             }),
-            selectedFill: tokens.successFill,
-            softFill: tokens.successSoft,
-            softGlyph: tokens.successText,
+            selectedFill: tokens.primaryFill,
+            softFill: tokens.primarySoft,
+            softGlyph: tokens.primary,
           ),
           const SizedBox(height: 12),
           WalletSelectorWidget(
             label: null,
-            selectedColor: tokens.successFill,
+            selectedColor: tokens.primaryFill,
             selectedWalletId: _walletId ?? ref.watch(activeWalletProvider)?.id,
             onChanged: (id) => setState(() {
               _walletId = id;
@@ -304,60 +346,33 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
             }),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: EntryDatePill(date: _date, onTap: _pickDate),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              EntryDatePill(date: _date, onTap: _pickDate),
+              EntryTimePill(date: _date, onTap: _pickTime),
+            ],
           ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: EntryRecurringSwitch(
-              value: _isRecurring,
-              onChanged: (value) => setState(() => _isRecurring = value),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           TextField(
             controller: _description,
             focusNode: _descriptionFocus,
             maxLength: 100,
             maxLines: 1,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.done,
             style: AppTextStyles.bodyLarge.copyWith(color: tokens.ink),
-            decoration: entryTextDecoration(
-              context,
-              'বিবরণ (যেমন: মাসিক বেতন)',
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Income keeps a separate, longer note.
-          TextField(
-            controller: _note,
-            focusNode: _noteFocus,
-            maxLength: 200,
-            minLines: 2,
-            maxLines: 4,
-            style: AppTextStyles.bodyLarge.copyWith(color: tokens.ink),
-            decoration:
-                entryTextDecoration(
-                  context,
-                  'নোট — অতিরিক্ত কিছু যোগ করতে পারেন',
-                ).copyWith(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: tokens.inputOutline),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: tokens.inputOutline),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: tokens.primary, width: 1.5),
-                  ),
-                ),
+            decoration: entryTextDecoration(context, 'বিবরণ (ঐচ্ছিক)'),
           ),
           const SizedBox(height: 20),
+          AppActionButton(
+            label: 'নিয়মিত খরচ হিসেবে চিহ্নিত করুন',
+            icon: Icons.repeat_rounded,
+            variant: AppActionButtonVariant.ghost,
+            fullWidth: true,
+            onPressed: _isBusy ? null : _markRecurring,
+          ),
+          const SizedBox(height: 8),
           // Quiet on purpose: the primary action is "আপডেট করুন"; delete asks
           // for confirmation anyway.
           TextButton.icon(
@@ -388,7 +403,6 @@ class _EditIncomeSheetState extends ConsumerState<EditIncomeSheet> {
           AppActionButton(
             label: 'আপডেট করুন',
             icon: Icons.check_rounded,
-            variant: AppActionButtonVariant.success,
             fullWidth: true,
             isLoading: _isBusy,
             onPressed: _isBusy ? null : _save,

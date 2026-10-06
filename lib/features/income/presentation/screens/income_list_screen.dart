@@ -12,6 +12,8 @@ import '../../domain/entities/income_entity.dart';
 import '../../domain/entities/income_source.dart';
 import '../providers/income_providers.dart';
 import '../widgets/add_edit_income_sheet.dart';
+import '../../../expense/presentation/widgets/add_entry/entry_form_parts.dart'
+    show EntryEditResult;
 import '../../../expense/presentation/widgets/add_entry/add_entry_sheet.dart';
 import '../../../expense/presentation/widgets/add_entry/entry_type.dart';
 import '../../../expense/domain/recent_activity.dart';
@@ -301,20 +303,20 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
       showAddEntrySheet(context, initialType: EntryType.income);
 
   Future<void> _openEditSheet(IncomeEntity entry) async {
-    final updated = await showAddEditIncomeSheet(
-      context,
-      existingIncome: entry,
-    );
-
-    if (updated != true || !mounted) {
+    final result = await showEditIncomeSheet(context, entry);
+    if (result == null || !mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('আয় আপডেট হয়েছে'),
+        SnackBar(
+          content: Text(
+            result == EntryEditResult.deleted
+                ? 'আয় মুছে ফেলা হয়েছে'
+                : 'আয় আপডেট হয়েছে',
+          ),
           backgroundColor: AppColors.success,
         ),
       );

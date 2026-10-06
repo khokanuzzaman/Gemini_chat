@@ -336,6 +336,31 @@ owner, so the books disagree. Therefore:
 - Loading skeletons must not overflow a 568dp screen (they sit in an inert
   `SingleChildScrollView`).
 
+## Edit sheets (R3) — rules
+
+- Both edit sheets are built from the add sheet's shared pieces
+  (`add_entry/entry_form_parts.dart`: `EntryAmountDisplay`, `EntryDatePill`,
+  `EntryTimePill`, `EntryRecurringSwitch`, `entryTextDecoration`) inside
+  `EntrySheetShell` (pinned footer, stays above the keyboard). Change a shared
+  piece once; do not fork it per sheet.
+- **Amount** = the same `AmountInput` keypad as the add sheet, **collapsed by
+  default** (tap the figure to open it); hardware digits work while it is open.
+- **Editing a legacy fractional record saves it rounded.** Records written before
+  the whole-taka rule can hold ৳120.50. The edit sheet starts from
+  `wholeTaka(amount)` (shows ৳121) and `updateExpense` / `updateIncome` round again
+  at the boundary, so the record and the wallet delta agree. Opening such a record
+  and saving **changes its amount by up to ৳0.50** — intended (see "Money is whole
+  taka"); do not "preserve" the paisa.
+- **Expense edit keeps**: the date **and** time rows, "নিয়মিত খরচ হিসেবে চিহ্নিত
+  করুন", an optional description (empty is fine — the list shows the category).
+  **Income edit keeps** its separate longer note beside the description, and the
+  "প্রতি মাসে" switch. A category/source that is no longer in the list stays
+  selectable so saving never silently re-files a record.
+- **Delete** is a button in the sheet (also swipe / long-press in the list), always
+  behind a confirm dialog, always through `deleteExpense` / `deleteIncome`, which
+  use the ledger reverse. Never delete via the data source.
+- EMI / goal rows never open these sheets (read-only sheet; see R3 (b)).
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

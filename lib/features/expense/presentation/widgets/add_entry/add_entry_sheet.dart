@@ -9,7 +9,6 @@ import '../../../../../core/analytics/usage_analytics.dart';
 import '../../../../../core/money/amount_input.dart';
 import '../../../../../core/providers/shared_preferences_provider.dart';
 import '../../../../../core/theme/app_theme.dart';
-import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../category/presentation/providers/category_provider.dart';
 import '../../../../income/domain/entities/income_entity.dart';
@@ -22,6 +21,7 @@ import '../../providers/expense_providers.dart';
 import '../../utils/expense_category_meta.dart';
 import 'amount_keypad.dart';
 import 'entry_choice_chips.dart';
+import 'entry_form_parts.dart';
 import 'entry_type.dart';
 import 'entry_type_toggle.dart';
 import 'last_used_choice.dart';
@@ -170,30 +170,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     return KeyEventResult.ignored;
   }
 
-  static final _digitKeys = <LogicalKeyboardKey, String>{
-    LogicalKeyboardKey.digit0: '0',
-    LogicalKeyboardKey.digit1: '1',
-    LogicalKeyboardKey.digit2: '2',
-    LogicalKeyboardKey.digit3: '3',
-    LogicalKeyboardKey.digit4: '4',
-    LogicalKeyboardKey.digit5: '5',
-    LogicalKeyboardKey.digit6: '6',
-    LogicalKeyboardKey.digit7: '7',
-    LogicalKeyboardKey.digit8: '8',
-    LogicalKeyboardKey.digit9: '9',
-    LogicalKeyboardKey.numpad0: '0',
-    LogicalKeyboardKey.numpad1: '1',
-    LogicalKeyboardKey.numpad2: '2',
-    LogicalKeyboardKey.numpad3: '3',
-    LogicalKeyboardKey.numpad4: '4',
-    LogicalKeyboardKey.numpad5: '5',
-    LogicalKeyboardKey.numpad6: '6',
-    LogicalKeyboardKey.numpad7: '7',
-    LogicalKeyboardKey.numpad8: '8',
-    LogicalKeyboardKey.numpad9: '9',
-  };
-
-  String? _digitFor(LogicalKeyboardKey key) => _digitKeys[key];
+  String? _digitFor(LogicalKeyboardKey key) => amountDigitForKey(key);
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -409,7 +386,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _AmountDisplay(
+          EntryAmountDisplay(
             amount: _amount,
             isIncome: _isIncome,
             error: _amountError,
@@ -455,7 +432,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DatePill(date: _date, onTap: _pickDate),
+              EntryDatePill(date: _date, onTap: _pickDate),
               const SizedBox(width: 8),
               Expanded(child: _noteField(tokens)),
             ],
@@ -464,7 +441,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerLeft,
-              child: _RecurringSwitch(
+              child: EntryRecurringSwitch(
                 value: _isRecurring,
                 onChanged: (value) => setState(() => _isRecurring = value),
               ),
@@ -551,163 +528,6 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               fullWidth: true,
               isLoading: _isSaving,
               onPressed: _isSaving ? null : _save,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// "পরিমাণ" and the big ৳ figure, with live Bengali grouping.
-class _AmountDisplay extends StatelessWidget {
-  const _AmountDisplay({
-    required this.amount,
-    required this.isIncome,
-    required this.error,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  final AmountInput amount;
-  final bool isIncome;
-  final String? error;
-  final VoidCallback onTap;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final color = amount.isEmpty
-        ? tokens.muted
-        : (isIncome ? tokens.successText : tokens.ink);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Semantics(
-        liveRegion: true,
-        label: amount.isEmpty
-            ? 'পরিমাণ এখনো দেওয়া হয়নি'
-            : 'পরিমাণ ${BanglaFormatters.currency(amount.value)}',
-        excludeSemantics: true,
-        child: Column(
-          children: [
-            if (!compact) ...[
-              Text(
-                'পরিমাণ',
-                style: AppTextStyles.bodySmall.copyWith(color: tokens.muted),
-              ),
-              const SizedBox(height: 4),
-            ],
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '${BanglaFormatters.currencySymbol} ${amount.display}',
-                maxLines: 1,
-                style:
-                    (compact
-                            ? AppTextStyles.displayMedium
-                            : AppTextStyles.heroAmount)
-                        .copyWith(color: color),
-              ),
-            ),
-            SizedBox(
-              height: compact ? 0 : 20,
-              child: error == null || compact
-                  ? null
-                  : Text(
-                      error!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: tokens.dangerText,
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DatePill extends StatelessWidget {
-  const _DatePill({required this.date, required this.onTap});
-
-  final DateTime date;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final now = DateTime.now();
-    final isToday =
-        date.year == now.year && date.month == now.month && date.day == now.day;
-    return Semantics(
-      button: true,
-      label: 'তারিখ বদলান',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: tokens.surface2,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: tokens.inputOutline),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.calendar_today_rounded,
-                size: 16,
-                color: tokens.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isToday ? 'আজ' : BanglaFormatters.fullDate(date),
-                style: AppTextStyles.titleMedium.copyWith(color: tokens.ink),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_drop_down_rounded, color: tokens.muted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecurringSwitch extends StatelessWidget {
-  const _RecurringSwitch({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Semantics(
-      toggled: value,
-      label: 'প্রতি মাসে',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: () => onChanged(!value),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'প্রতি মাসে',
-              style: AppTextStyles.titleMedium.copyWith(color: tokens.ink),
-            ),
-            const SizedBox(width: 8),
-            ExcludeSemantics(
-              child: Switch.adaptive(
-                value: value,
-                onChanged: onChanged,
-                activeTrackColor: tokens.successFill,
-                activeThumbColor: tokens.onFill,
-              ),
             ),
           ],
         ),
