@@ -1,0 +1,60 @@
+// PHASE 2 REFERENCE CODE — not compiled (the .txt extension keeps it out of the build).
+//
+// Adapted from the picking + permission code in commit 66cd9b7
+// (lib/core/scanner/receipt_scanner_service.dart, pickAndScanFromCamera /
+// pickAndScanFromGallery), reshaped to the ReceiptImageSource interface that Phase 1
+// keeps in lib/core/scanner/receipt_image_source.dart. Re-verify against the
+// CURRENT image_picker and permission_handler APIs before using.
+//
+// To restore: copy to lib/core/scanner/image_picker_receipt_source.dart, then follow
+// "Restoring receipt OCR (Phase 2)" in CONTRIBUTING.md.
+
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import 'receipt_image_source.dart';
+
+class ImagePickerReceiptSource implements ReceiptImageSource {
+  ImagePickerReceiptSource({ImagePicker? picker})
+    : _picker = picker ?? ImagePicker();
+
+  final ImagePicker _picker;
+
+  @override
+  Future<ReceiptImagePick> pickFromCamera() async {
+    final granted = await Permission.camera.request();
+    if (!granted.isGranted) {
+      return const ReceiptImagePick.failure('permission_denied');
+    }
+
+    final image = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+    return image == null
+        ? const ReceiptImagePick.failure('cancelled')
+        : ReceiptImagePick.path(image.path);
+  }
+
+  @override
+  Future<ReceiptImagePick> pickFromGallery() async {
+    if (Platform.isIOS) {
+      final status = await Permission.photos.request();
+      if (!status.isGranted && !status.isLimited) {
+        return const ReceiptImagePick.failure('permission_denied');
+      }
+    }
+
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+    return image == null
+        ? const ReceiptImagePick.failure('cancelled')
+        : ReceiptImagePick.path(image.path);
+  }
+}

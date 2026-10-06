@@ -1,66 +1,45 @@
-import 'dart:io';
-
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-import '../mlkit/ocr_service.dart';
+import '../ocr/ocr_service.dart';
 import 'receipt_format_checker.dart';
 import 'receipt_image_preprocessor.dart';
+import 'receipt_image_source.dart';
 import 'scan_result.dart';
 
+/// Pick a receipt image -> auto-crop -> OCR -> check it looks like a receipt.
+///
+/// Platform specifics (camera/gallery + permissions, ML Kit) live behind
+/// [ReceiptImageSource] and [OcrService], so this pipeline is plain Dart and
+/// unit-testable. Phase 1 wires the no-op implementations of both.
 class ReceiptScannerService {
   ReceiptScannerService({
     required OcrService ocrService,
+    required ReceiptImageSource imageSource,
     ReceiptImagePreprocessor? imagePreprocessor,
     ReceiptFormatChecker? formatChecker,
-    ImagePicker? picker,
   }) : _ocrService = ocrService,
+       _imageSource = imageSource,
        _imagePreprocessor =
            imagePreprocessor ?? const ReceiptImagePreprocessor(),
-       _formatChecker = formatChecker ?? const ReceiptFormatChecker(),
-       _picker = picker ?? ImagePicker();
+       _formatChecker = formatChecker ?? const ReceiptFormatChecker();
 
   final OcrService _ocrService;
+  final ReceiptImageSource _imageSource;
   final ReceiptImagePreprocessor _imagePreprocessor;
   final ReceiptFormatChecker _formatChecker;
-  final ImagePicker _picker;
 
   Future<ScanResult> pickAndScanFromCamera() async {
-    final granted = await Permission.camera.request();
-    if (!granted.isGranted) {
-      return const ScanResult.failure('permission_denied');
-    }
-
-    final image = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-      maxWidth: 1920,
-    );
-    if (image == null) {
-      return const ScanResult.failure('cancelled');
-    }
-
-    return _processImage(image.path);
+    return _scan(await _imageSource.pickFromCamera());
   }
 
   Future<ScanResult> pickAndScanFromGallery() async {
-    if (Platform.isIOS) {
-      final status = await Permission.photos.request();
-      if (!status.isGranted && !status.isLimited) {
-        return const ScanResult.failure('permission_denied');
-      }
-    }
+    return _scan(await _imageSource.pickFromGallery());
+  }
 
-    final image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1920,
-    );
-    if (image == null) {
-      return const ScanResult.failure('cancelled');
+  Future<ScanResult> _scan(ReceiptImagePick pick) async {
+    final path = pick.imagePath;
+    if (path == null) {
+      return ScanResult.failure(pick.error ?? 'unavailable');
     }
-
-    return _processImage(image.path);
+    return _processImage(path);
   }
 
   Future<ScanResult> _processImage(String imagePath) async {

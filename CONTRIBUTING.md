@@ -144,6 +144,44 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
   inline — it reads `state` while build is still running and overwrote the real state
   with `BackupState.initial()`.
 
+## Receipt OCR is removed in Phase 1 — restoring it in Phase 2
+Google ML Kit text recognition (and `image_picker`, the CAMERA permission and the iOS
+camera/photo strings that only it needed) were removed: they cost ~15 MB per ABI
+and made `pod install` fail (MLKitVision/nanopb vs Firebase). Nothing else in the app
+used the camera or `image_picker` (grep-verified: profile photos, attachments etc. do
+not exist; `Share.shareXFiles`' `XFile` comes from share_plus).
+
+Phase 1 ships `NoopOcrService` + `NoopReceiptImageSource` behind the real
+`ReceiptScannerService` pipeline (`lib/core/scanner/`, `lib/core/ocr/`), which stays
+compiled and unit-tested. Reference implementations from commit `66cd9b7` (the last
+commit with ML Kit) are in `docs/phase2/*.dart.txt` — **re-verify them against the
+then-current plugin APIs**. To restore:
+1. **Dependencies** (`pubspec.yaml`): `google_mlkit_text_recognition` and `image_picker`.
+2. **Files**: copy `docs/phase2/ml_kit_ocr_service.dart.txt` ->
+   `lib/core/ocr/ml_kit_ocr_service.dart` (class `MlKitOcrService implements OcrService`)
+   and `image_picker_receipt_source.dart.txt` ->
+   `lib/core/scanner/image_picker_receipt_source.dart`.
+3. **Providers** (`chat_provider.dart`): `ocrServiceProvider` returns
+   `MlKitOcrService()` (keep the `onDispose`), `receiptImageSourceProvider` returns
+   `ImagePickerReceiptSource()`.
+4. **Android permissions** (`AndroidManifest.xml`):
+   `<uses-permission android:name="android.permission.CAMERA" />` and
+   `<uses-feature android:name="android.hardware.camera" android:required="false" />`.
+5. **Gradle** (`android/app/build.gradle.kts`, `dependencies`): only if the Bengali/other
+   script models are wanted beyond Latin — the four
+   `com.google.mlkit:text-recognition-{chinese,devanagari,japanese,korean}:16.0.1` lines
+   (they were what made the APK ~15 MB bigger). Bengali itself is NOT covered by ML Kit's
+   Latin model: evaluate recognition quality on real Bangladeshi receipts first.
+6. **Proguard** (`android/app/proguard-rules.pro`):
+   `-keep class com.google_mlkit_commons.** { *; }`,
+   `-keep class com.google_mlkit_text_recognition.** { *; }`, `-dontwarn com.google.mlkit.**`.
+7. **iOS** (`ios/Runner/Info.plist`): `NSCameraUsageDescription` ("Receipt scan করতে camera
+   দরকার") and `NSPhotoLibraryUsageDescription` ("Gallery থেকে receipt select করতে").
+   **`pod install` will fail again** (MLKitVision/nanopb vs Firebase) and ML Kit needs a
+   much higher iOS deployment target than the current `platform :ios, '13.0'` — resolve
+   before enabling OCR on iOS.
+8. Re-run both test modes, build a release APK + AAB, and re-measure per-ABI size.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
@@ -162,16 +200,10 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
   callers** — reserved for a possible "suggest recurring patterns" opt-in helper
   later. Do not delete them assuming they are unused. Same policy as
   [ai_guide] and `ExpenseSource.goalDeposit`.
-- **iOS build (CocoaPods) does not resolve — dedicated iOS-setup task.** `pod
-  install` fails on two conflicts: `google_mlkit_text_recognition` (receipt OCR)
-  vs `cloud_firestore`/Firebase over shared transitive pods (`nanopb`,
-  `GoogleDataTransport`, `MLKitVision`), and the iOS Podfile specifies no
-  `platform :ios` (defaults to 13.0, too low for current Firebase/MLKit). This is
-  **pre-existing and does not block Phase 1** — the launch is Android-first, and
-  MLKit powers the receipt-OCR feature which is **off in Phase 1**. Fix (bump the
-  Podfile platform, align/drop the MLKit pods) belongs to the store-prep / iOS
-  parity work (master §8 Phase-1 store-prep and Phase-3), not to a feature slice.
-  Android builds and runs fine; verify UI on Android until iOS pods are fixed.
+- **iOS: `pod install` now resolves, but nobody has built or run the app in Xcode yet.**
+  The old CocoaPods conflict was entirely ML Kit (see "Receipt OCR is removed"); the
+  Podfile now pins `platform :ios, '13.0'`. A real iOS build/run (signing, Firebase
+  iOS config, device test) is still the dedicated iOS-setup task for store prep.
 - **Currency symbol (DESYNC-3): ~18 raw-`৳` money-display sites still bypass the
   formatter.** `BanglaFormatters.currency` / `preciseCurrency` and every money
   entry field now honor the configured symbol (৳ / Tk / BDT). Deferred: raw

@@ -35,13 +35,6 @@
 -keep class com.revenuecat.purchases_flutter.** { *; }
 -dontwarn com.revenuecat.purchases.**
 
-# Google ML Kit text recognition glue. OCR is off in Phase 1, but the plugin and
-# the optional script modules (Chinese/Devanagari/Japanese/Korean, see
-# app/build.gradle.kts) are still compiled in, so their classes must resolve.
--keep class com.google_mlkit_commons.** { *; }
--keep class com.google_mlkit_text_recognition.** { *; }
--dontwarn com.google.mlkit.**
-
 # Firebase / Play services optional references.
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**

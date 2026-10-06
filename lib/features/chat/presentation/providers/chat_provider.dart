@@ -15,12 +15,13 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/database/models/sms_ledger_entry_model.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/mlkit/ocr_service.dart';
+import '../../../../core/ocr/ocr_service.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
+import '../../../../core/scanner/receipt_image_source.dart';
 import '../../../../core/scanner/receipt_scanner_service.dart';
 import '../../../../core/scanner/scan_result.dart';
 import '../../../../core/usage/usage_limits.dart';
@@ -84,16 +85,26 @@ final voiceRecorderServiceProvider = Provider<VoiceRecorderService>((ref) {
   return service;
 });
 
+/// Phase 1: no OCR. Phase 2: return `MlKitOcrService()` (CONTRIBUTING.md,
+/// "Restoring receipt OCR (Phase 2)").
 final ocrServiceProvider = Provider<OcrService>((ref) {
-  final service = OcrService();
+  final service = const NoopOcrService();
   ref.onDispose(() {
     unawaited(service.dispose());
   });
   return service;
 });
 
+/// Phase 1: no camera/gallery. Phase 2: return `ImagePickerReceiptSource()`.
+final receiptImageSourceProvider = Provider<ReceiptImageSource>((ref) {
+  return const NoopReceiptImageSource();
+});
+
 final receiptScannerServiceProvider = Provider<ReceiptScannerService>((ref) {
-  return ReceiptScannerService(ocrService: ref.watch(ocrServiceProvider));
+  return ReceiptScannerService(
+    ocrService: ref.watch(ocrServiceProvider),
+    imageSource: ref.watch(receiptImageSourceProvider),
+  );
 });
 
 final openAiChatDataSourceProvider = Provider<OpenAiChatDataSource>((ref) {
