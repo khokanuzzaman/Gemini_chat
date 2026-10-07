@@ -9,7 +9,6 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/notifications/budget_settings.dart';
-import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/providers/shared_preferences_provider.dart';
 import '../../../../core/usage/usage_limits.dart';
@@ -507,10 +506,6 @@ class BudgetNotifier extends Notifier<BudgetState> {
   }
 
   Future<bool> _consumeAiBudgetUsage() async {
-    if (await _isPremiumUser()) {
-      return true;
-    }
-
     try {
       final gate = await ref
           .read(usageTrackerServiceProvider)
@@ -520,7 +515,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
           isGenerating: false,
           streamingText: '',
           error:
-              'এই মাসের AI বাজেট সীমা শেষ (${gate.status.used}/${gate.status.limit} ব্যবহার হয়েছে). প্রিমিয়াম এ আপগ্রেড করুন।',
+              'এই মাসের AI বাজেট সীমা শেষ (${gate.status.used}/${gate.status.limit} ব্যবহার হয়েছে). আগামী মাসে আবার চেষ্টা করুন।',
         );
         return false;
       }
@@ -529,18 +524,6 @@ class BudgetNotifier extends Notifier<BudgetState> {
       return true;
     } catch (_) {
       return true;
-    }
-  }
-
-  Future<bool> _isPremiumUser() async {
-    if (ref.read(isPremiumProvider)) {
-      return true;
-    }
-
-    try {
-      return await ref.read(premiumServiceProvider).isPremium();
-    } catch (_) {
-      return false;
     }
   }
 

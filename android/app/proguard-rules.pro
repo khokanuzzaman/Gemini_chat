@@ -29,12 +29,6 @@
 -keep class dev.isar.** { *; }
 -keep class io.isar.** { *; }
 
-# RevenueCat (purchases_flutter + purchases-hybrid-common): bridge + models are
-# serialised by name across the platform channel.
--keep class com.revenuecat.purchases.hybridcommon.** { *; }
--keep class com.revenuecat.purchases_flutter.** { *; }
--dontwarn com.revenuecat.purchases.**
-
 # Firebase / Play services optional references.
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**

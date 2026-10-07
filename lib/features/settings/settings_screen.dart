@@ -16,8 +16,6 @@ import '../../core/database/models/expense_record_model.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/notifications/notification_provider.dart';
 import '../../core/notifications/notification_settings.dart';
-import '../../core/premium/premium_providers.dart';
-import '../../core/premium/premium_service.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/providers/database_providers.dart';
 import '../../core/security/biometric_provider.dart';
@@ -25,7 +23,6 @@ import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/bangla_formatters.dart';
-import '../../core/usage/usage_limits.dart';
 import '../../core/widgets/widgets.dart';
 import '../ai_guide/presentation/screens/ai_guide_screen.dart';
 import '../anomaly/presentation/providers/anomaly_provider.dart';
@@ -38,7 +35,6 @@ import 'backup_screen.dart';
 import 'budget_settings_screen.dart';
 import 'account_deletion_flow.dart';
 import 'local_data_wipe.dart';
-import 'premium_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -112,23 +108,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final backupStateAsync = ref.watch(backupStateProvider);
     final backupState = backupStateAsync.valueOrNull;
     final backupSignedIn = backupState?.isSignedIn ?? false;
-    final premiumStatusAsync = ref.watch(premiumStatusProvider);
-    final premiumStatus = premiumStatusAsync.valueOrNull;
-    final premiumOfferingsAsync = ref.watch(premiumOfferingsProvider);
-    final isPremium = ref.watch(isPremiumProvider);
-    final premiumTeaserTitle = _premiumTeaserTitle(premiumOfferingsAsync);
-    // "চালু" only if auto-backup is really running (Premium, or grandfathered
-    // with the switch on) — not merely because the user is Premium.
-    final autoBackupRunning =
-        (backupState?.autoBackupEnabled ?? false) &&
-        (isPremium || (backupState?.autoBackupGrandfathered ?? false));
     final backupSubtitle = backupState?.hasAutoBackupFailure ?? false
         ? 'শেষ ব্যাকআপ ব্যর্থ — আবার চেষ্টা করুন'
-        : autoBackupRunning
+        : (backupState?.autoBackupEnabled ?? false)
         ? 'স্বয়ংক্রিয় ব্যাকআপ চালু'
-        : isPremium
-        ? 'সীমাহীন ব্যাকআপ · স্বয়ংক্রিয় ব্যাকআপ বন্ধ'
-        : 'দৈনিক ${BanglaFormatters.count(UsageLimits.cloudBackupPerDay)}টি ম্যানুয়াল ব্যাকআপ';
+        : 'স্বয়ংক্রিয় ব্যাকআপ বন্ধ';
     final categories = ref.watch(categoryProvider);
     final categoryNames = categories
         .map((category) => category.name)
@@ -163,26 +147,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ]),
       ),
-      // No Premium surface at all unless the build sells something.
-      if (FeatureFlags.premiumEnabled)
-        _SettingsGroup(
-          title: 'Premium',
-          child: premiumStatusAsync.when(
-            loading: () => const AppLoadingState.card(height: 96),
-            error: (error, stackTrace) => _buildPremiumBanner(
-              context,
-              premiumStatus,
-              isPremium,
-              teaserTitle: premiumTeaserTitle,
-            ),
-            data: (status) => _buildPremiumBanner(
-              context,
-              status,
-              status.isPremium,
-              teaserTitle: premiumTeaserTitle,
-            ),
-          ),
-        ),
       _SettingsGroup(
         title: 'স্মার্ট ফিচার',
         child: const SmsAutoImportSettingsCard(),
@@ -368,9 +332,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ]),
-            // Usage meters exist for the AI limits / Premium; neither is in Phase 1.
-            if (!isPremium &&
-                (FeatureFlags.aiEnabled || FeatureFlags.premiumEnabled)) ...[
+            // The usage meters show the AI limits; AI is off in v1.
+            if (FeatureFlags.aiEnabled) ...[
               const SizedBox(height: AppSpacing.sectionGap),
               const UsageDisplayWidget(),
             ],
@@ -624,151 +587,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildPremiumBanner(
-    BuildContext context,
-    PremiumStatus? status,
-    bool isPremium, {
-    required String teaserTitle,
-  }) {
-    if (isPremium && status != null) {
-      final expiryText = status.expiryDate != null
-          ? BanglaFormatters.fullDate(status.expiryDate!)
-          : 'Premium সক্রিয়';
-      return AppCard(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.success.withValues(
-              alpha: context.isDarkMode ? 0.22 : 0.12,
-            ),
-            context.cardBackgroundColor,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        onTap: () {
-          Navigator.of(
-            context,
-          ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
-        },
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.14),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.success,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Premium সদস্য',
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: context.primaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    expiryText,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: context.secondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
-        ),
-      );
-    }
-
-    return AppCard(
-      gradient: LinearGradient(
-        colors: [
-          context.appColors.primary.withValues(
-            alpha: context.isDarkMode ? 0.22 : 0.1,
-          ),
-          context.cardBackgroundColor,
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
-      },
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(
-                alpha: context.isDarkMode ? 0.1 : 0.55,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.star_rounded, color: AppColors.warning),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  teaserTitle,
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: context.primaryTextColor,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'সীমা ছাড়া AI, স্ক্যান আর স্মার্ট ব্যাকআপ পান',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: context.secondaryTextColor,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded),
-        ],
-      ),
-    );
-  }
-
-  String _premiumTeaserTitle(AsyncValue<List<PremiumPackage>> offeringsAsync) {
-    final packages = offeringsAsync.valueOrNull;
-    if (packages == null || packages.isEmpty) {
-      return 'Premium-এ আপগ্রেড করুন';
-    }
-
-    PremiumPackage? monthly;
-    for (final package in packages) {
-      if (!package.isYearly) {
-        monthly = package;
-        break;
-      }
-    }
-    final selected = monthly ?? packages.first;
-    // TODO: append yearly savings hint when both monthly and yearly packages
-    // exist. Skipped because PremiumPackage exposes only priceString (formatted
-    // Bangla/USD) without a numeric priceAmount. Adding numeric pricing would
-    // require changing PremiumPackage to surface rcPackage.storeProduct.price,
-    // which is out of scope for this dashboard polish pass.
-    return 'Premium-এ আপগ্রেড করুন · ${selected.priceString}';
   }
 
   Future<void> _deleteAccount() => runAccountDeletionFlow(context, ref);

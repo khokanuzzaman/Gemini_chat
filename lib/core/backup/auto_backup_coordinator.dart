@@ -18,21 +18,12 @@ class AutoBackupKeys {
   /// [BackupErrorCode.key] of that failure. No messages, no account data.
   static const lastErrorCode = 'auto_backup_last_error_code';
 
-  /// Existing free users who already had auto-backup on when it became Premium
-  /// keep it (one-time migration), until they switch it off.
-  static const grandfathered = 'auto_backup_grandfathered';
-  static const policyApplied = 'auto_backup_policy_applied';
-  static const grandfatherNoteDismissed =
-      'auto_backup_grandfather_note_dismissed';
-
   /// First time a G2+ build ran: the only install-age marker the app has.
   static const firstSeenAt = 'app_first_seen_at';
 }
 
 enum AutoBackupOutcome {
   skippedDisabled,
-  skippedPremiumUnknown,
-  skippedNotAllowed,
   skippedRecentBackup,
   skippedBusy,
   skippedBackoff,
@@ -49,13 +40,12 @@ enum AutoBackupOutcome {
 /// * **Offline is a skip, not a failure** — nothing is recorded, we just wait.
 /// * A real failure is logged (cause code only) and stored so Settings can show
 ///   "শেষ ব্যাকআপ ব্যর্থ"; a failed attempt isn't retried for [retryBackoff].
-/// * Never touches the manual-backup usage quota: its own accounting is the
-///   24-hour gap and the retry backoff.
+/// * Its own accounting is the 24-hour gap and the retry backoff; there is no
+///   quota and no entitlement check — auto-backup is free for everyone.
 class AutoBackupCoordinator {
   AutoBackupCoordinator({
     required SharedPreferences prefs,
     required Future<bool> Function() isOnline,
-    required Future<bool?> Function() isPremium,
     required Future<bool> Function() ensureSignedIn,
     required Future<BackupResult> Function() runBackup,
     required bool Function() isManualBusy,
@@ -65,7 +55,6 @@ class AutoBackupCoordinator {
     this.retryBackoff = const Duration(hours: 1),
   }) : _prefs = prefs,
        _isOnline = isOnline,
-       _isPremium = isPremium,
        _ensureSignedIn = ensureSignedIn,
        _runBackup = runBackup,
        _isManualBusy = isManualBusy,
@@ -74,7 +63,6 @@ class AutoBackupCoordinator {
 
   final SharedPreferences _prefs;
   final Future<bool> Function() _isOnline;
-  final Future<bool?> Function() _isPremium;
   final Future<bool> Function() _ensureSignedIn;
   final Future<BackupResult> Function() _runBackup;
   final bool Function() _isManualBusy;
@@ -110,29 +98,8 @@ class AutoBackupCoordinator {
     final now = _clock();
     _markFirstSeen(now);
 
-    // One-time policy migration needs a KNOWN premium status.
-    if (!(_prefs.getBool(AutoBackupKeys.policyApplied) ?? false)) {
-      final premium = await _isPremium();
-      if (premium == null) {
-        return AutoBackupOutcome.skippedPremiumUnknown;
-      }
-      final enabled = _prefs.getBool(AutoBackupKeys.enabled) ?? false;
-      await _prefs.setBool(AutoBackupKeys.grandfathered, enabled && !premium);
-      await _prefs.setBool(AutoBackupKeys.policyApplied, true);
-    }
-
     if (!(_prefs.getBool(AutoBackupKeys.enabled) ?? false)) {
       return AutoBackupOutcome.skippedDisabled;
-    }
-
-    if (!(_prefs.getBool(AutoBackupKeys.grandfathered) ?? false)) {
-      final premium = await _isPremium();
-      if (premium == null) {
-        return AutoBackupOutcome.skippedPremiumUnknown;
-      }
-      if (!premium) {
-        return AutoBackupOutcome.skippedNotAllowed;
-      }
     }
 
     if (!force) {

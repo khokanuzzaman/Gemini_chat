@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'app_amount_text.dart';
 
-/// A premium list tile for settings, transactions, and wallet rows.
+/// A polished list tile for settings, transactions, and wallet rows.
 class AppListTile extends StatelessWidget {
   const AppListTile({
     super.key,

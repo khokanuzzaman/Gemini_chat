@@ -5,13 +5,9 @@ import '../../core/backup/auto_backup_coordinator.dart';
 import '../../core/backup/backup_exception.dart';
 import '../../core/backup/backup_progress.dart';
 import '../../core/backup/backup_providers.dart';
-import '../../core/config/feature_flags.dart';
-import '../../core/navigation/app_page_route.dart';
-import '../../core/premium/premium_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/bangla_formatters.dart';
 import '../../core/widgets/widgets.dart';
-import 'premium_screen.dart';
 
 class BackupScreen extends ConsumerWidget {
   const BackupScreen({super.key});
@@ -23,19 +19,6 @@ class BackupScreen extends ConsumerWidget {
     final notifier = ref.read(backupStateProvider.notifier);
     final hasCloudBackup = backupState.cloudBackupInfo != null;
     final activeProgress = backupState.activeProgress;
-    final premiumStatus = ref.watch(premiumStatusProvider).valueOrNull;
-    // null = still loading: never show the "lapsed" message on unknown status.
-    final premiumKnown = premiumStatus != null;
-    final isPremium = premiumStatus?.isPremium ?? false;
-    final autoAllowed = isPremium || backupState.autoBackupGrandfathered;
-    final autoLapsed =
-        premiumKnown && backupState.autoBackupEnabled && !autoAllowed;
-    // Premium is not sold in this build and the user never had auto-backup: there
-    // is nothing to switch on, so offer no switch (and no upsell) — just the truth.
-    final autoUnavailable =
-        !FeatureFlags.premiumEnabled &&
-        !autoAllowed &&
-        !backupState.autoBackupEnabled;
 
     Widget body;
     if (backupStateAsync.isLoading && backupStateAsync.valueOrNull == null) {
@@ -233,78 +216,24 @@ class BackupScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            if (backupState.autoBackupEnabled &&
-                backupState.autoBackupGrandfathered &&
-                !isPremium &&
-                !backupState.grandfatherNoteDismissed) ...[
-              AppCard(
-                key: const Key('auto-backup-grandfather-note'),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: context.tokens.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        FeatureFlags.premiumEnabled
-                            ? 'স্বয়ংক্রিয় ব্যাকআপ এখন Premium ফিচার। আপনি আগে থেকেই চালু রেখেছেন, '
-                                  'তাই এটি চলতে থাকবে। বন্ধ করলে আবার চালু করতে Premium লাগবে।'
-                            : 'স্বয়ংক্রিয় ব্যাকআপ আপনার জন্য চালু আছে এবং চলতে থাকবে। '
-                                  'চাইলে বন্ধ করে পরে আবার চালু করতে পারবেন।',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: context.primaryTextColor,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'বুঝেছি',
-                      onPressed: notifier.dismissGrandfatherNote,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.cardGap),
-            ],
             AppCard(
               padding: EdgeInsets.zero,
-              child: autoUnavailable
-                  ? AppListTile(
-                      key: const Key('auto-backup-unavailable'),
-                      leadingIcon: Icons.schedule_rounded,
-                      title: 'স্বয়ংক্রিয় ব্যাকআপ',
-                      subtitle:
-                          'এই সংস্করণে নেই — "এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিন',
-                    )
-                  : AppListTile(
-                      leadingIcon: Icons.schedule_rounded,
-                      title: 'স্বয়ংক্রিয় ব্যাকআপ',
-                      subtitle: autoLapsed
-                          ? (FeatureFlags.premiumEnabled
-                                ? 'বন্ধ আছে — Premium মেয়াদ শেষ'
-                                : 'বন্ধ আছে')
-                          : (autoAllowed
-                                ? 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে'
-                                : (FeatureFlags.premiumEnabled
-                                      ? 'Premium ফিচার — প্রতিদিন নিজে থেকে ব্যাকআপ'
-                                      : 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ')),
-                      trailing: Switch.adaptive(
-                        value: backupState.autoBackupEnabled,
-                        onChanged: backupState.isBusy
-                            ? null
-                            : (value) => _toggleAuto(context, notifier, value),
+              child: AppListTile(
+                leadingIcon: Icons.schedule_rounded,
+                title: 'স্বয়ংক্রিয় ব্যাকআপ',
+                subtitle: 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে',
+                trailing: Switch.adaptive(
+                  value: backupState.autoBackupEnabled,
+                  onChanged: backupState.isBusy
+                      ? null
+                      : (value) => notifier.setAutoBackupEnabled(value),
+                ),
+                onTap: backupState.isBusy
+                    ? null
+                    : () => notifier.setAutoBackupEnabled(
+                        !backupState.autoBackupEnabled,
                       ),
-                      onTap: backupState.isBusy
-                          ? null
-                          : () => _toggleAuto(
-                              context,
-                              notifier,
-                              !backupState.autoBackupEnabled,
-                            ),
-                    ),
+              ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
             const AppSectionHeader(title: 'রিস্টোর'),
@@ -583,62 +512,6 @@ class BackupScreen extends ConsumerWidget {
     return result;
   }
 
-  Future<void> _toggleAuto(
-    BuildContext context,
-    BackupNotifier notifier,
-    bool value,
-  ) async {
-    final changed = await notifier.setAutoBackupEnabled(value);
-    if (changed || !context.mounted) {
-      return;
-    }
-    if (!FeatureFlags.premiumEnabled) {
-      // Re-enabling after switching it off is not possible in this build.
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('স্বয়ংক্রিয় ব্যাকআপ চালু করা যাচ্ছে না'),
-          content: const Text(
-            'এই সংস্করণে স্বয়ংক্রিয় ব্যাকআপ আর চালু করা যায় না। '
-            '"এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিতে পারবেন।',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('ঠিক আছে'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    final open = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('স্বয়ংক্রিয় ব্যাকআপ — Premium'),
-        content: const Text(
-          'প্রতিদিন নিজে থেকে ব্যাকআপ নিতে Premium লাগবে। '
-          'Premium ছাড়া "এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিতে পারবেন।',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('বাদ দিন'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Premium দেখুন'),
-          ),
-        ],
-      ),
-    );
-    if (open == true && context.mounted) {
-      await Navigator.of(
-        context,
-      ).push(AppSlideRoute(builder: (_) => const PremiumScreen()));
-    }
-  }
-
   String _failureReason(BackupErrorCode? code) {
     return switch (code) {
       BackupErrorCode.network => 'ইন্টারনেট সমস্যা',
@@ -653,12 +526,7 @@ class BackupScreen extends ConsumerWidget {
       AutoBackupOutcome.succeeded => 'ব্যাকআপ সম্পন্ন ✓',
       AutoBackupOutcome.skippedOffline =>
         'ইন্টারনেট নেই — সংযোগ এলে আবার চেষ্টা করুন',
-      AutoBackupOutcome.skippedNotAllowed ||
       AutoBackupOutcome.skippedDisabled => 'স্বয়ংক্রিয় ব্যাকআপ এখন বন্ধ আছে',
-      AutoBackupOutcome.skippedPremiumUnknown =>
-        FeatureFlags.premiumEnabled
-            ? 'Premium অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন'
-            : 'অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন',
       _ => 'ব্যাকআপ সম্পন্ন হয়নি। আবার চেষ্টা করুন',
     };
   }

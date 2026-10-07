@@ -15,7 +15,7 @@ import '../../../wallet/presentation/screens/wallet_management_screen.dart';
 
 /// আরও tab — the catch-all hub. SMS import (the moat) is promoted to the top.
 /// Analytics and Split live here now that they are no longer bottom-nav tabs.
-/// Security, backup, premium and theme remain inside the full Settings screen.
+/// Security, backup and theme remain inside the full Settings screen.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 

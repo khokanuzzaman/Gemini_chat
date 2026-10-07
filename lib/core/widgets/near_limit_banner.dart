@@ -8,12 +8,10 @@ class NearLimitBanner extends StatelessWidget {
   const NearLimitBanner({
     super.key,
     required this.status,
-    required this.onUpgrade,
     required this.onDismiss,
   });
 
   final UsageStatus status;
-  final VoidCallback onUpgrade;
   final VoidCallback onDismiss;
 
   @override
@@ -48,7 +46,6 @@ class NearLimitBanner extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(onPressed: onUpgrade, child: const Text('আপগ্রেড')),
           IconButton(
             visualDensity: VisualDensity.compact,
             onPressed: onDismiss,

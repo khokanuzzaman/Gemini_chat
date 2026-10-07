@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// A premium segmented tab bar for compact multi-tab screens.
+/// A polished segmented tab bar for compact multi-tab screens.
 class AppSegmentedTabs extends StatelessWidget {
   const AppSegmentedTabs({
     super.key,

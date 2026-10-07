@@ -7,8 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gemini_chat/core/config/feature_flags.dart';
 import 'package:gemini_chat/core/network/connectivity_provider.dart';
 import 'package:gemini_chat/core/network/connectivity_service.dart';
-import 'package:gemini_chat/core/premium/premium_providers.dart';
-import 'package:gemini_chat/core/premium/premium_service.dart';
 import 'package:gemini_chat/core/providers/shared_preferences_provider.dart';
 import 'package:gemini_chat/core/usage/usage_gate_result.dart';
 import 'package:gemini_chat/core/usage/usage_limits.dart';
@@ -68,10 +66,6 @@ void main() {
               _FakeConnectivityService(),
             ),
             usageTrackerServiceProvider.overrideWithValue(usageService),
-            premiumServiceProvider.overrideWithValue(
-              _FakePremiumService(isPremiumUser: false),
-            ),
-            isPremiumProvider.overrideWith((ref) => false),
           ],
         );
         addTearDown(container.dispose);
@@ -86,61 +80,9 @@ void main() {
         expect(planner.generateCalls, 0);
         expect(
           state.error,
-          'এই মাসের AI বাজেট সীমা শেষ (3/3 ব্যবহার হয়েছে). প্রিমিয়াম এ আপগ্রেড করুন।',
+          'এই মাসের AI বাজেট সীমা শেষ (3/3 ব্যবহার হয়েছে). আগামী মাসে আবার চেষ্টা করুন।',
         );
         expect(container.read(usageRefreshTokenProvider), 0);
-      });
-
-      test('premium users bypass monthly AI budget limit', () async {
-        SharedPreferences.setMockInitialValues({});
-        final prefs = await SharedPreferences.getInstance();
-        final usageService = _FakeUsageTrackerService(
-          results: {
-            UsageLimits.aiBudget: UsageGateResult.blocked(
-              UsageStatus(
-                feature: UsageLimits.aiBudget,
-                used: 3,
-                limit: 3,
-                isMonthly: true,
-                resetAt: DateTime(2026, 5, 1),
-              ),
-            ),
-          },
-        );
-        final planner = _FakeBudgetPlannerDataSource();
-        final repository = _FakeBudgetRepository();
-        final container = ProviderContainer(
-          overrides: [
-            sharedPreferencesProvider.overrideWithValue(prefs),
-            budgetRepositoryProvider.overrideWithValue(repository),
-            budgetPlannerDataSourceProvider.overrideWithValue(planner),
-            expenseRepositoryProvider.overrideWithValue(
-              _FakeExpenseRepository(),
-            ),
-            categoryProvider.overrideWith(_TestCategoryNotifier.new),
-            connectivityServiceProvider.overrideWithValue(
-              _FakeConnectivityService(),
-            ),
-            usageTrackerServiceProvider.overrideWithValue(usageService),
-            premiumServiceProvider.overrideWithValue(
-              _FakePremiumService(isPremiumUser: true),
-            ),
-            isPremiumProvider.overrideWith((ref) => true),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        final notifier = container.read(budgetProvider.notifier);
-        notifier.setIncome(50000);
-        await Future<void>.delayed(Duration.zero);
-
-        await notifier.generateBudget();
-
-        final state = container.read(budgetProvider);
-        expect(planner.generateCalls, 1);
-        expect(usageService.checkCalls, isEmpty);
-        expect(state.error, isNull);
-        expect(repository.savedBudgets, isNotEmpty);
       });
     },
   );
@@ -170,10 +112,6 @@ void main() {
               _FakeConnectivityService(),
             ),
             usageTrackerServiceProvider.overrideWithValue(usageService),
-            premiumServiceProvider.overrideWithValue(
-              _FakePremiumService(isPremiumUser: false),
-            ),
-            isPremiumProvider.overrideWith((ref) => false),
           ],
         );
         addTearDown(container.dispose);
@@ -434,50 +372,4 @@ class _FakeUsageTrackerService implements UsageTrackerService {
 
   @override
   Future<void> syncFromFirestore() async {}
-}
-
-class _FakePremiumService implements PremiumService {
-  _FakePremiumService({required this.isPremiumUser});
-
-  final bool isPremiumUser;
-
-  @override
-  RevenueCatKeyMode get keyMode => RevenueCatKeyMode.production;
-
-  @override
-  bool get isUsingTestStore => false;
-
-  @override
-  bool get hasUsableSdkKey => true;
-
-  @override
-  String? get configurationWarningBn => null;
-
-  @override
-  void setMockPremium(bool enabled) {}
-
-  @override
-  Future<PremiumStatus> getStatus() async => isPremiumUser
-      ? const PremiumStatus(isPremium: true, activeProductId: 'premium_yearly')
-      : const PremiumStatus.free();
-
-  @override
-  Future<List<PremiumPackage>> getOfferings() async => const [];
-
-  @override
-  Future<void> initialize({String? userId}) async {}
-
-  @override
-  Future<bool> isPremium() async => isPremiumUser;
-
-  @override
-  Future<PurchaseResult> purchase(PremiumPackage package) async =>
-      const PurchaseResult.error('unused');
-
-  @override
-  Future<PurchaseResult> restorePurchases() async =>
-      const PurchaseResult.error('unused');
-
-  @override
-  Future<void> syncUserId(String? userId) async {}
 }

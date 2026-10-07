@@ -9,8 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/audio/voice_recorder_service.dart';
 import 'package:gemini_chat/core/errors/failures.dart';
-import 'package:gemini_chat/core/premium/premium_providers.dart';
-import 'package:gemini_chat/core/premium/premium_service.dart';
 import 'package:gemini_chat/core/scanner/receipt_scanner_service.dart';
 import 'package:gemini_chat/core/scanner/scan_result.dart';
 import 'package:gemini_chat/core/usage/usage_gate_result.dart';
@@ -27,43 +25,44 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Chat usage gates', () {
-    test('blocks AI chat and exposes limit status for free users', () async {
-      final chatRepository = _FakeChatRepository();
-      final usageService = _FakeUsageTrackerService(
-        results: {
-          UsageLimits.aiChat: UsageGateResult.blocked(
-            UsageStatus(
-              feature: UsageLimits.aiChat,
-              used: 20,
-              limit: 20,
-              isMonthly: false,
-              resetAt: DateTime(2026, 4, 30),
+    test(
+      'blocks AI chat and exposes limit status once the daily cap is reached',
+      () async {
+        final chatRepository = _FakeChatRepository();
+        final usageService = _FakeUsageTrackerService(
+          results: {
+            UsageLimits.aiChat: UsageGateResult.blocked(
+              UsageStatus(
+                feature: UsageLimits.aiChat,
+                used: 20,
+                limit: 20,
+                isMonthly: false,
+                resetAt: DateTime(2026, 4, 30),
+              ),
             ),
-          ),
-        },
-      );
-      final container = ProviderContainer(
-        overrides: [
-          chatRepositoryProvider.overrideWithValue(chatRepository),
-          usageTrackerServiceProvider.overrideWithValue(usageService),
-          premiumServiceProvider.overrideWithValue(
-            _FakePremiumService(isPremiumUser: false),
-          ),
-          isPremiumProvider.overrideWith((ref) => false),
-        ],
-      );
-      addTearDown(container.dispose);
+          },
+        );
+        final container = ProviderContainer(
+          overrides: [
+            chatRepositoryProvider.overrideWithValue(chatRepository),
+            usageTrackerServiceProvider.overrideWithValue(usageService),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(chatProvider.future);
-      await container.read(chatProvider.notifier).sendMessage('আজকের খরচ কত?');
+        await container.read(chatProvider.future);
+        await container
+            .read(chatProvider.notifier)
+            .sendMessage('আজকের খরচ কত?');
 
-      expect(chatRepository.sendMessageCalls, 0);
-      expect(
-        container.read(limitReachedStatusProvider)?.feature,
-        UsageLimits.aiChat,
-      );
-      expect(container.read(usageRefreshTokenProvider), 0);
-    });
+        expect(chatRepository.sendMessageCalls, 0);
+        expect(
+          container.read(limitReachedStatusProvider)?.feature,
+          UsageLimits.aiChat,
+        );
+        expect(container.read(usageRefreshTokenProvider), 0);
+      },
+    );
 
     test(
       'blocks voice input, stops recorder, and resets recording state',
@@ -92,10 +91,6 @@ void main() {
             chatRepositoryProvider.overrideWithValue(chatRepository),
             voiceRecorderServiceProvider.overrideWithValue(recorder),
             usageTrackerServiceProvider.overrideWithValue(usageService),
-            premiumServiceProvider.overrideWithValue(
-              _FakePremiumService(isPremiumUser: false),
-            ),
-            isPremiumProvider.overrideWith((ref) => false),
           ],
         );
         addTearDown(container.dispose);
@@ -139,10 +134,6 @@ void main() {
           chatRepositoryProvider.overrideWithValue(chatRepository),
           receiptScannerServiceProvider.overrideWithValue(scanner),
           usageTrackerServiceProvider.overrideWithValue(usageService),
-          premiumServiceProvider.overrideWithValue(
-            _FakePremiumService(isPremiumUser: false),
-          ),
-          isPremiumProvider.overrideWith((ref) => false),
         ],
       );
       addTearDown(container.dispose);
@@ -156,43 +147,6 @@ void main() {
         container.read(limitReachedStatusProvider)?.feature,
         UsageLimits.receiptScan,
       );
-    });
-
-    test('premium users bypass AI chat usage gate', () async {
-      final chatRepository = _FakeChatRepository();
-      final usageService = _FakeUsageTrackerService(
-        results: {
-          UsageLimits.aiChat: UsageGateResult.blocked(
-            UsageStatus(
-              feature: UsageLimits.aiChat,
-              used: 20,
-              limit: 20,
-              isMonthly: false,
-              resetAt: DateTime(2026, 4, 30),
-            ),
-          ),
-        },
-      );
-      final container = ProviderContainer(
-        overrides: [
-          chatRepositoryProvider.overrideWithValue(chatRepository),
-          usageTrackerServiceProvider.overrideWithValue(usageService),
-          premiumServiceProvider.overrideWithValue(
-            _FakePremiumService(isPremiumUser: true),
-          ),
-          isPremiumProvider.overrideWith((ref) => true),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await container.read(chatProvider.future);
-      container.read(ragEnabledProvider.notifier).state = false;
-
-      await container.read(chatProvider.notifier).sendMessage('Premium test');
-
-      expect(chatRepository.sendMessageCalls, 1);
-      expect(usageService.checkCalls, isEmpty);
-      expect(container.read(limitReachedStatusProvider), isNull);
     });
   });
 }
@@ -346,50 +300,4 @@ class _FakeUsageTrackerService implements UsageTrackerService {
 
   @override
   Future<void> syncFromFirestore() async {}
-}
-
-class _FakePremiumService implements PremiumService {
-  _FakePremiumService({required this.isPremiumUser});
-
-  final bool isPremiumUser;
-
-  @override
-  RevenueCatKeyMode get keyMode => RevenueCatKeyMode.production;
-
-  @override
-  bool get isUsingTestStore => false;
-
-  @override
-  bool get hasUsableSdkKey => true;
-
-  @override
-  String? get configurationWarningBn => null;
-
-  @override
-  void setMockPremium(bool enabled) {}
-
-  @override
-  Future<PremiumStatus> getStatus() async => isPremiumUser
-      ? const PremiumStatus(isPremium: true, activeProductId: 'premium_monthly')
-      : const PremiumStatus.free();
-
-  @override
-  Future<List<PremiumPackage>> getOfferings() async => const [];
-
-  @override
-  Future<void> initialize({String? userId}) async {}
-
-  @override
-  Future<bool> isPremium() async => isPremiumUser;
-
-  @override
-  Future<PurchaseResult> purchase(PremiumPackage package) async =>
-      const PurchaseResult.error('unused');
-
-  @override
-  Future<PurchaseResult> restorePurchases() async =>
-      const PurchaseResult.error('unused');
-
-  @override
-  Future<void> syncUserId(String? userId) async {}
 }

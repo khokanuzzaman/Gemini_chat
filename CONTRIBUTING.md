@@ -35,7 +35,7 @@ palette; spec in `docs/design/DESIGN_SPEC.md`.
 - **Filled controls** use `primaryFill` / `successFill` / `dangerFill` with the
   white `onFill` label (>= 4.5:1 in both modes). In dark mode `primary` (text/icon)
   and `primaryFill` (fills) are different values on purpose.
-- **Brass is a jewel** — money / security / premium accents, EMI-and-debt markers
+- **Brass is a jewel** — money / security accents, EMI-and-debt markers
   and the SMS auto-import card only. In LIGHT mode it is a fill (with `onBrass`)
   or a `brassSoft` background, never text or an icon on white (2.14:1).
 - **Text-field borders** use `inputOutline` (>= 3:1); `line`/`outline` are decorative.
@@ -120,20 +120,16 @@ render in Noto Sans Bengali — it is the app's real face; judge amount styles b
 
 ## Backup safety (G2) — rules
 - **Auto-backup is `AutoBackupCoordinator`** (`core/backup/`), run on first frame and
-  on every resume. Rules, in order: setting on -> allowed (Premium, or grandfathered)
+  on every resume. Rules, in order: setting on
   -> last SUCCESS >= 24h ago (a manual backup counts) -> no manual op / attempt in
   flight -> no failure in the last hour -> **online (live `ConnectivityService`
   check; offline is a skip, never a failure)** -> signed in -> run.
-- **It never touches the manual 1/day quota** (`usageTrackerServiceProvider` is not
-  a dependency; a test asserts zero calls). Keep it that way — the old code burned the
-  user's manual backup on every silent run, even failed ones.
+- **No quota, no entitlement:** backups (manual and auto) are free and unlimited;
+  `usageTrackerServiceProvider` is not a dependency of the coordinator (a test asserts
+  zero calls).
 - Failures are logged with a cause code only (`network|auth|drive|unknown`, no
   messages/amounts/PII) and stored (`auto_backup_last_failed_at/_error_code`);
   Settings shows "শেষ ব্যাকআপ ব্যর্থ" with আবার চেষ্টা until a later success.
-- **Premium gating:** free users can't switch it ON. Free users who already had it on
-  when this shipped were grandfathered once (`auto_backup_grandfathered`); switching
-  it off (or delete-all) ends that. A lapsed Premium shows "বন্ধ আছে — Premium মেয়াদ
-  শেষ" instead of silently stopping.
 - **Home reminder (free for everyone):** `BackupReminderCard`, rules in
   `backup_reminder_policy.dart` (>=10 records or any debt/goal; last backup >=30 days;
   never backed up: 30 days from `app_first_seen_at`, 7 days if >=30 records; "পরে"
@@ -435,36 +431,30 @@ sign out → local wipe** (`wipeAllLocalData`, the same code "সব ডেট�
   (a test scans `lib/` for `users/{uid}/<x>` paths and fails otherwise). A new local
   collection goes in `clearAllUserCollections` (existing rule).
 - **Not deleted by this flow** (state it in the Data Safety / privacy text): Firebase
-  Analytics data (anonymous, retention set in the Firebase console), and the
-  RevenueCat customer record when RevenueCat is configured (request deletion in the
-  RevenueCat dashboard/API; the app cannot).
+  Analytics data (anonymous, retention set in the Firebase console).
 - "সব ডেটা মুছুন" is unchanged: local only, and it still leaves the account, the
   Firestore docs and the Drive backups. That is deliberate (it is the "start over"
   button); account deletion is the "erase me" button.
 
-## Premium is hidden in Phase 1 (`PREMIUM_ENABLED`)
+## Everything is free in v1 — there is no billing code
 
-`FeatureFlags.premiumEnabled` (`--dart-define=PREMIUM_ENABLED=true`, **off by default**)
-gates every Premium surface: the Settings "Premium" card, the Premium screen's entry
-points, the "আজকের ব্যবহার" usage meters (they exist for AI limits/Premium), the
-limit-sheet upgrade button, and every "Premium" word in backup copy. With it off
-`PremiumService` is inert: RevenueCat is never configured (no purchase-SDK traffic,
-no uid sent to it, no `users/{uid}/subscription` writes) and everyone is "free".
+v1 sells nothing. **There is no Premium, paywall, upgrade, purchase or subscription code,
+text or dependency** (`purchases_flutter`, `purchases_ui_flutter`, the `PREMIUM_ENABLED`
+flag, the Premium screen/module and RevenueCat are removed), and the merged release
+manifest has no `com.android.vending.BILLING`. `test/no_billing_test.dart` and
+`test/android_manifest_test.dart` fail the build if any of that comes back.
 
-- **The backup gating is unchanged** (`canEnableAutoBackup`, grandfathering, the
-  1-manual-backup/day limit). Only the wording/upsell changed:
-  - never had auto-backup → an info row ("এই সংস্করণে নেই — "এখনই ব্যাকআপ করুন" দিয়ে
-    নিজে ব্যাকআপ নিন"), no switch, no upsell;
-  - grandfathered → works as before and **can be switched off and back on** (there is
-    nothing to upgrade to while Premium is hidden, so `setAutoBackupEnabled(false)`
-    keeps the grandfathering; with `PREMIUM_ENABLED` it ends it, as designed). The note
-    reads "চালু আছে এবং চলতে থাকবে। চাইলে বন্ধ করে পরে আবার চালু করতে পারবেন।";
-  - quota used → "আগামীকাল আবার ব্যাকআপ নিতে পারবেন।"
-- **New copy that says "Premium" must be inside `FeatureFlags.premiumEnabled ? … : …`.**
-  Tests run in the default (hidden) mode; Premium-copy tests are skipped unless the
-  build passes `PREMIUM_ENABLED=true` (run the suite both ways when touching this).
-- To sell something later: set the flag, pass `REVENUECAT_PUBLIC_SDK_KEY`, create the
-  Play subscriptions + RevenueCat offering, and review the Data Safety form.
+- **Auto-backup is free for everyone** (no entitlement check, no grandfathering, no
+  "turn it back on" note); manual backups are unlimited. There is no backup quota.
+- **The only usage limits left are the AI caps** (`UsageLimits`: chat 20/day, receipt 5/day,
+  voice 10/day, AI budget 3/month). They are cost control for the AI proxy, not a tier,
+  and AI is off in v1 (`AI_ENABLED`); the usage meters and the limit sheet appear only
+  with AI on, and neither mentions upgrading. Phase 2 owns whether to keep them.
+- If a paid tier ever returns, do it deliberately: a new flag, a new dependency, the
+  `BILLING` permission, a Play listing/Data Safety update, and relax the two guard tests
+  above in the same change.
+- `users/{uid}/subscription` is a legacy Firestore path only account deletion still
+  knows about (test builds that had a paywall may have written it).
 
 ## Privacy claims in UI copy — keep them true
 
@@ -487,8 +477,7 @@ Home's SMS teaser; re-grep `ফোনেই|সুরক্ষিত|নির�
 
 ## Android permissions — the final list, and how to check it
 
-Release builds declare only: `BILLING` (Play Billing library; Premium is hidden),
-`POST_NOTIFICATIONS`, `READ_SMS`, `RECEIVE_BOOT_COMPLETED`, `USE_BIOMETRIC`,
+Release builds declare only: `POST_NOTIFICATIONS`, `READ_SMS`, `RECEIVE_BOOT_COMPLETED`, `USE_BIOMETRIC`,
 `USE_FINGERPRINT` (**maxSdk 27**), `VIBRATE`, plus the network/analytics ones the
 Firebase plugins add (`INTERNET`, `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, the Play
 install-referrer permission, `READ_GSERVICES`).
@@ -497,7 +486,8 @@ install-referrer permission, `READ_GSERVICES`).
   AI-only; `record` re-adds it, so the manifest removes it with `tools:node="remove"`),
   `WRITE_EXTERNAL_STORAGE` (export uses the cache dir + share sheet),
   `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` (reminders are inexact; the latter is
-  restricted to alarm/calendar apps), and the Advertising-ID trio.
+  restricted to alarm/calendar apps), `BILLING` (nothing is sold; no dependency adds it
+  back — checked in the merge report), and the Advertising-ID trio.
 - **`USE_FINGERPRINT`** is kept with `maxSdkVersion="27"`: `androidx.biometric`
   declares it unconditionally and needs it only for the FingerprintManager fallback on
   Android 7–8 (minSdk is 24). Removing it outright would break the biometric lock — and

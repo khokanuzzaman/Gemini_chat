@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// A premium hero card for prominent dashboard metrics.
+/// A polished hero card for prominent dashboard metrics.
 class AppHeroCard extends StatelessWidget {
   const AppHeroCard({
     super.key,

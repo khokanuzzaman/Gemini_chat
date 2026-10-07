@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/feature_flags.dart';
 import '../logging/app_logger.dart';
 import '../network/connectivity_provider.dart';
 import '../../features/anomaly/presentation/providers/anomaly_provider.dart';
@@ -21,9 +20,6 @@ import '../../features/split/presentation/providers/split_bill_provider.dart';
 import '../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../providers/database_providers.dart';
 import '../providers/shared_preferences_provider.dart';
-import '../premium/premium_providers.dart';
-import '../usage/usage_limits.dart';
-import '../usage/usage_providers.dart';
 import 'auto_backup_coordinator.dart';
 import 'backup_encryption_service.dart';
 import 'backup_exception.dart';
@@ -34,12 +30,6 @@ import 'backup_progress.dart';
 import 'drive_backup_service.dart';
 import 'google_auth_service.dart';
 import 'isar_export_service.dart';
-
-/// Shown when the daily manual-backup quota is used. Mentions Premium only in a
-/// build that actually offers it.
-const _backupLimitMessage = FeatureFlags.premiumEnabled
-    ? 'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।'
-    : 'আজকের ব্যাকআপ সীমা শেষ। আগামীকাল আবার ব্যাকআপ নিতে পারবেন।';
 
 final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
   return GoogleAuthService();
@@ -63,17 +53,6 @@ final autoBackupCoordinatorProvider = Provider<AutoBackupCoordinator>((ref) {
   return AutoBackupCoordinator(
     prefs: ref.read(sharedPreferencesProvider),
     isOnline: () => ref.read(connectivityServiceProvider).isConnected(),
-    // null = unknown (e.g. RevenueCat unreachable): never treated as "free".
-    isPremium: () async {
-      if (ref.read(isPremiumProvider)) {
-        return true;
-      }
-      try {
-        return (await ref.read(premiumServiceProvider).getStatus()).isPremium;
-      } catch (_) {
-        return null;
-      }
-    },
     ensureSignedIn: () async {
       final auth = ref.read(googleAuthServiceProvider);
       try {
@@ -122,8 +101,6 @@ class BackupState {
     required this.progressDetail,
     this.autoBackupFailedAt,
     this.autoBackupErrorCode,
-    this.autoBackupGrandfathered = false,
-    this.grandfatherNoteDismissed = false,
   });
 
   factory BackupState.initial() {
@@ -162,11 +139,6 @@ class BackupState {
   final DateTime? autoBackupFailedAt;
   final BackupErrorCode? autoBackupErrorCode;
 
-  /// Free user who had auto-backup on before it became Premium: it keeps
-  /// running until they switch it off.
-  final bool autoBackupGrandfathered;
-  final bool grandfatherNoteDismissed;
-
   bool get isBusy => isBackingUp || isRestoring;
 
   /// A failure only counts while it is newer than the last successful backup.
@@ -195,8 +167,6 @@ class BackupState {
     Object? progressDetail = _backupStateUnset,
     Object? autoBackupFailedAt = _backupStateUnset,
     Object? autoBackupErrorCode = _backupStateUnset,
-    bool? autoBackupGrandfathered,
-    bool? grandfatherNoteDismissed,
   }) {
     return BackupState(
       autoBackupFailedAt: autoBackupFailedAt == _backupStateUnset
@@ -205,10 +175,6 @@ class BackupState {
       autoBackupErrorCode: autoBackupErrorCode == _backupStateUnset
           ? this.autoBackupErrorCode
           : autoBackupErrorCode as BackupErrorCode?,
-      autoBackupGrandfathered:
-          autoBackupGrandfathered ?? this.autoBackupGrandfathered,
-      grandfatherNoteDismissed:
-          grandfatherNoteDismissed ?? this.grandfatherNoteDismissed,
       isSignedIn: isSignedIn ?? this.isSignedIn,
       userEmail: userEmail == _backupStateUnset
           ? this.userEmail
@@ -276,10 +242,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
               prefs.getString(AutoBackupKeys.lastErrorCode),
             )
           : null,
-      autoBackupGrandfathered:
-          prefs.getBool(AutoBackupKeys.grandfathered) ?? false,
-      grandfatherNoteDismissed:
-          prefs.getBool(AutoBackupKeys.grandfatherNoteDismissed) ?? false,
     );
     if (isSignedIn) {
       // One event-loop turn later, NOT inline: refreshCloudInfo() reads `state`,
@@ -350,8 +312,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     await prefs.remove(BackupOrchestrator.backupLastTimeKey);
     await prefs.remove(BackupOrchestrator.backupLastSizeKey);
     await prefs.remove(BackupOrchestrator.autoBackupEnabledKey);
-    // Delete-all switches auto-backup off, so the grandfathering ends with it.
-    await prefs.remove(AutoBackupKeys.grandfathered);
     await prefs.remove(AutoBackupKeys.lastFailedAt);
     await prefs.remove(AutoBackupKeys.lastErrorCode);
     await prefs.remove(backupReminderSnoozedUntilKey);
@@ -361,7 +321,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       _current.copyWith(
         autoBackupFailedAt: null,
         autoBackupErrorCode: null,
-        autoBackupGrandfathered: false,
         lastBackupTime: null,
         lastBackupSizeBytes: null,
         cloudBackupInfo: null,
@@ -374,50 +333,16 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     );
   }
 
-  /// Returns false when a free, non-grandfathered user tries to switch it ON
-  /// (the screen then shows the Premium upsell). Switching OFF always works; where
-  /// Premium exists it also ends any grandfathering (turning it back on then needs
-  /// Premium), while in Phase 1 the grandfathering is kept.
-  Future<bool> setAutoBackupEnabled(bool enabled) async {
+  /// Auto-backup is free for everyone: this only stores the choice (and, when it
+  /// is switched on, starts a first attempt — the 24-hour gap still applies).
+  Future<void> setAutoBackupEnabled(bool enabled) async {
     final prefs = ref.read(sharedPreferencesProvider);
-    if (enabled && !await canEnableAutoBackup()) {
-      return false;
-    }
     await prefs.setBool(BackupOrchestrator.autoBackupEnabledKey, enabled);
-    // Switching OFF ends the grandfathering — but only where Premium can actually
-    // be bought. While it is hidden (Phase 1) there is nothing to upgrade to, so the
-    // user keeps the right to switch it back on.
-    final endsGrandfathering = !enabled && FeatureFlags.premiumEnabled;
-    if (endsGrandfathering) {
-      await prefs.remove(AutoBackupKeys.grandfathered);
-    }
-    state = AsyncData(
-      _current.copyWith(
-        autoBackupEnabled: enabled,
-        autoBackupGrandfathered: endsGrandfathering
-            ? false
-            : _current.autoBackupGrandfathered,
-      ),
-    );
+    state = AsyncData(_current.copyWith(autoBackupEnabled: enabled));
     if (enabled) {
       // Don't wait for the next resume for the first backup (24h rule still applies).
       unawaited(ref.read(autoBackupCoordinatorProvider).run());
     }
-    return true;
-  }
-
-  Future<bool> canEnableAutoBackup() async {
-    if (_current.autoBackupGrandfathered || await _isPremiumUser()) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> dismissGrandfatherNote() async {
-    await ref
-        .read(sharedPreferencesProvider)
-        .setBool(AutoBackupKeys.grandfatherNoteDismissed, true);
-    state = AsyncData(_current.copyWith(grandfatherNoteDismissed: true));
   }
 
   /// Re-reads everything a background auto-backup attempt can change.
@@ -438,8 +363,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
             : BackupErrorCode.fromKey(
                 prefs.getString(AutoBackupKeys.lastErrorCode),
               ),
-        autoBackupGrandfathered:
-            prefs.getBool(AutoBackupKeys.grandfathered) ?? false,
         isBackingUp: false,
         activeProgress: null,
         progressTitle: null,
@@ -469,10 +392,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
         errorMessage: 'স্বয়ংক্রিয় ব্যাকআপ চলছে। একটু পরে চেষ্টা করুন।',
       );
     }
-    if (!await _canStartManualBackup()) {
-      return BackupResult(success: false, errorMessage: _backupLimitMessage);
-    }
-
     final start = _current;
     state = AsyncData(
       start.copyWith(
@@ -500,7 +419,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       return result;
     }
 
-    await _consumeManualBackupUsage();
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.remove(AutoBackupKeys.lastFailedAt);
     await prefs.remove(AutoBackupKeys.lastErrorCode);
@@ -663,65 +581,6 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
     ref.invalidate(smsAutoImportProvider);
     ref.invalidate(anomalyProvider);
     ref.invalidate(predictionProvider);
-  }
-
-  /// Gate only — does NOT consume. The daily manual-backup allowance is spent
-  /// by [_consumeManualBackupUsage] after the upload SUCCEEDS, so a network
-  /// glitch never burns the day's backup.
-  Future<bool> _canStartManualBackup() async {
-    if (await _isPremiumUser()) {
-      return true;
-    }
-
-    try {
-      final reached = await ref
-          .read(usageTrackerServiceProvider)
-          .hasReachedLimit(UsageLimits.cloudBackup);
-      if (reached) {
-        state = AsyncData(
-          _current.copyWith(
-            isBackingUp: false,
-            errorMessage: _backupLimitMessage,
-            activeProgress: null,
-            progressTitle: null,
-            progressDetail: null,
-          ),
-        );
-        return false;
-      }
-      return true;
-    } catch (_) {
-      // Usage tracking is best-effort: never block a backup on it.
-      return true;
-    }
-  }
-
-  /// Spends one manual backup for today. Called only after a successful upload.
-  Future<void> _consumeManualBackupUsage() async {
-    if (await _isPremiumUser()) {
-      return;
-    }
-
-    try {
-      await ref
-          .read(usageTrackerServiceProvider)
-          .increment(UsageLimits.cloudBackup);
-      ref.read(usageRefreshTokenProvider.notifier).state++;
-    } catch (_) {
-      // Best-effort, as above.
-    }
-  }
-
-  Future<bool> _isPremiumUser() async {
-    if (ref.read(isPremiumProvider)) {
-      return true;
-    }
-
-    try {
-      return await ref.read(premiumServiceProvider).isPremium();
-    } catch (_) {
-      return false;
-    }
   }
 }
 

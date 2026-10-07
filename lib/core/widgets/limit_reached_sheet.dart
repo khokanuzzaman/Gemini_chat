@@ -1,10 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../../features/settings/premium_screen.dart';
-import '../config/feature_flags.dart';
-import '../navigation/app_page_route.dart';
 import '../theme/app_theme.dart';
 import '../usage/usage_status.dart';
 import '../utils/bangla_formatters.dart';
@@ -33,7 +28,6 @@ class LimitReachedSheet extends StatelessWidget {
     final title = status.isMonthly
         ? '${status.bengaliFeatureName} এর মাসিক সীমা শেষ'
         : '${status.bengaliFeatureName} এর দৈনিক সীমা শেষ';
-    final rootNavigator = Navigator.of(context, rootNavigator: true);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -82,24 +76,6 @@ class LimitReachedSheet extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Divider(color: context.borderColor),
         const SizedBox(height: AppSpacing.lg),
-        if (FeatureFlags.premiumEnabled) ...[
-          AppActionButton(
-            label: 'Premium-এ আপগ্রেড করুন',
-            icon: Icons.star_rounded,
-            fullWidth: true,
-            onPressed: () {
-              Navigator.of(context).pop();
-              unawaited(
-                Future<void>.microtask(
-                  () => rootNavigator.push(
-                    AppSlideRoute(builder: (_) => const PremiumScreen()),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
         AppActionButton(
           label: 'ঠিক আছে',
           variant: AppActionButtonVariant.ghost,

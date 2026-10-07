@@ -12,7 +12,6 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/navigation/app_page_route.dart';
 import '../../../../core/network/connectivity_provider.dart';
-import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/usage/usage_limits.dart';
@@ -36,7 +35,6 @@ import '../widgets/chat_message_list.dart';
 import '../widgets/chat_mode_toggle_chip.dart';
 import '../widgets/chat_status_widgets.dart';
 import '../widgets/usage_details_sheet.dart';
-import '../../../settings/premium_screen.dart';
 
 class ChatScreenContent extends ConsumerStatefulWidget {
   const ChatScreenContent({super.key});
@@ -136,7 +134,6 @@ class _ChatScreenContentState extends ConsumerState<ChatScreenContent>
     final isResponding = ref.watch(isRespondingProvider);
     final isRecording = ref.watch(isRecordingProvider);
     final isScanning = ref.watch(isScanningProvider);
-    final isPremium = ref.watch(isPremiumProvider);
     final chatUsageStatus = ref.watch(usageStatusProvider(UsageLimits.aiChat));
     final recordingDuration = ref.watch(recordingDurationProvider) ?? '0:00';
     final latestStreamText = ref.watch(chatStreamingTextProvider);
@@ -155,7 +152,6 @@ class _ChatScreenContentState extends ConsumerState<ChatScreenContent>
     );
     final nearLimitStatus = chatUsageStatus.valueOrNull;
     final showNearLimitBanner =
-        !isPremium &&
         !_chatLimitBannerDismissed &&
         nearLimitStatus != null &&
         nearLimitStatus.isNearLimit &&
@@ -184,9 +180,7 @@ class _ChatScreenContentState extends ConsumerState<ChatScreenContent>
             isActive: ragEnabled,
             onTap: () async {
               ref.read(chatProvider.notifier).toggleRag();
-              await AppPreferences.setRagEnabled(
-                ref.read(ragEnabledProvider),
-              );
+              await AppPreferences.setRagEnabled(ref.read(ragEnabledProvider));
             },
           ),
         ),
@@ -274,11 +268,6 @@ class _ChatScreenContentState extends ConsumerState<ChatScreenContent>
                     onDismissed: (_) => _dismissNearLimitBanner(),
                     child: NearLimitBanner(
                       status: nearLimitStatus,
-                      onUpgrade: () {
-                        Navigator.of(context).push(
-                          AppSlideRoute(builder: (_) => const PremiumScreen()),
-                        );
-                      },
                       onDismiss: _dismissNearLimitBanner,
                     ),
                   ),

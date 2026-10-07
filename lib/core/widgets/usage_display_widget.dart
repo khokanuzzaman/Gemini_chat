@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../premium/premium_providers.dart';
 import '../theme/app_theme.dart';
 import '../usage/usage_limits.dart';
 import '../usage/usage_providers.dart';
@@ -18,7 +17,6 @@ class UsageDisplayWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isPremium = ref.watch(isPremiumProvider);
     final statusesAsync = ref.watch(allUsageStatusProvider);
 
     return Column(
@@ -26,70 +24,32 @@ class UsageDisplayWidget extends ConsumerWidget {
       children: [
         const AppSectionHeader(title: 'আজকের ব্যবহার'),
         const SizedBox(height: AppSpacing.md),
-        if (isPremium)
-          AppCard(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.success.withValues(
-                  alpha: context.isDarkMode ? 0.24 : 0.14,
-                ),
-                context.cardBackgroundColor,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            child: Row(
+        statusesAsync.when(
+          loading: () => const AppLoadingState.card(height: 360),
+          error: (error, stackTrace) => AppErrorState(
+            compact: true,
+            message: 'ব্যবহারের তথ্য এখন দেখানো যাচ্ছে না',
+            onRetry: () => ref.invalidate(allUsageStatusProvider),
+          ),
+          data: (statuses) => AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
+                for (
+                  var index = 0;
+                  index < UsageLimits.allFeatures.length;
+                  index++
+                ) ...[
+                  _UsageFeatureRow(
+                    status: statuses[UsageLimits.allFeatures[index]]!,
                   ),
-                  child: const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.success,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    'Premium — সীমাহীন ব্যবহার',
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: context.primaryTextColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          statusesAsync.when(
-            loading: () => const AppLoadingState.card(height: 360),
-            error: (error, stackTrace) => AppErrorState(
-              compact: true,
-              message: 'ব্যবহারের তথ্য এখন দেখানো যাচ্ছে না',
-              onRetry: () => ref.invalidate(allUsageStatusProvider),
-            ),
-            data: (statuses) => AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (
-                    var index = 0;
-                    index < UsageLimits.allFeatures.length;
-                    index++
-                  ) ...[
-                    _UsageFeatureRow(
-                      status: statuses[UsageLimits.allFeatures[index]]!,
-                    ),
-                    if (index != UsageLimits.allFeatures.length - 1)
-                      const SizedBox(height: AppSpacing.md),
-                  ],
+                  if (index != UsageLimits.allFeatures.length - 1)
+                    const SizedBox(height: AppSpacing.md),
                 ],
-              ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }

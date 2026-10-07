@@ -1,6 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <uses-permission android:name="com.android.vending.BILLING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- SMS import READS the inbox on demand and polls while the app runs; there is
          no SMS receiver, so RECEIVE_SMS is deliberately NOT declared (restricted

@@ -72,15 +72,19 @@ void main() {
       expect(blocked.status.hasReachedLimit, isTrue);
     });
 
-    test('returns all five feature statuses', () async {
-      when(() => firebaseAuth.currentUser).thenReturn(null);
+    test(
+      'returns the four AI feature statuses (there is no backup quota)',
+      () async {
+        when(() => firebaseAuth.currentUser).thenReturn(null);
 
-      final statuses = await service.getAllStatuses();
+        final statuses = await service.getAllStatuses();
 
-      expect(statuses.keys, UsageLimits.allFeatures);
-      expect(statuses[UsageLimits.cloudBackup]?.limit, 1);
-      expect(statuses[UsageLimits.aiBudget]?.isMonthly, isTrue);
-    });
+        expect(statuses.keys, UsageLimits.allFeatures);
+        expect(statuses.keys, isNot(contains('cloud_backup')));
+        expect(statuses[UsageLimits.aiChat]?.limit, UsageLimits.aiChatPerDay);
+        expect(statuses[UsageLimits.aiBudget]?.isMonthly, isTrue);
+      },
+    );
 
     test('syncs firestore counters into local storage', () async {
       final user = _MockUser();
@@ -93,7 +97,6 @@ void main() {
         UsageLimits.aiChat: 7,
         UsageLimits.receiptScan: 2,
         UsageLimits.voiceInput: 4,
-        UsageLimits.cloudBackup: 1,
       });
       await firestore.doc('users/uid_123/usage/$monthlyKey').set({
         UsageLimits.aiBudget: 3,
@@ -104,7 +107,6 @@ void main() {
       expect(prefs.getInt('usage_ai_chat_$dailyKey'), 7);
       expect(prefs.getInt('usage_receipt_scan_$dailyKey'), 2);
       expect(prefs.getInt('usage_voice_input_$dailyKey'), 4);
-      expect(prefs.getInt('usage_cloud_backup_$dailyKey'), 1);
       expect(prefs.getInt('usage_ai_budget_$monthlyKey'), 3);
     });
   });

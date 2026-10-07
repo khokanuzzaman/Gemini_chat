@@ -12,7 +12,6 @@ class _Harness {
   DateTime now;
 
   bool online = true;
-  bool? premium = true;
   bool signedIn = true;
   bool manualBusy = false;
   int backups = 0;
@@ -25,7 +24,6 @@ class _Harness {
     prefs: prefs,
     clock: () => now,
     isOnline: () async => online,
-    isPremium: () async => premium,
     ensureSignedIn: () async => signedIn,
     isManualBusy: () => manualBusy,
     onFinished: () => finished++,
@@ -49,14 +47,10 @@ class _Harness {
 
 Future<_Harness> _harness({
   bool enabled = true,
-  bool? grandfathered,
-  bool? policyApplied,
   Map<String, Object> extra = const {},
 }) async {
   SharedPreferences.setMockInitialValues({
     AutoBackupKeys.enabled: enabled,
-    'auto_backup_grandfathered': ?grandfathered,
-    'auto_backup_policy_applied': ?policyApplied,
     ...extra,
   });
   return _Harness(await SharedPreferences.getInstance());
@@ -70,11 +64,14 @@ void main() {
       expect(h.backups, 0);
     });
 
-    test('Premium, enabled, never backed up -> runs', () async {
-      final h = await _harness();
-      expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
-      expect(h.backups, 1);
-    });
+    test(
+      'enabled, never backed up -> runs (free for everyone: no entitlement check)',
+      () async {
+        final h = await _harness();
+        expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
+        expect(h.backups, 1);
+      },
+    );
 
     test('a backup less than 24h ago blocks it; 24h later it runs', () async {
       final h = await _harness(
@@ -226,78 +223,17 @@ void main() {
     );
   });
 
-  group('Premium gating + grandfathering', () {
-    test(
-      'free user who already had it ON is grandfathered once and keeps backups',
-      () async {
-        final h = await _harness()
-          ..premium = false;
-        expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
-        expect(h.prefs.getBool(AutoBackupKeys.grandfathered), isTrue);
-        expect(h.prefs.getBool(AutoBackupKeys.policyApplied), isTrue);
-      },
-    );
-
-    test('free user with it OFF is not grandfathered', () async {
-      final h = await _harness(enabled: false)
-        ..premium = false;
-      await h.coordinator.run();
-      expect(h.prefs.getBool(AutoBackupKeys.grandfathered), isFalse);
-    });
-
-    test('a Premium user is not marked grandfathered', () async {
-      final h = await _harness();
-      await h.coordinator.run();
-      expect(h.prefs.getBool(AutoBackupKeys.grandfathered), isFalse);
-    });
-
-    test(
-      'the migration runs only once (later free status does not grandfather)',
-      () async {
-        final h = await _harness(); // premium at migration time
-        await h.coordinator.run();
-        h.premium = false; // Premium later lapses
-        h.now = h.now.add(const Duration(days: 2));
-        expect(await h.coordinator.run(), AutoBackupOutcome.skippedNotAllowed);
-        expect(h.prefs.getBool(AutoBackupKeys.grandfathered), isFalse);
-      },
-    );
-
-    test(
-      'unknown Premium status: no migration, no failure, retried next time',
-      () async {
-        final h = await _harness()
-          ..premium = null;
-        expect(
-          await h.coordinator.run(),
-          AutoBackupOutcome.skippedPremiumUnknown,
-        );
-        expect(h.prefs.containsKey(AutoBackupKeys.policyApplied), isFalse);
-        expect(h.prefs.containsKey(AutoBackupKeys.lastFailedAt), isFalse);
-
-        h.premium = false;
-        expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
-        expect(h.prefs.getBool(AutoBackupKeys.grandfathered), isTrue);
-      },
-    );
-
-    test(
-      'grandfathered user keeps running even if later reported free',
-      () async {
-        final h = await _harness(grandfathered: true, policyApplied: true)
-          ..premium = false;
-        expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
-      },
-    );
-
-    test(
-      'free, not grandfathered, switch on (Premium lapsed) -> not allowed',
-      () async {
-        final h = await _harness(grandfathered: false, policyApplied: true)
-          ..premium = false;
-        expect(await h.coordinator.run(), AutoBackupOutcome.skippedNotAllowed);
-        expect(h.backups, 0);
-      },
+  test('auto-backup is free: nothing but the setting gates it', () async {
+    // There is no entitlement/grandfathering state any more — only the setting,
+    // the 24h gap, connectivity and sign-in.
+    final h = await _harness();
+    expect(await h.coordinator.run(), AutoBackupOutcome.succeeded);
+    expect(h.backups, 1);
+    expect(
+      h.prefs.getKeys().where(
+        (k) => k.contains('grandfather') || k.contains('policy'),
+      ),
+      isEmpty,
     );
   });
 

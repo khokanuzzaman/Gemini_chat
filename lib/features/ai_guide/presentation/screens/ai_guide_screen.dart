@@ -327,7 +327,7 @@ class _AiGuideScreenState extends State<AiGuideScreen> {
       pattern: 'detect repeated expenses',
       examples: [
         _GuideExample('Rent ৩ মাস save থাকলে monthly pattern detect হতে পারে'),
-        _GuideExample('Internet bill, tuition, subscription track করুন'),
+        _GuideExample('Internet bill, tuition, Netflix-এর মতো মাসিক খরচ track করুন'),
       ],
       steps: [
         _GuideStep('Similar expense at least 3 বার add করুন।'),

@@ -112,7 +112,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// dangerFill).
   final Color onFill;
 
-  /// BRASS RULE — brass is a jewel: money / security / premium accents, EMI-
+  /// BRASS RULE — brass is a jewel: money / security accents, EMI-
   /// and-debt markers, and the SMS auto-import (moat) card ONLY. Everything
   /// else is indigo. LIGHT MODE: brass is a FILL (with [onBrass] text) or a
   /// [brassSoft] background — NEVER text or an icon on white/canvas (2.14:1,

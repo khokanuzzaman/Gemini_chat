@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -38,8 +37,6 @@ import 'core/notifications/notification_provider.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/preferences/app_preferences.dart';
 import 'core/theme/font_licenses.dart';
-import 'core/premium/premium_providers.dart';
-import 'core/premium/premium_service.dart';
 import 'core/providers/database_providers.dart';
 import 'core/providers/shared_preferences_provider.dart';
 import 'core/security/app_lifecycle_observer.dart';
@@ -78,13 +75,6 @@ Future<void> main() async {
   await initializeDateFormatting('bn');
   await dotenv.load(fileName: '.env');
   await Firebase.initializeApp();
-  final premiumService = PremiumService(
-    firebaseAuth: FirebaseAuth.instance,
-    firestore: FirebaseFirestore.instance,
-  );
-  await premiumService.initialize(
-    userId: FirebaseAuth.instance.currentUser?.uid,
-  );
   final sharedPreferences = await SharedPreferences.getInstance();
   // Seed the money formatter with the saved currency symbol so every amount
   // renders in the user's chosen symbol from the first frame.
@@ -129,7 +119,6 @@ Future<void> main() async {
     overrides: [
       isarProvider.overrideWithValue(isar),
       sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-      premiumServiceProvider.overrideWithValue(premiumService),
     ],
   );
   await bootstrapContainer
@@ -153,7 +142,6 @@ Future<void> main() async {
         isarProvider.overrideWithValue(isar),
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         themeBootstrapProvider.overrideWithValue(savedThemeMode),
-        premiumServiceProvider.overrideWithValue(premiumService),
       ],
       child: const ExpenseTrackerApp(),
     ),
@@ -377,8 +365,9 @@ class _MainShellState extends ConsumerState<_MainShell> {
     AppShellNavigation.selectedTab.addListener(_handleExternalTabChange);
     _currentTab = AppShellNavigation.selectedTab.value;
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
-      ref.read(premiumStatusProvider.notifier).syncUser(user?.uid);
-      if (user != null) {
+      // The only per-user counters are the AI limits; with AI off there is nothing
+      // to read from Firestore on sign-in.
+      if (user != null && FeatureFlags.aiEnabled) {
         ref.read(usageTrackerServiceProvider).syncFromFirestore();
         ref.read(usageRefreshTokenProvider.notifier).state++;
       }

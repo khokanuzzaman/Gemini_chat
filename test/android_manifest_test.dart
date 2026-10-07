@@ -30,7 +30,6 @@ void main() {
         if (!m.group(0)!.contains('tools:node="remove"')) m.group(1)!,
     };
     expect(declared, {
-      'com.android.vending.BILLING',
       'android.permission.POST_NOTIFICATIONS', // reminders
       'android.permission.READ_SMS', // SMS import (inbox read; no receiver)
       'android.permission.RECEIVE_BOOT_COMPLETED', // re-arm reminders after reboot
@@ -90,6 +89,28 @@ void main() {
           );
         }
         expect(block, isNot(contains('<include')), reason: section);
+      }
+    },
+  );
+
+  test(
+    'no billing: v1 sells nothing, so the manifest has no BILLING permission',
+    () {
+      expect(manifest.contains('BILLING'), isFalse);
+      // And no dependency that would add it back through the manifest merge.
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      for (final dependency in [
+        'purchases_flutter',
+        'purchases_ui_flutter',
+        'in_app_purchase',
+        'flutter_inapp_purchase',
+        'billing',
+      ]) {
+        expect(
+          RegExp('^\\s+$dependency\\s*:', multiLine: true).hasMatch(pubspec),
+          isFalse,
+          reason: dependency,
+        );
       }
     },
   );

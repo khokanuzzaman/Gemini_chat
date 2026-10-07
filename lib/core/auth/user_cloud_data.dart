@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// What we keep in Firestore per user — and the one place that erases it.
 ///
-/// `users/{uid}/usage/{period}`        feature counters (cloud_backup, AI limits)
-/// `users/{uid}/subscription/status`   premium flag mirrored from RevenueCat
+/// `users/{uid}/usage/{period}`        feature counters (the AI limits)
+/// `users/{uid}/subscription/status`   LEGACY: written by test builds that had a
+///                                     paywall; nothing writes it any more, but it
+///                                     is still erased if it exists
 /// `users/{uid}`                       (the parent doc, if it was ever written)
 ///
 /// Add a new per-user collection here or account deletion will leave it behind.

@@ -99,8 +99,7 @@ flutter run
 ```
 
 ### Environment Variables
-`.env` holds only non-secret runtime config (Google sign-in client id, RevenueCat
-public key) — see `.env.example`. **No OpenAI key lives in the app.**
+`.env` holds only non-secret runtime config (Google sign-in client id) — see `.env.example`. **No OpenAI key lives in the app.**
 
 AI calls route through a backend proxy, configured at build time (Phase 2):
 ```bash

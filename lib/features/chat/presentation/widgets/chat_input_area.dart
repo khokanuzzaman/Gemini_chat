@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/usage/usage_limits.dart';
 import '../../../../core/usage/usage_providers.dart';
@@ -54,25 +53,22 @@ class ChatInputArea extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actionDisabled = isResponding || isRecording || isScanning;
-    final isPremium = ref.watch(isPremiumProvider);
     final chatUsageStatus = ref.watch(usageStatusProvider(UsageLimits.aiChat));
-    final usageHint = isPremium
-        ? null
-        : chatUsageStatus.maybeWhen(
-            data: (status) {
-              if (status.remaining > 5) {
-                return null;
-              }
-              if (status.remaining == 0) {
-                return _UsageHint(text: 'সীমা শেষ', color: AppColors.error);
-              }
-              return _UsageHint(
-                text: 'আর ${BanglaFormatters.count(status.remaining)}টি বাকি',
-                color: AppColors.warning,
-              );
-            },
-            orElse: () => null,
-          );
+    final usageHint = chatUsageStatus.maybeWhen(
+      data: (status) {
+        if (status.remaining > 5) {
+          return null;
+        }
+        if (status.remaining == 0) {
+          return _UsageHint(text: 'সীমা শেষ', color: AppColors.error);
+        }
+        return _UsageHint(
+          text: 'আর ${BanglaFormatters.count(status.remaining)}টি বাকি',
+          color: AppColors.warning,
+        );
+      },
+      orElse: () => null,
+    );
 
     return Container(
       decoration: BoxDecoration(

@@ -18,7 +18,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/ocr/ocr_service.dart';
 import '../../../../core/network/ai_gateway.dart';
 import '../../../../core/network/connectivity_provider.dart';
-import '../../../../core/premium/premium_providers.dart';
 import '../../../../core/preferences/app_preferences.dart';
 import '../../../../core/providers/database_providers.dart';
 import '../../../../core/scanner/receipt_image_source.dart';
@@ -816,10 +815,6 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
     String feature, {
     FutureOr<void> Function(UsageStatus status)? onBlocked,
   }) async {
-    if (await _isPremiumUser()) {
-      return true;
-    }
-
     try {
       final gate = await ref
           .read(usageTrackerServiceProvider)
@@ -836,18 +831,6 @@ class ChatNotifier extends AsyncNotifier<List<MessageEntity>> {
       return true;
     } catch (_) {
       return true;
-    }
-  }
-
-  Future<bool> _isPremiumUser() async {
-    if (ref.read(isPremiumProvider)) {
-      return true;
-    }
-
-    try {
-      return await ref.read(premiumServiceProvider).isPremium();
-    } catch (_) {
-      return false;
     }
   }
 
