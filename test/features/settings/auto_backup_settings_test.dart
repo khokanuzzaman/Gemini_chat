@@ -260,7 +260,7 @@ void main() {
     });
 
     test(
-      'grandfathered -> may stay on; switching OFF ends it for good',
+      'grandfathered -> may stay on; switching OFF ends it only where Premium exists',
       () async {
         final env = await _env(
           premium: false,
@@ -280,10 +280,16 @@ void main() {
         );
 
         expect(await notifier.setAutoBackupEnabled(false), isTrue);
-        expect(env.prefs.getBool(AutoBackupKeys.grandfathered), isNull);
-
-        // Now it needs Premium again.
-        expect(await notifier.setAutoBackupEnabled(true), isFalse);
+        if (FeatureFlags.premiumEnabled) {
+          expect(env.prefs.getBool(AutoBackupKeys.grandfathered), isNull);
+          // Now it needs Premium again.
+          expect(await notifier.setAutoBackupEnabled(true), isFalse);
+        } else {
+          // Phase 1: there is nothing to upgrade to, so it can be switched back on.
+          expect(env.prefs.getBool(AutoBackupKeys.grandfathered), isTrue);
+          expect(await notifier.setAutoBackupEnabled(true), isTrue);
+          expect(env.prefs.getBool(AutoBackupKeys.enabled), isTrue);
+        }
       },
     );
   });
@@ -529,15 +535,18 @@ void main() {
             find.textContaining('আপনার জন্য চালু আছে এবং চলতে থাকবে'),
             findsOneWidget,
           );
+          expect(find.textContaining('আবার চালু করতে পারবেন'), findsOneWidget);
           expect(find.textContaining('Premium'), findsNothing);
           expect(env.prefs.getBool(AutoBackupKeys.enabled), isTrue);
+          // Switching it on starts a first backup attempt; let it finish.
+          await tester.pump(const Duration(seconds: 30));
         },
         skip:
             FeatureFlags.premiumEnabled, // Phase-1 (Premium hidden) builds only
       );
 
       testWidgets(
-        'switching it off is allowed, and then it is honestly unavailable',
+        'switching it off is allowed — and the switch stays (no upsell, no dead end)',
         (tester) async {
           final env = await _env(
             premium: false,
@@ -552,13 +561,17 @@ void main() {
 
           await tester.tap(find.text('স্বয়ংক্রিয় ব্যাকআপ'));
           await tester.pumpAndSettle();
-
           expect(env.prefs.getBool(AutoBackupKeys.enabled), isFalse);
+          // Still a real switch (not the "unavailable" note), and no upsell.
           expect(
             find.byKey(const Key('auto-backup-unavailable')),
-            findsOneWidget,
+            findsNothing,
           );
           expect(find.textContaining('Premium'), findsNothing);
+
+          // (Switching back ON is covered at the notifier level above; here it
+          // would start a real first-backup attempt.)
+          expect(find.byType(Switch), findsWidgets);
         },
         skip:
             FeatureFlags.premiumEnabled, // Phase-1 (Premium hidden) builds only

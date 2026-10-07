@@ -375,23 +375,28 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
   }
 
   /// Returns false when a free, non-grandfathered user tries to switch it ON
-  /// (the screen then shows the Premium upsell). Switching OFF always works and
-  /// ends any grandfathering — turning it back on then needs Premium.
+  /// (the screen then shows the Premium upsell). Switching OFF always works; where
+  /// Premium exists it also ends any grandfathering (turning it back on then needs
+  /// Premium), while in Phase 1 the grandfathering is kept.
   Future<bool> setAutoBackupEnabled(bool enabled) async {
     final prefs = ref.read(sharedPreferencesProvider);
     if (enabled && !await canEnableAutoBackup()) {
       return false;
     }
     await prefs.setBool(BackupOrchestrator.autoBackupEnabledKey, enabled);
-    if (!enabled) {
+    // Switching OFF ends the grandfathering — but only where Premium can actually
+    // be bought. While it is hidden (Phase 1) there is nothing to upgrade to, so the
+    // user keeps the right to switch it back on.
+    final endsGrandfathering = !enabled && FeatureFlags.premiumEnabled;
+    if (endsGrandfathering) {
       await prefs.remove(AutoBackupKeys.grandfathered);
     }
     state = AsyncData(
       _current.copyWith(
         autoBackupEnabled: enabled,
-        autoBackupGrandfathered: enabled
-            ? _current.autoBackupGrandfathered
-            : false,
+        autoBackupGrandfathered: endsGrandfathering
+            ? false
+            : _current.autoBackupGrandfathered,
       ),
     );
     if (enabled) {
@@ -465,11 +470,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       );
     }
     if (!await _canStartManualBackup()) {
-      return BackupResult(
-        success: false,
-        errorMessage:
-            _backupLimitMessage,
-      );
+      return BackupResult(success: false, errorMessage: _backupLimitMessage);
     }
 
     final start = _current;

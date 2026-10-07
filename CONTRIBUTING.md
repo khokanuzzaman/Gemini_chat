@@ -455,8 +455,10 @@ no uid sent to it, no `users/{uid}/subscription` writes) and everyone is "free".
   1-manual-backup/day limit). Only the wording/upsell changed:
   - never had auto-backup → an info row ("এই সংস্করণে নেই — "এখনই ব্যাকআপ করুন" দিয়ে
     নিজে ব্যাকআপ নিন"), no switch, no upsell;
-  - grandfathered → works as before; the note reads "চালু আছে এবং চলতে থাকবে। বন্ধ
-    করলে এটি আর চালু করা যাবে না।";
+  - grandfathered → works as before and **can be switched off and back on** (there is
+    nothing to upgrade to while Premium is hidden, so `setAutoBackupEnabled(false)`
+    keeps the grandfathering; with `PREMIUM_ENABLED` it ends it, as designed). The note
+    reads "চালু আছে এবং চলতে থাকবে। চাইলে বন্ধ করে পরে আবার চালু করতে পারবেন।";
   - quota used → "আগামীকাল আবার ব্যাকআপ নিতে পারবেন।"
 - **New copy that says "Premium" must be inside `FeatureFlags.premiumEnabled ? … : …`.**
   Tests run in the default (hidden) mode; Premium-copy tests are skipped unless the

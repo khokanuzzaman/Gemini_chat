@@ -253,7 +253,7 @@ class BackupScreen extends ConsumerWidget {
                             ? 'স্বয়ংক্রিয় ব্যাকআপ এখন Premium ফিচার। আপনি আগে থেকেই চালু রেখেছেন, '
                                   'তাই এটি চলতে থাকবে। বন্ধ করলে আবার চালু করতে Premium লাগবে।'
                             : 'স্বয়ংক্রিয় ব্যাকআপ আপনার জন্য চালু আছে এবং চলতে থাকবে। '
-                                  'বন্ধ করলে এটি আর চালু করা যাবে না।',
+                                  'চাইলে বন্ধ করে পরে আবার চালু করতে পারবেন।',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: context.primaryTextColor,
                         ),
