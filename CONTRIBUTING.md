@@ -361,6 +361,40 @@ owner, so the books disagree. Therefore:
   use the ledger reverse. Never delete via the data source.
 - EMI / goal rows never open these sheets (read-only sheet; see R3 (b)).
 
+## SMS bodies are not stored — only parsed fields
+
+The SMS text is read, parsed and **dropped**. The ledger keeps the parsed fields
+(amount, kind/type, dates, sender, reference/TrxID, counterparty, fee, balance,
+account mask), the **signature** used for duplicate detection, and `matchHints`.
+
+- **`SmsLedgerEntryModel.rawMessage` is always `''`** for rows this version writes.
+  The column stays only because Isar schemas are additive. Never write message text
+  into it, into logs, analytics, a backup, or any new field.
+- **`matchHints`** (`SmsMatchHints`) = which of the matchers' *own* keyword lists
+  (banks, salary/freelance words, company markers, the user's custom category
+  names) the message contained, `' | '`-joined. The wallet matcher and category
+  mapper read it through `ParsedTransaction.rawMessage` and give the same answer
+  they gave from the text (`sms_minimisation_test` asserts identical suggestions).
+  If you add a keyword list to a matcher, expose it and add it to
+  `SmsMatchHints.extract`, or suggestions silently lose it.
+- **Dedupe is untouched.** The signature is hashed from the *live inbox* message
+  (`SmsSignatureCodec`) and stored on the row. A candidate rebuilt from a stored row
+  has no text to hash, so `SmsImportCandidate.signature` carries the row's own and
+  `upsertCandidate` prefers it — hashing a blank body would create a duplicate row.
+- **Upgrade:** `SmsBodyMinimiser` (run once from `main`, flag
+  `sms_bodies_stripped_v1`) derives the hints from each existing row's text and then
+  blanks it. Idempotent, never deletes a row, never blocks launch.
+- **UI:** nothing shows the text any more. SMS history "বিস্তারিত" and the import
+  edit sheet show `SmsParsedSummary` (the parsed fields).
+- **Backups:** the export writes `rawMessage: ''` plus `matchHints`; restoring an
+  older backup that still has text keeps only the hints.
+- **Limits, stated honestly:** (1) Isar's engine does not zero freed pages, so text
+  blanked by the upgrade can linger in unused space of the database file until it
+  is overwritten; (2) Drive keeps the last 3 backup archives, so older ones made
+  before this change still contain SMS text until three newer backups replace them.
+- Copy that says the message stays on the phone must stay true: see the privacy
+  copy audit in the commit that fixed Home's SMS teaser.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

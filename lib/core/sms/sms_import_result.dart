@@ -9,9 +9,15 @@ class SmsImportCandidate {
     required this.suggestedWallet,
     this.suggestedCategory,
     this.suggestedIncomeSource,
+    this.signature,
   });
 
   final SmsMessage sms;
+
+  /// The ledger signature of this message when it is already known (a candidate
+  /// rebuilt from a stored row, whose text was not kept). Null for one built from
+  /// a live SMS, which is hashed from its text.
+  final String? signature;
   final ParsedTransaction transaction;
   final WalletEntity? suggestedWallet;
   final String? suggestedCategory;

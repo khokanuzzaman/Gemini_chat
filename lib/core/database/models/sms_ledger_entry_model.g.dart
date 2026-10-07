@@ -102,57 +102,62 @@ const SmsLedgerEntryModelSchema = CollectionSchema(
       type: IsarType.byte,
       enumMap: _SmsLedgerEntryModelkindEnumValueMap,
     ),
-    r'merchantName': PropertySchema(
+    r'matchHints': PropertySchema(
       id: 18,
+      name: r'matchHints',
+      type: IsarType.string,
+    ),
+    r'merchantName': PropertySchema(
+      id: 19,
       name: r'merchantName',
       type: IsarType.string,
     ),
     r'occurredAt': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'occurredAt',
       type: IsarType.dateTime,
     ),
     r'rawCategory': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'rawCategory',
       type: IsarType.string,
     ),
     r'rawMessage': PropertySchema(
-      id: 21,
+      id: 22,
       name: r'rawMessage',
       type: IsarType.string,
     ),
     r'receivedAt': PropertySchema(
-      id: 22,
+      id: 23,
       name: r'receivedAt',
       type: IsarType.dateTime,
     ),
     r'reference': PropertySchema(
-      id: 23,
+      id: 24,
       name: r'reference',
       type: IsarType.string,
     ),
-    r'sender': PropertySchema(id: 24, name: r'sender', type: IsarType.string),
+    r'sender': PropertySchema(id: 25, name: r'sender', type: IsarType.string),
     r'signature': PropertySchema(
-      id: 25,
+      id: 26,
       name: r'signature',
       type: IsarType.string,
     ),
-    r'smsId': PropertySchema(id: 26, name: r'smsId', type: IsarType.long),
+    r'smsId': PropertySchema(id: 27, name: r'smsId', type: IsarType.long),
     r'source': PropertySchema(
-      id: 27,
+      id: 28,
       name: r'source',
       type: IsarType.byte,
       enumMap: _SmsLedgerEntryModelsourceEnumValueMap,
     ),
     r'type': PropertySchema(
-      id: 28,
+      id: 29,
       name: r'type',
       type: IsarType.byte,
       enumMap: _SmsLedgerEntryModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 29,
+      id: 30,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -311,6 +316,12 @@ int _smsLedgerEntryModelEstimateSize(
   }
   bytesCount += 3 + object.displayTitle.length * 3;
   {
+    final value = object.matchHints;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.merchantName;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -358,18 +369,19 @@ void _smsLedgerEntryModelSerialize(
   writer.writeBool(offsets[15], object.isIncomeLike);
   writer.writeBool(offsets[16], object.isTransferLike);
   writer.writeByte(offsets[17], object.kind.index);
-  writer.writeString(offsets[18], object.merchantName);
-  writer.writeDateTime(offsets[19], object.occurredAt);
-  writer.writeString(offsets[20], object.rawCategory);
-  writer.writeString(offsets[21], object.rawMessage);
-  writer.writeDateTime(offsets[22], object.receivedAt);
-  writer.writeString(offsets[23], object.reference);
-  writer.writeString(offsets[24], object.sender);
-  writer.writeString(offsets[25], object.signature);
-  writer.writeLong(offsets[26], object.smsId);
-  writer.writeByte(offsets[27], object.source.index);
-  writer.writeByte(offsets[28], object.type.index);
-  writer.writeDateTime(offsets[29], object.updatedAt);
+  writer.writeString(offsets[18], object.matchHints);
+  writer.writeString(offsets[19], object.merchantName);
+  writer.writeDateTime(offsets[20], object.occurredAt);
+  writer.writeString(offsets[21], object.rawCategory);
+  writer.writeString(offsets[22], object.rawMessage);
+  writer.writeDateTime(offsets[23], object.receivedAt);
+  writer.writeString(offsets[24], object.reference);
+  writer.writeString(offsets[25], object.sender);
+  writer.writeString(offsets[26], object.signature);
+  writer.writeLong(offsets[27], object.smsId);
+  writer.writeByte(offsets[28], object.source.index);
+  writer.writeByte(offsets[29], object.type.index);
+  writer.writeDateTime(offsets[30], object.updatedAt);
 }
 
 SmsLedgerEntryModel _smsLedgerEntryModelDeserialize(
@@ -401,26 +413,27 @@ SmsLedgerEntryModel _smsLedgerEntryModelDeserialize(
         offsets[17],
       )] ??
       ParsedTransactionKind.sendMoney;
-  object.merchantName = reader.readStringOrNull(offsets[18]);
-  object.occurredAt = reader.readDateTime(offsets[19]);
-  object.rawCategory = reader.readStringOrNull(offsets[20]);
-  object.rawMessage = reader.readString(offsets[21]);
-  object.receivedAt = reader.readDateTime(offsets[22]);
-  object.reference = reader.readStringOrNull(offsets[23]);
-  object.sender = reader.readString(offsets[24]);
-  object.signature = reader.readString(offsets[25]);
-  object.smsId = reader.readLong(offsets[26]);
+  object.matchHints = reader.readStringOrNull(offsets[18]);
+  object.merchantName = reader.readStringOrNull(offsets[19]);
+  object.occurredAt = reader.readDateTime(offsets[20]);
+  object.rawCategory = reader.readStringOrNull(offsets[21]);
+  object.rawMessage = reader.readString(offsets[22]);
+  object.receivedAt = reader.readDateTime(offsets[23]);
+  object.reference = reader.readStringOrNull(offsets[24]);
+  object.sender = reader.readString(offsets[25]);
+  object.signature = reader.readString(offsets[26]);
+  object.smsId = reader.readLong(offsets[27]);
   object.source =
       _SmsLedgerEntryModelsourceValueEnumMap[reader.readByteOrNull(
-        offsets[27],
+        offsets[28],
       )] ??
       ParsedTransactionSource.bkash;
   object.type =
       _SmsLedgerEntryModeltypeValueEnumMap[reader.readByteOrNull(
-        offsets[28],
+        offsets[29],
       )] ??
       TransactionType.expense;
-  object.updatedAt = reader.readDateTime(offsets[29]);
+  object.updatedAt = reader.readDateTime(offsets[30]);
   return object;
 }
 
@@ -478,34 +491,36 @@ P _smsLedgerEntryModelDeserializeProp<P>(
     case 18:
       return (reader.readStringOrNull(offset)) as P;
     case 19:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 20:
-      return (reader.readStringOrNull(offset)) as P;
-    case 21:
-      return (reader.readString(offset)) as P;
-    case 22:
       return (reader.readDateTime(offset)) as P;
-    case 23:
+    case 21:
       return (reader.readStringOrNull(offset)) as P;
-    case 24:
+    case 22:
       return (reader.readString(offset)) as P;
+    case 23:
+      return (reader.readDateTime(offset)) as P;
+    case 24:
+      return (reader.readStringOrNull(offset)) as P;
     case 25:
       return (reader.readString(offset)) as P;
     case 26:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 27:
+      return (reader.readLong(offset)) as P;
+    case 28:
       return (_SmsLedgerEntryModelsourceValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               ParsedTransactionSource.bkash)
           as P;
-    case 28:
+    case 29:
       return (_SmsLedgerEntryModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.expense)
           as P;
-    case 29:
+    case 30:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2814,6 +2829,165 @@ extension SmsLedgerEntryModelQueryFilter
   }
 
   QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'matchHints'),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'matchHints'),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'matchHints',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'matchHints',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'matchHints',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'matchHints', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
+  matchHintsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'matchHints', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterFilterCondition>
   merchantNameIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -4315,6 +4489,20 @@ extension SmsLedgerEntryModelQuerySortBy
   }
 
   QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
+  sortByMatchHints() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchHints', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
+  sortByMatchHintsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchHints', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
   sortByMerchantName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'merchantName', Sort.asc);
@@ -4752,6 +4940,20 @@ extension SmsLedgerEntryModelQuerySortThenBy
   }
 
   QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
+  thenByMatchHints() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchHints', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
+  thenByMatchHintsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchHints', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QAfterSortBy>
   thenByMerchantName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'merchantName', Sort.asc);
@@ -5049,6 +5251,13 @@ extension SmsLedgerEntryModelQueryWhereDistinct
   }
 
   QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QDistinct>
+  distinctByMatchHints({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'matchHints', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, SmsLedgerEntryModel, QDistinct>
   distinctByMerchantName({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'merchantName', caseSensitive: caseSensitive);
@@ -5266,6 +5475,13 @@ extension SmsLedgerEntryModelQueryProperty
   kindProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'kind');
+    });
+  }
+
+  QueryBuilder<SmsLedgerEntryModel, String?, QQueryOperations>
+  matchHintsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'matchHints');
     });
   }
 

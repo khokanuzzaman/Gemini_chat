@@ -10,6 +10,7 @@ import '../../../expense/presentation/utils/expense_category_meta.dart';
 import '../../../income/domain/entities/income_source.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../models/sms_import_models.dart';
+import 'sms_parsed_summary.dart';
 
 Future<SmsImportDraft?> showSmsImportEditSheet(
   BuildContext context, {
@@ -189,7 +190,7 @@ class _SmsImportEditSheetState extends ConsumerState<_SmsImportEditSheet> {
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
               title: Text(
-                'Raw SMS দেখুন',
+                'পার্সড তথ্য দেখুন',
                 style: AppTextStyles.titleMedium.copyWith(
                   color: context.primaryTextColor,
                 ),
@@ -202,22 +203,7 @@ class _SmsImportEditSheetState extends ConsumerState<_SmsImportEditSheet> {
               ),
               children: [
                 const SizedBox(height: AppSpacing.sm),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: context.mutedSurfaceColor,
-                    borderRadius: const BorderRadius.all(AppRadius.card),
-                    border: Border.all(color: context.borderColor),
-                  ),
-                  child: SelectableText(
-                    widget.candidate.sms.body,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: context.primaryTextColor,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
+                SmsParsedSummary(transaction: widget.candidate.transaction),
               ],
             ),
           ),

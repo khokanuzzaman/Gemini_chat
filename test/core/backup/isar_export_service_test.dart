@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -64,6 +65,71 @@ void main() {
       if (await targetDir.exists()) {
         await targetDir.delete(recursive: true);
       }
+    });
+
+    test(
+      'a backup contains NO SMS text, even if a row still has some',
+      () async {
+        await sourceIsar.writeTxn(() async {
+          await sourceIsar.smsLedgerEntryModels.put(
+            _ledgerEntry(
+              rawMessage: 'BRAC Bank salary credit BDT 65,000 A/C 1234',
+            ),
+          );
+        });
+
+        final exported = await service.exportAll(sourceIsar);
+        final json = jsonEncode(exported);
+
+        expect(json.contains('BRAC Bank salary credit'), isFalse);
+        expect(json.contains('A/C 1234'), isFalse);
+        final row =
+            ((exported['collections'] as Map)['smsLedgerEntries'] as List)
+                    .single
+                as Map;
+        expect(row['rawMessage'], '');
+        expect(row['amount'], 65000); // the parsed fields are all still there
+        expect(row['reference'], 'SAL1');
+      },
+    );
+
+    test('restoring a pre-change backup keeps hints, never the text', () async {
+      final legacy = <String, dynamic>{
+        'version': 1,
+        'exportedAt': DateTime(2026, 10, 1).toUtc().toIso8601String(),
+        'collections': <String, dynamic>{
+          'smsLedgerEntries': [
+            {
+              'id': 5,
+              'signature': 'sig-legacy',
+              'smsId': 55,
+              'sender': 'BRAC BANK',
+              'rawMessage': 'BRAC Bank salary credit BDT 65,000 A/C 1234',
+              'source': 'bank',
+              'direction': 'credit',
+              'kind': 'bankCredit',
+              'type': 'income',
+              'amount': 65000.0,
+              'confidence': 1.0,
+              'occurredAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
+              'receivedAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
+              'isImported': true,
+              'isIgnored': false,
+              'createdAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
+              'updatedAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
+            },
+          ],
+        },
+      };
+
+      await service.importAll(targetIsar, legacy);
+
+      final restored =
+          (await targetIsar.smsLedgerEntryModels.where().findAll()).single;
+      expect(restored.rawMessage, '');
+      expect(restored.matchHints, contains('salary'));
+      expect(restored.signature, 'sig-legacy'); // dedupe key intact
+      expect(restored.isImported, isTrue);
     });
 
     test(
@@ -227,4 +293,25 @@ Future<Isar> _openIsar(Directory directory, String name) {
     directory: directory.path,
     name: '${name}_${DateTime.now().microsecondsSinceEpoch}',
   );
+}
+
+SmsLedgerEntryModel _ledgerEntry({required String rawMessage}) {
+  final at = DateTime(2026, 10, 5, 9);
+  return SmsLedgerEntryModel()
+    ..id = 1
+    ..signature = 'sig-1'
+    ..smsId = 1
+    ..sender = 'BRAC BANK'
+    ..rawMessage = rawMessage
+    ..source = ParsedTransactionSource.bank
+    ..direction = ParsedTransactionDirection.credit
+    ..kind = ParsedTransactionKind.bankCredit
+    ..type = TransactionType.income
+    ..amount = 65000
+    ..reference = 'SAL1'
+    ..confidence = 1
+    ..occurredAt = at
+    ..receivedAt = at
+    ..createdAt = at
+    ..updatedAt = at;
 }

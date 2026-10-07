@@ -17,6 +17,7 @@ import '../models/sms_history_models.dart';
 import '../models/sms_import_models.dart';
 import '../providers/sms_history_provider.dart';
 import '../widgets/sms_import_edit_sheet.dart';
+import '../widgets/sms_parsed_summary.dart';
 
 class SmsHistoryScreen extends ConsumerStatefulWidget {
   const SmsHistoryScreen({super.key});
@@ -338,7 +339,7 @@ class _SmsHistoryScreenState extends ConsumerState<SmsHistoryScreen>
                             ? () => _handleImport(entry)
                             : null,
                         onToggleHidden: () => controller.toggleIgnored(entry),
-                        onViewRaw: () => _showRawSms(entry),
+                        onViewRaw: () => _showDetails(entry),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                     ],
@@ -381,7 +382,7 @@ class _SmsHistoryScreenState extends ConsumerState<SmsHistoryScreen>
     );
   }
 
-  Future<void> _showRawSms(SmsLedgerEntryModel entry) {
+  Future<void> _showDetails(SmsLedgerEntryModel entry) {
     return AppBottomSheet.show<void>(
       context: context,
       title: entry.source.label,
@@ -408,22 +409,7 @@ class _SmsHistoryScreenState extends ConsumerState<SmsHistoryScreen>
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: context.mutedSurfaceColor,
-              borderRadius: const BorderRadius.all(AppRadius.card),
-              border: Border.all(color: context.borderColor),
-            ),
-            child: SelectableText(
-              entry.rawMessage,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: context.primaryTextColor,
-                height: 1.45,
-              ),
-            ),
-          ),
+          SmsParsedSummary(transaction: entry.toParsedTransaction()),
         ],
       ),
     );
@@ -1503,8 +1489,8 @@ class _HistoryEntryCard extends StatelessWidget {
                   },
                 ),
               AppActionButton(
-                key: Key('sms-history-raw-${entry.id}'),
-                label: 'Raw SMS',
+                key: Key('sms-history-details-${entry.id}'),
+                label: 'বিস্তারিত',
                 icon: Icons.article_outlined,
                 size: AppActionButtonSize.small,
                 variant: AppActionButtonVariant.ghost,

@@ -1,3 +1,5 @@
+> **NOTE (store prep):** the SMS text is no longer stored — `rawMessage` is always empty and the ledger keeps parsed fields + `matchHints`. See CONTRIBUTING "SMS bodies are not stored". Sections below that mention storing `rawMessage` describe the old design.
+
 # SMS Auto-Import Feature — Technical Reference
 
 This document describes the complete architecture, data flow, and implementation details of the SMS Auto-Import feature in PocketPilot AI. It covers every component from Android native integration through to the Riverpod state layer and UI.

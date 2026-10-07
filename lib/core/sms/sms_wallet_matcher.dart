@@ -4,7 +4,7 @@ import 'parsed_transaction.dart';
 class SmsWalletMatcher {
   const SmsWalletMatcher();
 
-  static const Map<String, List<String>> _bankKeywordMap = {
+  static const Map<String, List<String>> bankKeywordMap = {
     'brac bank': ['bracbank', 'brac bank'],
     'city bank': ['citybank', 'city bank'],
     'ebl': ['eblbank', 'ebl', 'eastern bank'],
@@ -117,7 +117,7 @@ class SmsWalletMatcher {
       if (normalizedName.contains(hint)) {
         return wallet;
       }
-      final aliases = _bankKeywordMap[hint] ?? const <String>[];
+      final aliases = bankKeywordMap[hint] ?? const <String>[];
       if (aliases.any(normalizedName.contains)) {
         return wallet;
       }
@@ -156,7 +156,7 @@ class SmsWalletMatcher {
       transaction.merchantName,
     ].whereType<String>().join(' ').toLowerCase();
 
-    for (final entry in _bankKeywordMap.entries) {
+    for (final entry in bankKeywordMap.entries) {
       if (entry.value.any(haystack.contains)) {
         return entry.key;
       }

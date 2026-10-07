@@ -39,6 +39,7 @@ class SmsImportEntry {
 
   SmsImportCandidate toCandidate() {
     return SmsImportCandidate(
+      signature: signature,
       sms: sms,
       transaction: transaction,
       suggestedWallet: suggestedWallet,

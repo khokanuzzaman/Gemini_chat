@@ -25,6 +25,7 @@ import '../database/models/sms_ledger_sync_state_model.dart';
 import '../database/models/split_bill_model.dart';
 import '../database/models/wallet_model.dart';
 import '../sms/parsed_transaction.dart';
+import '../sms/sms_match_hints.dart';
 import 'backup_exception.dart';
 
 class IsarExportService {
@@ -454,7 +455,10 @@ class IsarExportService {
       'signature': model.signature,
       'smsId': model.smsId,
       'sender': model.sender,
-      'rawMessage': model.rawMessage,
+      // Never any SMS text in a backup. (An older body still on a row is NOT
+      // exported; the key stays so older app versions can read the file.)
+      'rawMessage': '',
+      'matchHints': model.matchHints,
       'source': model.source.name,
       'direction': model.direction.name,
       'kind': model.kind.name,
@@ -854,7 +858,17 @@ class IsarExportService {
             ..signature = _asString(row['signature'])
             ..smsId = _asInt(row['smsId'])
             ..sender = _asString(row['sender'])
-            ..rawMessage = _asString(row['rawMessage'])
+            // A backup made before SMS bodies were dropped may still carry the text:
+            // keep only the matcher hints derived from it, never the text.
+            ..rawMessage = ''
+            ..matchHints =
+                _asNullableString(row['matchHints']) ??
+                (_asString(row['rawMessage']).isEmpty
+                    ? null
+                    : SmsMatchHints.extract(
+                        _asString(row['rawMessage']),
+                        customCategoryNames: SmsMatchHints.currentCustomCategoryNames,
+                      ))
             ..source = _enumByName(
               ParsedTransactionSource.values,
               _asString(

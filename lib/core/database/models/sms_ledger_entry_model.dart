@@ -16,7 +16,16 @@ class SmsLedgerEntryModel {
   late int smsId;
 
   late String sender;
+
+  /// Always `''` for rows written by this version: the SMS text is NOT stored (a
+  /// privacy decision — see CONTRIBUTING "SMS bodies are not stored"). The
+  /// column stays only because Isar schemas are additive; older rows had the
+  /// full text until `SmsBodyMinimiser` blanked it.
   late String rawMessage;
+
+  /// Which known matcher words the message contained (see `SmsMatchHints`),
+  /// kept so wallet/category suggestions survive without the text.
+  String? matchHints;
 
   @enumerated
   late ParsedTransactionSource source;
@@ -88,6 +97,7 @@ class SmsLedgerEntryModel {
   }
 
   SmsMessage toSmsMessage() {
+    // No text is kept; consumers use the parsed fields.
     return SmsMessage(
       id: smsId,
       address: sender,
@@ -104,7 +114,9 @@ class SmsLedgerEntryModel {
       direction: direction,
       kind: kind,
       amount: amount,
-      rawMessage: rawMessage,
+      // Matchers read this as plain text; for a stored row it is the hint words,
+      // never message text (rows not yet minimised still carry their body).
+      rawMessage: rawMessage.isNotEmpty ? rawMessage : (matchHints ?? ''),
       receivedAt: receivedAt,
       occurredAt: occurredAt,
       fee: fee,

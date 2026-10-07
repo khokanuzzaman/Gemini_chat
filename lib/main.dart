@@ -64,6 +64,8 @@ import 'features/sms_import/presentation/providers/sms_import_provider.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/wallet/data/datasources/wallet_local_datasource.dart';
 import 'features/wallet/presentation/providers/wallet_provider.dart';
+import 'core/logging/app_logger.dart';
+import 'core/sms/sms_body_minimiser.dart';
 import 'core/usage/usage_providers.dart';
 import 'core/utils/bangla_formatters.dart';
 
@@ -114,6 +116,13 @@ Future<void> main() async {
         .map((category) => category.toEntity())
         .toList(growable: false),
   );
+  // One-time: drop the SMS text older versions kept (after the category registry
+  // is set, so custom categories still feed the matcher hints). Never blocks launch.
+  try {
+    await SmsBodyMinimiser.run(isar, sharedPreferences);
+  } catch (error, stackTrace) {
+    AppLogger.error('SMS body minimisation failed', error, stackTrace);
+  }
 
   final bootstrapContainer = ProviderContainer(
     overrides: [

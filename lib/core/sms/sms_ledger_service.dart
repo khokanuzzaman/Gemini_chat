@@ -9,6 +9,7 @@ import 'sms_category_mapper.dart';
 import 'sms_filter.dart';
 import 'sms_import_result.dart';
 import 'sms_ledger_models.dart';
+import 'sms_match_hints.dart';
 import 'sms_message.dart';
 import 'sms_parser.dart';
 import 'sms_reader_service.dart';
@@ -130,7 +131,14 @@ class SmsLedgerService {
         entry.signature = signature;
         entry.smsId = sms.id;
         entry.sender = sms.address;
-        entry.rawMessage = sms.body;
+        // The text is read, parsed, and dropped: only what the matchers need
+        // (hint words) is kept. The signature above was computed from the live
+        // text, so duplicate detection is unaffected.
+        entry.rawMessage = '';
+        entry.matchHints = SmsMatchHints.extract(
+          sms.body,
+          customCategoryNames: SmsMatchHints.currentCustomCategoryNames,
+        );
         entry.source = transaction.source;
         entry.direction = transaction.direction;
         entry.kind = transaction.kind;
@@ -313,7 +321,10 @@ class SmsLedgerService {
     bool isImported = false,
     DateTime? importedAt,
   }) async {
-    final signature = _signatureCodec.generateSignature(candidate.sms);
+    // A candidate rebuilt from a stored row has no text to hash, so it carries the
+    // row's signature; only a candidate built from a live SMS is hashed here.
+    final signature =
+        candidate.signature ?? _signatureCodec.generateSignature(candidate.sms);
     final existing = await _isar.smsLedgerEntryModels
         .filter()
         .signatureEqualTo(signature)
@@ -325,7 +336,14 @@ class SmsLedgerService {
     entry.signature = signature;
     entry.smsId = candidate.sms.id;
     entry.sender = candidate.sms.address;
-    entry.rawMessage = candidate.sms.body;
+    entry.rawMessage = '';
+    final liveBody = candidate.sms.body;
+    if (liveBody.trim().isNotEmpty) {
+      entry.matchHints = SmsMatchHints.extract(
+        liveBody,
+        customCategoryNames: SmsMatchHints.currentCustomCategoryNames,
+      );
+    } // else keep the hints the row already has
     entry.source = transaction.source;
     entry.direction = transaction.direction;
     entry.kind = transaction.kind;
@@ -360,6 +378,7 @@ class SmsLedgerService {
   }) {
     final transaction = entry.toParsedTransaction();
     return SmsImportCandidate(
+      signature: entry.signature,
       sms: entry.toSmsMessage(),
       transaction: transaction,
       suggestedWallet: _walletMatcher.matchWallet(

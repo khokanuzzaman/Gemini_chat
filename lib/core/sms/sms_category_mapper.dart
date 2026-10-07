@@ -6,7 +6,7 @@ import 'parsed_transaction.dart';
 class SmsCategoryMapper {
   const SmsCategoryMapper();
 
-  static const Map<String, List<String>> _expenseKeywordMap = {
+  static const Map<String, List<String>> expenseKeywordMap = {
     'Food': [
       'restaurant',
       'food',
@@ -92,20 +92,20 @@ class SmsCategoryMapper {
     ],
   };
 
-  static const List<String> _salaryKeywords = [
+  static const List<String> salaryKeywords = [
     'salary',
     'payroll',
     'বেতন',
     'salary credit',
     'salary disbursement',
   ];
-  static const List<String> _freelanceKeywords = [
+  static const List<String> freelanceKeywords = [
     'fiverr',
     'upwork',
     'freelance',
     'project payment',
   ];
-  static const List<String> _companyMarkers = [
+  static const List<String> companyMarkers = [
     'ltd',
     'limited',
     'company',
@@ -128,7 +128,7 @@ class SmsCategoryMapper {
       return customCategory;
     }
 
-    for (final entry in _expenseKeywordMap.entries) {
+    for (final entry in expenseKeywordMap.entries) {
       if (_containsAny(haystack, entry.value)) {
         return _resolveCategoryName(entry.key);
       }
@@ -149,12 +149,12 @@ class SmsCategoryMapper {
     }
 
     final haystack = _buildHaystack(transaction);
-    if (_containsAny(haystack, _freelanceKeywords)) {
+    if (_containsAny(haystack, freelanceKeywords)) {
       return _resolveIncomeSourceName('Freelance');
     }
 
-    if (_containsAny(haystack, _salaryKeywords) ||
-        _containsAny(haystack, _companyMarkers)) {
+    if (_containsAny(haystack, salaryKeywords) ||
+        _containsAny(haystack, companyMarkers)) {
       return _resolveIncomeSourceName('Salary');
     }
 
