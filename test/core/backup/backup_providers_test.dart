@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gemini_chat/core/backup/backup_encryption_service.dart';
+import 'package:gemini_chat/core/config/feature_flags.dart';
 import 'package:gemini_chat/core/backup/backup_models.dart';
 import 'package:gemini_chat/core/backup/backup_orchestrator.dart';
 import 'package:gemini_chat/core/backup/backup_progress.dart';
@@ -151,7 +152,9 @@ void main() {
       expect(orchestrator.createBackupCalls, 0);
       expect(
         container.read(backupStateProvider).valueOrNull?.errorMessage,
-        'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।',
+        FeatureFlags.premiumEnabled
+            ? 'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।'
+            : 'আজকের ব্যাকআপ সীমা শেষ। আগামীকাল আবার ব্যাকআপ নিতে পারবেন।',
       );
     });
 

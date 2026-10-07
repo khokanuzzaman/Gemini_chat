@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../features/settings/premium_screen.dart';
+import '../config/feature_flags.dart';
 import '../navigation/app_page_route.dart';
 import '../theme/app_theme.dart';
 import '../usage/usage_status.dart';
@@ -81,22 +82,24 @@ class LimitReachedSheet extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Divider(color: context.borderColor),
         const SizedBox(height: AppSpacing.lg),
-        AppActionButton(
-          label: 'Premium-এ আপগ্রেড করুন',
-          icon: Icons.star_rounded,
-          fullWidth: true,
-          onPressed: () {
-            Navigator.of(context).pop();
-            unawaited(
-              Future<void>.microtask(
-                () => rootNavigator.push(
-                  AppSlideRoute(builder: (_) => const PremiumScreen()),
+        if (FeatureFlags.premiumEnabled) ...[
+          AppActionButton(
+            label: 'Premium-এ আপগ্রেড করুন',
+            icon: Icons.star_rounded,
+            fullWidth: true,
+            onPressed: () {
+              Navigator.of(context).pop();
+              unawaited(
+                Future<void>.microtask(
+                  () => rootNavigator.push(
+                    AppSlideRoute(builder: (_) => const PremiumScreen()),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.sm),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         AppActionButton(
           label: 'ঠিক আছে',
           variant: AppActionButtonVariant.ghost,

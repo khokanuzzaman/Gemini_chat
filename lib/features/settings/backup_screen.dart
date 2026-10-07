@@ -5,6 +5,7 @@ import '../../core/backup/auto_backup_coordinator.dart';
 import '../../core/backup/backup_exception.dart';
 import '../../core/backup/backup_progress.dart';
 import '../../core/backup/backup_providers.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/premium/premium_providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -29,6 +30,12 @@ class BackupScreen extends ConsumerWidget {
     final autoAllowed = isPremium || backupState.autoBackupGrandfathered;
     final autoLapsed =
         premiumKnown && backupState.autoBackupEnabled && !autoAllowed;
+    // Premium is not sold in this build and the user never had auto-backup: there
+    // is nothing to switch on, so offer no switch (and no upsell) — just the truth.
+    final autoUnavailable =
+        !FeatureFlags.premiumEnabled &&
+        !autoAllowed &&
+        !backupState.autoBackupEnabled;
 
     Widget body;
     if (backupStateAsync.isLoading && backupStateAsync.valueOrNull == null) {
@@ -242,8 +249,11 @@ class BackupScreen extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        'স্বয়ংক্রিয় ব্যাকআপ এখন Premium ফিচার। আপনি আগে থেকেই চালু রেখেছেন, '
-                        'তাই এটি চলতে থাকবে। বন্ধ করলে আবার চালু করতে Premium লাগবে।',
+                        FeatureFlags.premiumEnabled
+                            ? 'স্বয়ংক্রিয় ব্যাকআপ এখন Premium ফিচার। আপনি আগে থেকেই চালু রেখেছেন, '
+                                  'তাই এটি চলতে থাকবে। বন্ধ করলে আবার চালু করতে Premium লাগবে।'
+                            : 'স্বয়ংক্রিয় ব্যাকআপ আপনার জন্য চালু আছে এবং চলতে থাকবে। '
+                                  'বন্ধ করলে এটি আর চালু করা যাবে না।',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: context.primaryTextColor,
                         ),
@@ -261,28 +271,40 @@ class BackupScreen extends ConsumerWidget {
             ],
             AppCard(
               padding: EdgeInsets.zero,
-              child: AppListTile(
-                leadingIcon: Icons.schedule_rounded,
-                title: 'স্বয়ংক্রিয় ব্যাকআপ',
-                subtitle: autoLapsed
-                    ? 'বন্ধ আছে — Premium মেয়াদ শেষ'
-                    : (autoAllowed
-                          ? 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে'
-                          : 'Premium ফিচার — প্রতিদিন নিজে থেকে ব্যাকআপ'),
-                trailing: Switch.adaptive(
-                  value: backupState.autoBackupEnabled,
-                  onChanged: backupState.isBusy
-                      ? null
-                      : (value) => _toggleAuto(context, notifier, value),
-                ),
-                onTap: backupState.isBusy
-                    ? null
-                    : () => _toggleAuto(
-                        context,
-                        notifier,
-                        !backupState.autoBackupEnabled,
+              child: autoUnavailable
+                  ? AppListTile(
+                      key: const Key('auto-backup-unavailable'),
+                      leadingIcon: Icons.schedule_rounded,
+                      title: 'স্বয়ংক্রিয় ব্যাকআপ',
+                      subtitle:
+                          'এই সংস্করণে নেই — "এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিন',
+                    )
+                  : AppListTile(
+                      leadingIcon: Icons.schedule_rounded,
+                      title: 'স্বয়ংক্রিয় ব্যাকআপ',
+                      subtitle: autoLapsed
+                          ? (FeatureFlags.premiumEnabled
+                                ? 'বন্ধ আছে — Premium মেয়াদ শেষ'
+                                : 'বন্ধ আছে')
+                          : (autoAllowed
+                                ? 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে'
+                                : (FeatureFlags.premiumEnabled
+                                      ? 'Premium ফিচার — প্রতিদিন নিজে থেকে ব্যাকআপ'
+                                      : 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ')),
+                      trailing: Switch.adaptive(
+                        value: backupState.autoBackupEnabled,
+                        onChanged: backupState.isBusy
+                            ? null
+                            : (value) => _toggleAuto(context, notifier, value),
                       ),
-              ),
+                      onTap: backupState.isBusy
+                          ? null
+                          : () => _toggleAuto(
+                              context,
+                              notifier,
+                              !backupState.autoBackupEnabled,
+                            ),
+                    ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
             const AppSectionHeader(title: 'রিস্টোর'),
@@ -570,6 +592,26 @@ class BackupScreen extends ConsumerWidget {
     if (changed || !context.mounted) {
       return;
     }
+    if (!FeatureFlags.premiumEnabled) {
+      // Re-enabling after switching it off is not possible in this build.
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('স্বয়ংক্রিয় ব্যাকআপ চালু করা যাচ্ছে না'),
+          content: const Text(
+            'এই সংস্করণে স্বয়ংক্রিয় ব্যাকআপ আর চালু করা যায় না। '
+            '"এখনই ব্যাকআপ করুন" দিয়ে নিজে ব্যাকআপ নিতে পারবেন।',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('ঠিক আছে'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     final open = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -614,7 +656,9 @@ class BackupScreen extends ConsumerWidget {
       AutoBackupOutcome.skippedNotAllowed ||
       AutoBackupOutcome.skippedDisabled => 'স্বয়ংক্রিয় ব্যাকআপ এখন বন্ধ আছে',
       AutoBackupOutcome.skippedPremiumUnknown =>
-        'Premium অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন',
+        FeatureFlags.premiumEnabled
+            ? 'Premium অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন'
+            : 'অবস্থা যাচাই করা যায়নি। একটু পরে চেষ্টা করুন',
       _ => 'ব্যাকআপ সম্পন্ন হয়নি। আবার চেষ্টা করুন',
     };
   }
@@ -670,8 +714,7 @@ class _BackupProgressCard extends StatelessWidget {
     final startedAtText = 'শুরু ${BanglaFormatters.time(progress.startedAt)}';
     final stageLabel = _stageLabel(progress.stage);
     final helperText = switch (progress.operation) {
-      BackupOperationKind.backup =>
-        'ব্যাকআপ আপনার নিজের Google Drive-এ যাচ্ছে',
+      BackupOperationKind.backup => 'ব্যাকআপ আপনার নিজের Google Drive-এ যাচ্ছে',
       BackupOperationKind.restore =>
         'রিস্টোর শেষ না হওয়া পর্যন্ত এই স্ক্রিন খোলা রাখুন',
     };
@@ -833,7 +876,8 @@ class _BackupHeroCard extends StatelessWidget {
       _ => 'প্রস্তুত',
     };
     final subtitle = switch ((state.isSignedIn, activeProgress != null)) {
-      (false, _) => 'একবার সাইন ইন করলে ব্যাকআপ আপনার নিজের Google Drive-এ থাকবে',
+      (false, _) =>
+        'একবার সাইন ইন করলে ব্যাকআপ আপনার নিজের Google Drive-এ থাকবে',
       (true, true) =>
         '${state.progressDetail ?? 'ব্যাকআপ প্রস্তুত হচ্ছে'} · ${BanglaFormatters.count(activeProgress!.currentStep)}/${BanglaFormatters.count(activeProgress!.totalSteps)} ধাপ',
       _ when state.cloudBackupInfo != null =>

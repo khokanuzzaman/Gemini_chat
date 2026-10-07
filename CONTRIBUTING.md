@@ -439,6 +439,28 @@ sign out → local wipe** (`wipeAllLocalData`, the same code "সব ডেট�
   Firestore docs and the Drive backups. That is deliberate (it is the "start over"
   button); account deletion is the "erase me" button.
 
+## Premium is hidden in Phase 1 (`PREMIUM_ENABLED`)
+
+`FeatureFlags.premiumEnabled` (`--dart-define=PREMIUM_ENABLED=true`, **off by default**)
+gates every Premium surface: the Settings "Premium" card, the Premium screen's entry
+points, the "আজকের ব্যবহার" usage meters (they exist for AI limits/Premium), the
+limit-sheet upgrade button, and every "Premium" word in backup copy. With it off
+`PremiumService` is inert: RevenueCat is never configured (no purchase-SDK traffic,
+no uid sent to it, no `users/{uid}/subscription` writes) and everyone is "free".
+
+- **The backup gating is unchanged** (`canEnableAutoBackup`, grandfathering, the
+  1-manual-backup/day limit). Only the wording/upsell changed:
+  - never had auto-backup → an info row ("এই সংস্করণে নেই — "এখনই ব্যাকআপ করুন" দিয়ে
+    নিজে ব্যাকআপ নিন"), no switch, no upsell;
+  - grandfathered → works as before; the note reads "চালু আছে এবং চলতে থাকবে। বন্ধ
+    করলে এটি আর চালু করা যাবে না।";
+  - quota used → "আগামীকাল আবার ব্যাকআপ নিতে পারবেন।"
+- **New copy that says "Premium" must be inside `FeatureFlags.premiumEnabled ? … : …`.**
+  Tests run in the default (hidden) mode; Premium-copy tests are skipped unless the
+  build passes `PREMIUM_ENABLED=true` (run the suite both ways when touching this).
+- To sell something later: set the flag, pass `REVENUECAT_PUBLIC_SDK_KEY`, create the
+  Play subscriptions + RevenueCat offering, and review the Data Safety form.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/feature_flags.dart';
 import '../logging/app_logger.dart';
 import '../network/connectivity_provider.dart';
 import '../../features/anomaly/presentation/providers/anomaly_provider.dart';
@@ -33,6 +34,12 @@ import 'backup_progress.dart';
 import 'drive_backup_service.dart';
 import 'google_auth_service.dart';
 import 'isar_export_service.dart';
+
+/// Shown when the daily manual-backup quota is used. Mentions Premium only in a
+/// build that actually offers it.
+const _backupLimitMessage = FeatureFlags.premiumEnabled
+    ? 'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।'
+    : 'আজকের ব্যাকআপ সীমা শেষ। আগামীকাল আবার ব্যাকআপ নিতে পারবেন।';
 
 final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
   return GoogleAuthService();
@@ -461,7 +468,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
       return BackupResult(
         success: false,
         errorMessage:
-            'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।',
+            _backupLimitMessage,
       );
     }
 
@@ -673,8 +680,7 @@ class BackupNotifier extends AsyncNotifier<BackupState> {
         state = AsyncData(
           _current.copyWith(
             isBackingUp: false,
-            errorMessage:
-                'আজকের ব্যাকআপ সীমা শেষ। Premium এ স্বয়ংক্রিয় ব্যাকআপ পাবেন।',
+            errorMessage: _backupLimitMessage,
             activeProgress: null,
             progressTitle: null,
             progressDetail: null,

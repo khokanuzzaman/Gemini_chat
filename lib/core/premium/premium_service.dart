@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../logging/app_logger.dart';
+import '../config/feature_flags.dart';
 
 const String _premiumEntitlement = 'premium';
 const String _revenueCatPublicKeyEnv = 'REVENUECAT_PUBLIC_SDK_KEY';
@@ -79,9 +80,17 @@ class PurchaseResult {
 }
 
 class PremiumService {
-  PremiumService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
-    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
+  PremiumService({
+    FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
+    bool? premiumEnabled,
+  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _premiumEnabled = premiumEnabled ?? FeatureFlags.premiumEnabled;
+
+  /// False in Phase 1: the service is inert (never configures RevenueCat, reports
+  /// everyone as free, offers nothing) — see [FeatureFlags.premiumEnabled].
+  final bool _premiumEnabled;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
@@ -92,9 +101,11 @@ class PremiumService {
   RevenueCatKeyMode get keyMode => _classifyApiKey(_apiKey);
   bool get isUsingTestStore => keyMode == RevenueCatKeyMode.testStore;
   bool get hasUsableSdkKey =>
-      keyMode == RevenueCatKeyMode.production ||
-      keyMode == RevenueCatKeyMode.testStore;
-  String? get configurationWarningBn => _configurationWarningFor(keyMode);
+      _premiumEnabled &&
+      (keyMode == RevenueCatKeyMode.production ||
+          keyMode == RevenueCatKeyMode.testStore);
+  String? get configurationWarningBn =>
+      _premiumEnabled ? _configurationWarningFor(keyMode) : null;
 
   void setMockPremium(bool enabled) {
     // TODO: Restore RevenueCat before production

@@ -23,6 +23,7 @@ import 'package:gemini_chat/core/backup/backup_reminder_provider.dart';
 import 'package:gemini_chat/core/backup/drive_backup_service.dart';
 import 'package:gemini_chat/core/backup/google_auth_service.dart';
 import 'package:gemini_chat/core/backup/isar_export_service.dart';
+import 'package:gemini_chat/core/config/feature_flags.dart';
 import 'package:gemini_chat/core/network/connectivity_provider.dart';
 import 'package:gemini_chat/core/network/connectivity_service.dart';
 import 'package:gemini_chat/core/premium/premium_providers.dart';
@@ -444,7 +445,7 @@ void main() {
       },
     );
 
-    testWidgets('Premium that lapsed: says so instead of failing silently', (
+    testWidgets('lapsed auto-backup says so instead of failing silently', (
       tester,
     ) async {
       final env = await _env(
@@ -456,21 +457,112 @@ void main() {
       );
       addTearDown(env.container.dispose);
       await _pumpScreen(tester, env);
-      expect(find.text('বন্ধ আছে — Premium মেয়াদ শেষ'), findsOneWidget);
+      expect(
+        find.text(
+          FeatureFlags.premiumEnabled
+              ? 'বন্ধ আছে — Premium মেয়াদ শেষ'
+              : 'বন্ধ আছে',
+        ),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('free user flipping the switch gets the Premium explanation', (
-      tester,
-    ) async {
-      final env = await _env(premium: false);
-      addTearDown(env.container.dispose);
-      await _pumpScreen(tester, env);
+    testWidgets(
+      'free user flipping the switch gets the Premium explanation',
+      (tester) async {
+        final env = await _env(premium: false);
+        addTearDown(env.container.dispose);
+        await _pumpScreen(tester, env);
 
-      await tester.tap(find.text('স্বয়ংক্রিয় ব্যাকআপ'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('স্বয়ংক্রিয় ব্যাকআপ'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('স্বয়ংক্রিয় ব্যাকআপ — Premium'), findsOneWidget);
-      expect(env.prefs.getBool(AutoBackupKeys.enabled), isNull);
+        expect(find.text('স্বয়ংক্রিয় ব্যাকআপ — Premium'), findsOneWidget);
+        expect(env.prefs.getBool(AutoBackupKeys.enabled), isNull);
+      },
+      skip: !FeatureFlags.premiumEnabled, // PREMIUM_ENABLED=true builds only
+    );
+
+    group('Premium is hidden (Phase 1)', () {
+      testWidgets(
+        'a free user who never had auto-backup sees an honest note — no switch, no upsell',
+        (tester) async {
+          final env = await _env(premium: false);
+          addTearDown(env.container.dispose);
+          await _pumpScreen(tester, env);
+
+          final row = find.byKey(const Key('auto-backup-unavailable'));
+          expect(row, findsOneWidget);
+          expect(find.textContaining('এই সংস্করণে নেই'), findsOneWidget);
+          expect(
+            find.descendant(of: row, matching: find.byType(Switch)),
+            findsNothing,
+          );
+          // The manual path is still pointed at.
+          expect(find.textContaining('এখনই ব্যাকআপ করুন'), findsWidgets);
+          expect(find.textContaining('Premium'), findsNothing);
+          expect(env.prefs.getBool(AutoBackupKeys.enabled), isNull);
+        },
+        skip:
+            FeatureFlags.premiumEnabled, // Phase-1 (Premium hidden) builds only
+      );
+
+      testWidgets(
+        'a grandfathered user keeps their auto-backup, with plain wording',
+        (tester) async {
+          final env = await _env(
+            premium: false,
+            prefs: {
+              AutoBackupKeys.enabled: true,
+              AutoBackupKeys.grandfathered: true,
+              AutoBackupKeys.policyApplied: true,
+            },
+          );
+          addTearDown(env.container.dispose);
+          await _pumpScreen(tester, env);
+
+          expect(
+            find.byKey(const Key('auto-backup-unavailable')),
+            findsNothing,
+          );
+          expect(
+            find.textContaining('আপনার জন্য চালু আছে এবং চলতে থাকবে'),
+            findsOneWidget,
+          );
+          expect(find.textContaining('Premium'), findsNothing);
+          expect(env.prefs.getBool(AutoBackupKeys.enabled), isTrue);
+        },
+        skip:
+            FeatureFlags.premiumEnabled, // Phase-1 (Premium hidden) builds only
+      );
+
+      testWidgets(
+        'switching it off is allowed, and then it is honestly unavailable',
+        (tester) async {
+          final env = await _env(
+            premium: false,
+            prefs: {
+              AutoBackupKeys.enabled: true,
+              AutoBackupKeys.grandfathered: true,
+              AutoBackupKeys.policyApplied: true,
+            },
+          );
+          addTearDown(env.container.dispose);
+          await _pumpScreen(tester, env);
+
+          await tester.tap(find.text('স্বয়ংক্রিয় ব্যাকআপ'));
+          await tester.pumpAndSettle();
+
+          expect(env.prefs.getBool(AutoBackupKeys.enabled), isFalse);
+          expect(
+            find.byKey(const Key('auto-backup-unavailable')),
+            findsOneWidget,
+          );
+          expect(find.textContaining('Premium'), findsNothing);
+        },
+        skip:
+            FeatureFlags.premiumEnabled, // Phase-1 (Premium hidden) builds only
+      );
     });
   });
 

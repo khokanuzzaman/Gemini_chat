@@ -163,24 +163,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ]),
       ),
-      _SettingsGroup(
-        title: 'Premium',
-        child: premiumStatusAsync.when(
-          loading: () => const AppLoadingState.card(height: 96),
-          error: (error, stackTrace) => _buildPremiumBanner(
-            context,
-            premiumStatus,
-            isPremium,
-            teaserTitle: premiumTeaserTitle,
-          ),
-          data: (status) => _buildPremiumBanner(
-            context,
-            status,
-            status.isPremium,
-            teaserTitle: premiumTeaserTitle,
+      // No Premium surface at all unless the build sells something.
+      if (FeatureFlags.premiumEnabled)
+        _SettingsGroup(
+          title: 'Premium',
+          child: premiumStatusAsync.when(
+            loading: () => const AppLoadingState.card(height: 96),
+            error: (error, stackTrace) => _buildPremiumBanner(
+              context,
+              premiumStatus,
+              isPremium,
+              teaserTitle: premiumTeaserTitle,
+            ),
+            data: (status) => _buildPremiumBanner(
+              context,
+              status,
+              status.isPremium,
+              teaserTitle: premiumTeaserTitle,
+            ),
           ),
         ),
-      ),
       _SettingsGroup(
         title: 'স্মার্ট ফিচার',
         child: const SmsAutoImportSettingsCard(),
@@ -366,7 +368,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ]),
-            if (!isPremium) ...[
+            // Usage meters exist for the AI limits / Premium; neither is in Phase 1.
+            if (!isPremium &&
+                (FeatureFlags.aiEnabled || FeatureFlags.premiumEnabled)) ...[
               const SizedBox(height: AppSpacing.sectionGap),
               const UsageDisplayWidget(),
             ],
