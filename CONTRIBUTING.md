@@ -364,8 +364,11 @@ owner, so the books disagree. Therefore:
 ## SMS bodies are not stored — only parsed fields
 
 The SMS text is read, parsed and **dropped**. The ledger keeps the parsed fields
-(amount, kind/type, dates, sender, reference/TrxID, counterparty, fee, balance,
-account mask), the **signature** used for duplicate detection, and `matchHints`.
+(amount, kind/type, dates, sender, reference/TrxID, counterparty, fee, account mask
+— wallet matching uses it), the **signature** used for duplicate detection, and
+`matchHints`. **The balance in the message is NOT stored** (display-only):
+`balanceAfter` is always null, is not exported, and a restored legacy value is
+ignored.
 
 - **`SmsLedgerEntryModel.rawMessage` is always `''`** for rows this version writes.
   The column stays only because Isar schemas are additive. Never write message text
@@ -381,9 +384,9 @@ account mask), the **signature** used for duplicate detection, and `matchHints`.
   (`SmsSignatureCodec`) and stored on the row. A candidate rebuilt from a stored row
   has no text to hash, so `SmsImportCandidate.signature` carries the row's own and
   `upsertCandidate` prefers it — hashing a blank body would create a duplicate row.
-- **Upgrade:** `SmsBodyMinimiser` (run once from `main`, flag
-  `sms_bodies_stripped_v1`) derives the hints from each existing row's text and then
-  blanks it. Idempotent, never deletes a row, never blocks launch.
+- **Upgrade:** `SmsBodyMinimiser` (run once from `main`, flag `sms_minimised_v2`; v1
+  devices re-run it once) derives the hints from each existing row's text, blanks the
+  text and nulls the stored balance. Idempotent, never deletes a row, never blocks launch.
 - **UI:** nothing shows the text any more. SMS history "বিস্তারিত" and the import
   edit sheet show `SmsParsedSummary` (the parsed fields).
 - **Backups:** the export writes `rawMessage: ''` plus `matchHints`; restoring an

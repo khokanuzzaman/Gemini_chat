@@ -88,6 +88,11 @@ void main() {
                     .single
                 as Map;
         expect(row['rawMessage'], '');
+        expect(
+          row['balanceAfter'],
+          isNull,
+          reason: 'the SMS balance is not exported',
+        );
         expect(row['amount'], 65000); // the parsed fields are all still there
         expect(row['reference'], 'SAL1');
       },
@@ -110,6 +115,8 @@ void main() {
               'kind': 'bankCredit',
               'type': 'income',
               'amount': 65000.0,
+              'balanceAfter': 71250.4,
+              'accountMask': '••7890',
               'confidence': 1.0,
               'occurredAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
               'receivedAt': DateTime(2026, 10, 5).toUtc().toIso8601String(),
@@ -128,6 +135,12 @@ void main() {
           (await targetIsar.smsLedgerEntryModels.where().findAll()).single;
       expect(restored.rawMessage, '');
       expect(restored.matchHints, contains('salary'));
+      expect(
+        restored.balanceAfter,
+        isNull,
+        reason: 'a legacy balance is dropped',
+      );
+      expect(restored.accountMask, '••7890');
       expect(restored.signature, 'sig-legacy'); // dedupe key intact
       expect(restored.isImported, isTrue);
     });
@@ -308,6 +321,7 @@ SmsLedgerEntryModel _ledgerEntry({required String rawMessage}) {
     ..kind = ParsedTransactionKind.bankCredit
     ..type = TransactionType.income
     ..amount = 65000
+    ..balanceAfter = 71250.4
     ..reference = 'SAL1'
     ..confidence = 1
     ..occurredAt = at

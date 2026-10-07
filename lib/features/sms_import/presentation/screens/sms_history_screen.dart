@@ -1464,12 +1464,6 @@ class _HistoryEntryCard extends StatelessWidget {
                   icon: Icons.pin_outlined,
                   label: entry.reference!,
                 ),
-              if (entry.balanceAfter != null)
-                _DetailPill(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label:
-                      'Balance ${BanglaFormatters.preciseCurrency(entry.balanceAfter!)}',
-                ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),

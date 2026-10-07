@@ -179,6 +179,8 @@ void main() {
           65000,
           messages[0].date,
           ref: 'SAL998877',
+          balance: 71250.40,
+          mask: '••7890',
         ),
         2: _parsed(
           2,
@@ -213,6 +215,15 @@ void main() {
         expect(brac.matchHints, isNot(contains('1234567890')));
       },
     );
+
+    test('a sync stores NO balance, but keeps the account mask', () async {
+      await service(messages).syncLedger();
+      final brac = (await isar.smsLedgerEntryModels.where().findAll())
+          .firstWhere((r) => r.smsId == 1);
+      expect(brac.balanceAfter, isNull, reason: 'parsed 71,250.40, not stored');
+      expect(brac.accountMask, '••7890', reason: 'wallet matching needs it');
+      expect(brac.toParsedTransaction().balanceAfter, isNull);
+    });
 
     test('DEDUPE: syncing the same inbox again adds nothing', () async {
       final first = await service(messages).syncLedger();
@@ -359,6 +370,55 @@ void main() {
         },
       );
 
+      test(
+        'strips the stored balance too — keeps mask, hints and everything else',
+        () async {
+          await isar.writeTxn(() async {
+            await isar.smsLedgerEntryModels.put(
+              SmsLedgerEntryModel()
+                ..signature = 'sig-bal'
+                ..smsId = 9
+                ..sender = 'BRAC BANK'
+                ..rawMessage =
+                    '' // text already gone (an upgraded v1 device)
+                ..matchHints = 'brac bank | salary'
+                ..source = ParsedTransactionSource.bank
+                ..direction = ParsedTransactionDirection.credit
+                ..kind = ParsedTransactionKind.bankCredit
+                ..type = TransactionType.income
+                ..amount = 65000
+                ..balanceAfter = 71250.40
+                ..accountMask = '••7890'
+                ..reference = 'R1'
+                ..confidence = 1
+                ..isImported = true
+                ..occurredAt = DateTime(2026, 10, 1)
+                ..receivedAt = DateTime(2026, 10, 1)
+                ..createdAt = DateTime(2026, 10, 1)
+                ..updatedAt = DateTime(2026, 10, 1),
+            );
+          });
+          // A v1 device: the previous flag is set, the v2 one is not.
+          await prefs.setBool('sms_bodies_stripped_v1', true);
+
+          expect(await SmsBodyMinimiser.run(isar, prefs), 1);
+
+          final row =
+              (await isar.smsLedgerEntryModels.where().findAll()).single;
+          expect(row.balanceAfter, isNull);
+          expect(row.accountMask, '••7890');
+          expect(
+            row.matchHints,
+            'brac bank | salary',
+            reason: 'not recomputed from nothing',
+          );
+          expect(row.amount, 65000);
+          expect(row.reference, 'R1');
+          expect(row.isImported, isTrue);
+          expect(row.signature, 'sig-bal');
+        },
+      );
+
       test('runs once: flag set, second run touches nothing', () async {
         await seed(3);
         expect(await SmsBodyMinimiser.run(isar, prefs), 3);
@@ -423,6 +483,8 @@ ParsedTransaction _parsed(
   double amount,
   DateTime at, {
   String? ref,
+  double? balance,
+  String? mask,
 }) => ParsedTransaction(
   smsId: smsId,
   sender: source.label,
@@ -438,6 +500,8 @@ ParsedTransaction _parsed(
   receivedAt: at,
   occurredAt: at,
   reference: ref,
+  balanceAfter: balance,
+  accountMask: mask,
 );
 
 class _Reader extends SmsReaderService {

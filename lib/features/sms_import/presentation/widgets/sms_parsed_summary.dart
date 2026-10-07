@@ -25,8 +25,6 @@ class SmsParsedSummary extends StatelessWidget {
       ('পরিমাণ', BanglaFormatters.currency(t.amount)),
       if (t.fee != null && t.fee! > 0)
         ('ফি', BanglaFormatters.currency(t.fee!)),
-      if (t.balanceAfter != null)
-        ('ব্যালেন্স', BanglaFormatters.currency(t.balanceAfter!)),
       if (who != null && who.isNotEmpty) ('কার সাথে', who),
       if (t.accountMask?.trim().isNotEmpty ?? false)
         ('অ্যাকাউন্ট', t.accountMask!.trim()),

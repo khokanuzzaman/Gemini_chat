@@ -145,7 +145,8 @@ class SmsLedgerService {
         entry.type = transaction.type;
         entry.amount = transaction.amount;
         entry.fee = transaction.fee;
-        entry.balanceAfter = transaction.balanceAfter;
+        // The balance in the message is display-only and personal: not stored.
+        entry.balanceAfter = null;
         entry.reference = transaction.reference;
         entry.counterparty = transaction.counterparty;
         entry.merchantName = transaction.merchantName;
@@ -350,7 +351,7 @@ class SmsLedgerService {
     entry.type = transaction.type;
     entry.amount = transaction.amount;
     entry.fee = transaction.fee;
-    entry.balanceAfter = transaction.balanceAfter;
+    entry.balanceAfter = null; // not stored (see the sync path above)
     entry.reference = transaction.reference;
     entry.counterparty = transaction.counterparty;
     entry.merchantName = transaction.merchantName;

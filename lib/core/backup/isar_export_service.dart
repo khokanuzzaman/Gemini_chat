@@ -465,7 +465,8 @@ class IsarExportService {
       'type': model.type.name,
       'amount': model.amount,
       'fee': model.fee,
-      'balanceAfter': model.balanceAfter,
+      // The SMS balance is not kept (minimisation); the key stays for old readers.
+      'balanceAfter': null,
       'reference': model.reference,
       'counterparty': model.counterparty,
       'merchantName': model.merchantName,
@@ -900,7 +901,8 @@ class IsarExportService {
             )
             ..amount = _asDouble(row['amount'])
             ..fee = _asNullableDouble(row['fee'])
-            ..balanceAfter = _asNullableDouble(row['balanceAfter'])
+            // A backup from before the balance was dropped still carries it: ignore.
+            ..balanceAfter = null
             ..reference = _asNullableString(row['reference'])
             ..counterparty = _asNullableString(row['counterparty'])
             ..merchantName = _asNullableString(row['merchantName'])

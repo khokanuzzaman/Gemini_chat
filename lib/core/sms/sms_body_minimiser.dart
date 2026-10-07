@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../database/models/sms_ledger_entry_model.dart';
 import 'sms_match_hints.dart';
 
-/// One-time upgrade step: blanks the SMS text that earlier versions stored on
-/// every ledger row, keeping only what the app still needs.
+/// One-time upgrade step: blanks the SMS text, and the balance read from it, that
+/// earlier versions stored on every ledger row, keeping only what the app needs
+/// (the account mask stays: wallet matching uses it).
 ///
 /// Per row, in this order: the matcher hints are derived from the text (so
 /// wallet/category suggestions do not change), THEN the text is blanked. The
@@ -19,7 +20,8 @@ import 'sms_match_hints.dart';
 class SmsBodyMinimiser {
   const SmsBodyMinimiser._();
 
-  static const doneKey = 'sms_bodies_stripped_v1';
+  /// v2 = also strips the stored balance. (v1 devices re-run once, idempotently.)
+  static const doneKey = 'sms_minimised_v2';
   static const _batch = 200;
 
   /// Returns how many rows were blanked (0 when already done).
@@ -34,17 +36,22 @@ class SmsBodyMinimiser {
           .filter()
           .not()
           .rawMessageEqualTo('')
+          .or()
+          .balanceAfterIsNotNull()
           .limit(_batch)
           .findAll();
       if (rows.isEmpty) {
         break;
       }
       for (final row in rows) {
-        row.matchHints ??= SmsMatchHints.extract(
-          row.rawMessage,
-          customCategoryNames: custom,
-        );
+        if (row.rawMessage.isNotEmpty) {
+          row.matchHints ??= SmsMatchHints.extract(
+            row.rawMessage,
+            customCategoryNames: custom,
+          );
+        }
         row.rawMessage = '';
+        row.balanceAfter = null;
       }
       await isar.writeTxn(() => isar.smsLedgerEntryModels.putAll(rows));
       stripped += rows.length;

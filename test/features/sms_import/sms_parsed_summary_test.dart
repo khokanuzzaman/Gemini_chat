@@ -68,6 +68,9 @@ void main() {
     expect(find.text('TRX12345'), findsOneWidget);
     expect(find.text('Foodpanda'), findsOneWidget);
     expect(find.textContaining('SECRET MESSAGE TEXT'), findsNothing);
+    // The balance is not part of what the app keeps, so it is not shown either.
+    expect(find.text('ব্যালেন্স'), findsNothing);
+    expect(find.text(BanglaFormatters.currency(1450)), findsNothing);
     expect(find.textContaining('সংরক্ষণ করা হয় না'), findsOneWidget);
   });
 

@@ -41,6 +41,8 @@ class SmsLedgerEntryModel {
 
   late double amount;
   double? fee;
+  /// Always null for rows this version writes (the SMS balance is not stored; see
+  /// CONTRIBUTING "SMS bodies are not stored"). The column stays: Isar is additive.
   double? balanceAfter;
   String? reference;
   String? counterparty;
