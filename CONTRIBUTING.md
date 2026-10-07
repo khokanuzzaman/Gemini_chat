@@ -485,6 +485,35 @@ What is actually true today (keep copy within it):
 Audit of the existing claims (when this was written) is in the commit that fixed
 Home's SMS teaser; re-grep `ফোনেই|সুরক্ষিত|নিরাপদ|কোথাও|পাঠানো|আপলোড` when adding copy.
 
+## Android permissions — the final list, and how to check it
+
+Release builds declare only: `BILLING` (Play Billing library; Premium is hidden),
+`POST_NOTIFICATIONS`, `READ_SMS`, `RECEIVE_BOOT_COMPLETED`, `USE_BIOMETRIC`,
+`USE_FINGERPRINT` (**maxSdk 27**), `VIBRATE`, plus the network/analytics ones the
+Firebase plugins add (`INTERNET`, `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, the Play
+install-referrer permission, `READ_GSERVICES`).
+
+- **Not declared on purpose:** `RECEIVE_SMS` (no receiver), `RECORD_AUDIO` (voice is
+  AI-only; `record` re-adds it, so the manifest removes it with `tools:node="remove"`),
+  `WRITE_EXTERNAL_STORAGE` (export uses the cache dir + share sheet),
+  `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` (reminders are inexact; the latter is
+  restricted to alarm/calendar apps), and the Advertising-ID trio.
+- **`USE_FINGERPRINT`** is kept with `maxSdkVersion="27"`: `androidx.biometric`
+  declares it unconditionally and needs it only for the FingerprintManager fallback on
+  Android 7–8 (minSdk is 24). Removing it outright would break the biometric lock — and
+  could lock someone out — on those devices.
+- **Phase 2 (AI voice):** delete the `RECORD_AUDIO` remove and declare it again.
+- **Check the merged result** after touching the manifest or a plugin:
+
+  ```bash
+  cd android && ./gradlew :app:processReleaseMainManifest -q && cd ..
+  grep "uses-permission" build/app/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+  # who added one:  build/app/outputs/logs/manifest-merger-release-report.txt
+  ```
+
+  `test/android_manifest_test.dart` pins the app's own manifest; it cannot see what a
+  plugin adds, hence the command above.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

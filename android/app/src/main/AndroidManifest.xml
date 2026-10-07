@@ -6,14 +6,28 @@
          no SMS receiver, so RECEIVE_SMS is deliberately NOT declared (restricted
          permission; declaring an unused one only invites Play review questions). -->
     <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <!-- Permissions we do NOT use (the app and the plugins it pulls in must not add
+         them to the merged manifest):
+         - RECORD_AUDIO: voice entry is AI-only and AI is off in Phase 1; the `record`
+           plugin declares it itself, so it is removed explicitly. PHASE 2 (AI voice):
+           delete this remove and add the permission back.
+         - WRITE_EXTERNAL_STORAGE: export writes to the cache dir and uses the share
+           sheet; no shared-storage access.
+         - SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM: reminders are scheduled inexactly
+           (USE_EXACT_ALARM is restricted to alarm/calendar apps on Play). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
+    <!-- Biometric lock: androidx.biometric declares USE_FINGERPRINT unconditionally,
+         but it is only needed on Android 7–8 (API 24–27, the FingerprintManager
+         fallback). USE_BIOMETRIC (from local_auth) covers API 28+. Restrict it to
+         <= 27 instead of removing it, so those devices keep a working lock. -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="27" tools:node="replace" />
 
     <!-- Phase 1 shows no ads, so we do not use the Advertising ID. Firebase
          Analytics pulls these three in transitively; strip them so the merged
