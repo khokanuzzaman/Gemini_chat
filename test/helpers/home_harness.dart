@@ -26,6 +26,8 @@ import 'package:gemini_chat/features/expense/domain/entities/expense_entity.dart
 import 'package:gemini_chat/features/expense/domain/entities/expense_source.dart';
 import 'package:gemini_chat/features/expense/presentation/providers/expense_providers.dart';
 import 'package:gemini_chat/features/expense/presentation/screens/dashboard_screen.dart';
+import 'package:gemini_chat/features/goals/domain/entities/goal_entity.dart';
+import 'package:gemini_chat/features/goals/presentation/providers/goal_provider.dart';
 import 'package:gemini_chat/features/income/domain/entities/income_entity.dart';
 import 'package:gemini_chat/features/income/presentation/providers/income_providers.dart';
 import 'package:gemini_chat/features/obligations/presentation/providers/upcoming_obligations_provider.dart';
@@ -56,6 +58,7 @@ class HomeScenario {
     this.budget,
     this.recurring = const [],
     this.debts = const [],
+    this.goals = const [],
     this.prediction,
     this.alerts = const [],
     this.smsEnabled = false,
@@ -79,6 +82,7 @@ class HomeScenario {
   final BudgetPlanEntity? budget;
   final List<RecurringExpenseEntity> recurring;
   final List<DebtEntity> debts;
+  final List<GoalEntity> goals;
   final PredictionEntity? prediction;
   final List<AnomalyAlert> alerts;
   final bool smsEnabled;
@@ -411,6 +415,13 @@ class _FakeRecurring extends RecurringNotifier {
   Future<List<RecurringExpenseEntity>> build() async => items;
 }
 
+class _FakeGoals extends GoalNotifier {
+  _FakeGoals(this.items);
+  final List<GoalEntity> items;
+  @override
+  GoalState build() => GoalState(goals: items, isLoading: false);
+}
+
 class _FakeDebts extends DebtListNotifier {
   _FakeDebts(this.items);
   final List<DebtEntity> items;
@@ -457,6 +468,7 @@ List<Override> homeOverrides(
     googleAuthProvider.overrideWith(() => _FakeAuth(s.signedInName)),
     recurringProvider.overrideWith(() => _FakeRecurring(s.recurring)),
     debtListProvider.overrideWith(() => _FakeDebts(s.debts)),
+    goalProvider.overrideWith(() => _FakeGoals(s.goals)),
     cashFlowProvider.overrideWith(
       (ref) async => CashFlowData(
         income: s.monthIncome,

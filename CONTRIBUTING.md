@@ -456,6 +456,28 @@ manifest has no `com.android.vending.BILLING`. `test/no_billing_test.dart` and
 - `users/{uid}/subscription` is a legacy Firestore path only account deletion still
   knows about (test builds that had a paywall may have written it).
 
+## প্ল্যান / আরও hubs and "আসন্ন পরিশোধ" (R4)
+
+- **UI only.** Each প্ল্যান card's one-line status is wording over providers that already
+  exist (`budgetProvider` + the dashboard's `thisMonthTotal` — the same pair Home's budget
+  row uses; `goalProvider`; `debtSummaryProvider`; `recurringProvider` + the recurring
+  items of `upcomingObligationsProvider`). All wording lives in the pure
+  `features/plan/domain/plan_status.dart` (unit-tested); `planHubStatusProvider` only
+  composes. A status is **null while its provider loads** (the card shows just its
+  title) — never a flash of "০" or "ঠিক করুন".
+- **Do not add a new calculation to a hub.** If a card needs a number no provider has,
+  flag it instead (DESIGN_SPEC §4). The upcoming-obligations combiner already existed
+  (G4), so R4 added none.
+- Status lines glue ৳ to its number with a non-breaking space (`_taka`) so they never
+  wrap between the symbol and the figure.
+- **Colour rules:** danger text only for over-budget / overdue (`StatusTone.attention`);
+  brass only as a soft FILL for the SMS tile and দেনা-পাওনা (debt/EMI), never brass text.
+- আরও rows are icon · label · chevron — no static subtitles (they go stale); only the
+  SMS tile has a live status.
+- The full "আসন্ন পরিশোধ" list (`UpcomingObligationsScreen`) is read-only and opens from
+  the প্ল্যান strip and Home's "আসছে → সব দেখুন". Grouping is the pure
+  `groupObligations` (overdue / this week / this month / later).
+
 ## Privacy claims in UI copy — keep them true
 
 What is actually true today (keep copy within it):

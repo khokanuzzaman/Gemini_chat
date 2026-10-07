@@ -11,6 +11,7 @@ import '../../../../budget/domain/entities/budget_plan_entity.dart';
 import '../../../../budget/presentation/providers/budget_provider.dart';
 import '../../../../budget/presentation/screens/budget_planner_screen.dart';
 import '../../../../obligations/domain/upcoming_obligation.dart';
+import '../../../../obligations/presentation/screens/upcoming_obligations_screen.dart';
 import '../../../../obligations/presentation/providers/upcoming_obligations_provider.dart';
 import '../../../../prediction/presentation/providers/prediction_provider.dart';
 import '../../../../recurring/presentation/screens/recurring_screen.dart';
@@ -276,9 +277,44 @@ class UpcomingInsightRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'আসছে',
-                  style: AppTextStyles.titleMedium.copyWith(color: tokens.ink),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'আসছে',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: tokens.ink,
+                        ),
+                      ),
+                    ),
+                    // The full list (PLAN strip opens the same screen).
+                    InkWell(
+                      key: const Key('home-upcoming-see-all'),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(buildAppRoute(const UpcomingObligationsScreen())),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'সব দেখুন',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: tokens.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: tokens.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 for (final item in items) _ObligationLine(item: item),
               ],

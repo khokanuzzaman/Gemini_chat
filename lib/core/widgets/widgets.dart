@@ -19,3 +19,4 @@ export 'usage_display_widget.dart';
 export '../animations/animations.dart';
 export 'global_settings_button.dart';
 export 'offline_banner.dart';
+export 'hub_tile.dart';
