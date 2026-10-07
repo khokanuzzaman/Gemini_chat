@@ -54,5 +54,9 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<!-- Analytics collection is OFF until the app has read the user's saved opt-out and
+	     enables it at runtime (bootAnalytics). Same policy as Android. -->
+	<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+	<false/>
 </dict>
 </plist>

@@ -469,7 +469,7 @@ List<Override> homeOverrides(
     backupReminderProvider.overrideWith((ref) async => s.reminder),
     connectivityServiceProvider.overrideWithValue(_OfflineSafeConnectivity()),
     usageAnalyticsProvider.overrideWithValue(
-      UsageAnalytics(logger ?? RecordingAnalyticsLogger()),
+      UsageAnalytics(logger ?? RecordingAnalyticsLogger(), enabled: true),
     ),
   ];
 }

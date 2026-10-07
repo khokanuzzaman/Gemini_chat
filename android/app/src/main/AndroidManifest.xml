@@ -46,6 +46,10 @@
         android:roundIcon="@mipmap/ic_launcher_round">
         <!-- Firebase Analytics: no advertising identifier, no ad-personalization.
              Event logging itself is unaffected (analytics_storage is untouched). -->
+        <!-- Collection is OFF until the app has read the user's saved opt-out and turns
+             it on at runtime (see bootAnalytics): an opted-out user's launch is never
+             counted. Opted-in users are enabled a moment after start-up. -->
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
         <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false" />
         <meta-data android:name="google_analytics_default_allow_ad_personalization_signals" android:value="false" />
         <meta-data android:name="google_analytics_default_allow_ad_storage" android:value="false" />

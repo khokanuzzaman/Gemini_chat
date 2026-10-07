@@ -102,7 +102,7 @@ class AddEntryEnv {
     walletProvider.overrideWith(() => _FakeWallets(wallets)),
     expenseMutationControllerProvider.overrideWithValue(expenses),
     incomeMutationControllerProvider.overrideWithValue(incomes),
-    usageAnalyticsProvider.overrideWithValue(UsageAnalytics(logger)),
+    usageAnalyticsProvider.overrideWithValue(UsageAnalytics(logger, enabled: true)),
   ];
 
   /// What the last saveManualExpense / saveManualIncome received.

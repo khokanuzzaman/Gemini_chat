@@ -77,10 +77,14 @@ class FirebaseAnalyticsLogger implements AnalyticsLogger {
 /// account or any financial record. Gated by the user's opt-out preference: when
 /// disabled, nothing is logged and collection is turned off in the SDK.
 class UsageAnalytics {
-  UsageAnalytics(this._logger);
+  /// FAIL-CLOSED: nothing is logged until [initialize] has read the user's saved
+  /// preference. (The manifest also ships with SDK collection OFF, so there is no
+  /// window — before this object exists or before the preference is read — in which
+  /// an opted-out user's launch can be counted.) [enabled] is for tests only.
+  UsageAnalytics(this._logger, {bool enabled = false}) : _enabled = enabled;
 
   final AnalyticsLogger _logger;
-  bool _enabled = true;
+  bool _enabled;
 
   /// Seeds the enabled flag from the saved preference and applies it to the SDK.
   Future<void> initialize({required bool enabled}) => setEnabled(enabled);
@@ -115,4 +119,17 @@ class UsageAnalytics {
 
   Future<void> entryMethodUsed(AnalyticsEntryMethod method) =>
       _log('entry_method_used', {'method': method.key});
+}
+
+/// App start-up for analytics, in the only safe order: READ the saved opt-out
+/// preference first, only then turn SDK collection on (it is off in the manifest) —
+/// and only then count the launch. An opted-out user's launch sends nothing, ever.
+Future<bool> bootAnalytics(
+  UsageAnalytics analytics, {
+  required Future<bool> Function() readEnabled,
+}) async {
+  final enabled = await readEnabled();
+  await analytics.initialize(enabled: enabled);
+  await analytics.appOpen();
+  return enabled;
 }

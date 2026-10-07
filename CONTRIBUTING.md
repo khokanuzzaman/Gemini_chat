@@ -524,6 +524,18 @@ phone means "Back up now" on the old one and "Restore" on the new one — Google
 phone-switch copy does not carry this app's data. `test/android_manifest_test.dart`
 fails if the flag or any domain exclusion disappears.
 
+## Analytics: off until the preference is read
+
+Firebase Analytics ships with collection **off** (`firebase_analytics_collection_enabled`
+= false in the manifest, `FIREBASE_ANALYTICS_COLLECTION_ENABLED` = false in the iOS
+plist). At start-up `bootAnalytics` reads the saved opt-out **first**, then enables
+collection (or leaves it off), and only then logs `app_open`. `UsageAnalytics` is
+fail-closed: nothing is logged until `initialize` has run. So an opted-out user's launch
+sends nothing; an opted-in user is enabled a moment after start-up (the very first
+instants of a session are not counted). Do not log from `main()` or a provider before
+`bootAnalytics`, and do not construct `UsageAnalytics(..., enabled: true)` outside tests.
+`test/core/analytics/analytics_boot_test.dart` pins the order, the manifest and the plist.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

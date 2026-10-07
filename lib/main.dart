@@ -31,6 +31,7 @@ import 'features/net_worth/data/models/net_worth_snapshot_model.dart';
 import 'features/net_worth/presentation/providers/net_worth_snapshot_provider.dart';
 import 'features/prediction/data/models/prediction_cache_model.dart';
 import 'core/analytics/analytics_providers.dart';
+import 'core/analytics/usage_analytics.dart';
 import 'core/config/feature_flags.dart';
 import 'core/navigation/app_shell_navigation.dart';
 import 'core/notifications/notification_provider.dart';
@@ -408,9 +409,11 @@ class _MainShellState extends ConsumerState<_MainShell> {
       return;
     }
     ref.read(analyticsEnabledProvider.notifier).state = analyticsEnabled;
-    final analytics = ref.read(usageAnalyticsProvider);
-    await analytics.initialize(enabled: analyticsEnabled);
-    await analytics.appOpen();
+    // Preference first, collection second (it is OFF in the manifest).
+    await bootAnalytics(
+      ref.read(usageAnalyticsProvider),
+      readEnabled: () async => analyticsEnabled,
+    );
   }
 
   @override

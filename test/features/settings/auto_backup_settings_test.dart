@@ -146,7 +146,7 @@ class _Env {
         usageTrackerServiceProvider.overrideWithValue(usage),
         premiumStatusProvider.overrideWith(() => _FakePremium(premium)),
         premiumServiceProvider.overrideWithValue(premiumService),
-        usageAnalyticsProvider.overrideWithValue(UsageAnalytics(logger)),
+        usageAnalyticsProvider.overrideWithValue(UsageAnalytics(logger, enabled: true)),
       ],
     );
     when(
@@ -589,7 +589,7 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(env.prefs),
             usageAnalyticsProvider.overrideWithValue(
-              UsageAnalytics(env.logger),
+              UsageAnalytics(env.logger, enabled: true),
             ),
             backupReminderProvider.overrideWith(
               (ref) async =>
@@ -628,7 +628,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(env.prefs),
-          usageAnalyticsProvider.overrideWithValue(UsageAnalytics(env.logger)),
+          usageAnalyticsProvider.overrideWithValue(UsageAnalytics(env.logger, enabled: true)),
           backupReminderProvider.overrideWith(
             (ref) async => const BackupReminderDecision(show: true),
           ),
