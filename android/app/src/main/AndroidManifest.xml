@@ -2,8 +2,10 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="com.android.vending.BILLING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- SMS import READS the inbox on demand and polls while the app runs; there is
+         no SMS receiver, so RECEIVE_SMS is deliberately NOT declared (restricted
+         permission; declaring an unused one only invites Play review questions). -->
     <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
