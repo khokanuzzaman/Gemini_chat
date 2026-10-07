@@ -267,6 +267,12 @@ void main() {
 
 class _FakeGoogleAuthService implements GoogleAuthService {
   @override
+  Future<void> deleteCurrentUser() async {}
+
+  @override
+  Future<void> reauthenticate() async {}
+
+  @override
   String? get displayName => 'Backup Test User';
 
   @override

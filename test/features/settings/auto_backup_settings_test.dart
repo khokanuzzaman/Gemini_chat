@@ -58,6 +58,12 @@ class _MockPremiumService extends Mock implements PremiumService {}
 
 class _FakeAuth implements GoogleAuthService {
   @override
+  Future<void> deleteCurrentUser() async {}
+
+  @override
+  Future<void> reauthenticate() async {}
+
+  @override
   String? get displayName => 'Test User';
   @override
   Future<http.Client?> getDriveHttpClient() async => null;

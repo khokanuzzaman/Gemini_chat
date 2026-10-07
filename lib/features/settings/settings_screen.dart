@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,9 +13,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/backup/backup_providers.dart';
 import '../../core/database/expense_seed_data.dart';
 import '../../core/database/models/expense_record_model.dart';
-import '../../core/database/clear_all_data.dart';
 import '../../core/navigation/app_page_route.dart';
-import '../../core/notifications/budget_settings.dart';
 import '../../core/notifications/notification_provider.dart';
 import '../../core/notifications/notification_settings.dart';
 import '../../core/premium/premium_providers.dart';
@@ -29,19 +29,15 @@ import '../../core/usage/usage_limits.dart';
 import '../../core/widgets/widgets.dart';
 import '../ai_guide/presentation/screens/ai_guide_screen.dart';
 import '../anomaly/presentation/providers/anomaly_provider.dart';
-import '../budget/presentation/providers/budget_provider.dart';
 import '../category/presentation/providers/category_provider.dart';
 import '../chat/presentation/providers/chat_provider.dart';
-import '../debt/presentation/providers/debt_providers.dart';
 import '../expense/presentation/providers/expense_providers.dart';
-import '../goals/presentation/providers/goal_provider.dart';
-import '../income/presentation/providers/income_providers.dart';
 import '../prediction/presentation/providers/prediction_provider.dart';
-import '../sms_import/presentation/providers/sms_import_provider.dart';
 import '../sms_import/presentation/widgets/sms_import_entry_widgets.dart';
-import '../wallet/presentation/providers/wallet_provider.dart';
 import 'backup_screen.dart';
 import 'budget_settings_screen.dart';
+import 'account_deletion_flow.dart';
+import 'local_data_wipe.dart';
 import 'premium_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -223,6 +219,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: Icon(Icons.chevron_right_rounded, color: AppColors.error),
             onTap: _clearAllData,
           ),
+          // Only when there IS an account (signed in with Google for backup).
+          if (backupState?.isSignedIn ?? false)
+            AppListTile(
+              key: const Key('settings-delete-account'),
+              leadingIcon: Icons.person_remove_outlined,
+              leadingColor: AppColors.error,
+              title: 'অ্যাকাউন্ট মুছুন',
+              subtitle:
+                  'আপনার অ্যাকাউন্ট, ক্লাউডের তথ্য ও এই ফোনের সব ডেটা মুছে যাবে',
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.error,
+              ),
+              onTap: _deleteAccount,
+            ),
         ]),
       ),
       _SettingsGroup(
@@ -756,6 +767,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return 'Premium-এ আপগ্রেড করুন · ${selected.priceString}';
   }
 
+  Future<void> _deleteAccount() => runAccountDeletionFlow(context, ref);
+
   Future<void> _clearAllData() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -814,32 +827,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    await ref.read(smsAutoImportProvider.notifier).disable();
-    await ref.read(backupStateProvider.notifier).signOut();
-    await ref.read(backupStateProvider.notifier).resetLocalState();
-    await clearAllUserCollections(ref.read(isarProvider));
-
-    await ref.read(predictionProvider.notifier).reset();
-    await ref.read(anomalyProvider.notifier).clear();
-    await AppPreferences.setActiveWalletId(0);
-    await ref.read(smsSettingsProvider).resetAll();
-    await ref.read(budgetSettingsProvider.notifier).clearBudgets();
-    ref.read(expenseRefreshTokenProvider.notifier).state++;
-    ref.read(incomeRefreshTokenProvider.notifier).state++;
-    ref.read(debtRefreshTokenProvider.notifier).state++;
-    ref.read(anomalyForceRedetectTokenProvider.notifier).state++;
-    ref.read(predictionRefreshTokenProvider.notifier).state++;
-    ref.invalidate(budgetProvider);
-    ref.invalidate(goalsProvider);
-    ref.invalidate(walletProvider);
-    ref.invalidate(dashboardControllerProvider);
-    ref.invalidate(expenseListControllerProvider);
-    ref.invalidate(analyticsControllerProvider);
-    ref.invalidate(incomeListControllerProvider);
-    ref.invalidate(debtListProvider);
-    ref.invalidate(cashFlowProvider);
-    ref.invalidate(thisMonthIncomeProvider);
-    ref.invalidate(lastMonthIncomeProvider);
+    await wipeAllLocalData(ref);
     if (!mounted) {
       return;
     }

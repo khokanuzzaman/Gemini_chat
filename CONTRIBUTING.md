@@ -415,6 +415,30 @@ account mask), the **signature** used for duplicate detection, and `matchHints`.
   purpose).
 - SMS text is no longer in backups at all (see "SMS bodies are not stored").
 
+## অ্যাকাউন্ট মুছুন (account deletion) — rules
+
+Settings → "অ্যাকাউন্ট মুছুন" (shown only when signed in). Flow:
+`runAccountDeletionFlow` (confirm + optional Drive-backup checkbox + blocking
+progress) → `AccountDeletionService.delete`:
+**Drive backups (if ticked) → Firestore `users/{uid}/**` → Firebase Auth user →
+sign out → local wipe** (`wipeAllLocalData`, the same code "সব ডেটা মুছুন" runs).
+
+- **Nothing local is wiped until every cloud step succeeded**; any failure returns a
+  message and leaves the device untouched. Every step is idempotent, so retrying is
+  always safe.
+- Firebase refuses to delete a stale sign-in (`requires-recent-login`) → the service
+  re-authenticates with Google and retries **once**; declining is reported calmly.
+- **A new per-user Firestore collection MUST be added to `UserCloudData.subcollections`**
+  (a test scans `lib/` for `users/{uid}/<x>` paths and fails otherwise). A new local
+  collection goes in `clearAllUserCollections` (existing rule).
+- **Not deleted by this flow** (state it in the Data Safety / privacy text): Firebase
+  Analytics data (anonymous, retention set in the Firebase console), and the
+  RevenueCat customer record when RevenueCat is configured (request deletion in the
+  RevenueCat dashboard/API; the app cannot).
+- "সব ডেটা মুছুন" is unchanged: local only, and it still leaves the account, the
+  Firestore docs and the Drive backups. That is deliberate (it is the "start over"
+  button); account deletion is the "erase me" button.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

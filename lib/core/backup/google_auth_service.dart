@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
+import '../auth/account_deletion_service.dart';
 import 'backup_exception.dart';
 
 class GoogleAuthService {
@@ -48,6 +49,56 @@ class GoogleAuthService {
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
     await _googleSignIn.signOut();
+  }
+
+  /// Deletes the Firebase Auth user. Maps "sign-in too old" to
+  /// [RequiresRecentLoginException] so the caller can re-authenticate and retry.
+  Future<void> deleteCurrentUser() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return;
+    }
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'requires-recent-login') {
+        throw const RequiresRecentLoginException();
+      }
+      if (error.code == 'network-request-failed') {
+        throw const AccountDeletionException(
+          'ইন্টারনেট সংযোগ নেই। সংযোগ দেখে আবার চেষ্টা করুন।',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Interactive Google sign-in for the CURRENT Firebase user (account deletion's
+  /// "recent login"). Throws [ReauthCancelledException] if the user backs out.
+  Future<void> reauthenticate() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return;
+    }
+    final account = await _googleSignIn.signIn();
+    if (account == null) {
+      throw const ReauthCancelledException();
+    }
+    final authentication = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: authentication.accessToken,
+      idToken: authentication.idToken,
+    );
+    try {
+      await user.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'user-mismatch' || error.code == 'wrong-password') {
+        throw const AccountDeletionException(
+          'যে Google অ্যাকাউন্টে সাইন ইন করা আছে, সেটিই ব্যবহার করুন।',
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<http.Client?> getDriveHttpClient() async {
