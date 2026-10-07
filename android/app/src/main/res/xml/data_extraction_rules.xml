@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PocketPilot keeps NOTHING in Android's own backup or device-to-device transfer: the
+  user's money data (the Isar database, preferences, the backup bookkeeping) must only
+  leave the phone through the in-app Google Drive backup, which the user starts and can
+  delete. android:allowBackup="false" already opts out on every API level; these rules
+  say the same explicitly for Android 12+ (cloud backup AND device transfer), covering
+  every domain, so adding a plugin or a new storage location cannot silently change it.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+        <exclude domain="device_file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+        <exclude domain="device_file" />
+    </device-transfer>
+</data-extraction-rules>

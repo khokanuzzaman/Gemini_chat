@@ -514,6 +514,16 @@ install-referrer permission, `READ_GSERVICES`).
   `test/android_manifest_test.dart` pins the app's own manifest; it cannot see what a
   plugin adds, hence the command above.
 
+## No Android backup — the in-app Drive backup is the only path
+
+`android:allowBackup="false"` and `res/xml/data_extraction_rules.xml` exclude every
+domain from Android Auto Backup **and** device-to-device transfer. The database holds
+the user's whole financial history; it may leave the phone only through the Drive
+backup the user starts (and can delete). Consequence to tell users: moving to a new
+phone means "Back up now" on the old one and "Restore" on the new one — Google's
+phone-switch copy does not carry this app's data. `test/android_manifest_test.dart`
+fails if the flag or any domain exclusion disappears.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics

@@ -57,6 +57,43 @@ void main() {
     expect(fingerprint, contains('tools:node="replace"'));
   });
 
+  test(
+    'no Android backup / device transfer: our Drive backup is the only path',
+    () {
+      expect(manifest, contains('android:allowBackup="false"'));
+      expect(
+        manifest,
+        contains('android:dataExtractionRules="@xml/data_extraction_rules"'),
+      );
+      final rules = File(
+        'android/app/src/main/res/xml/data_extraction_rules.xml',
+      ).readAsStringSync().replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+      for (final section in ['cloud-backup', 'device-transfer']) {
+        final block = RegExp(
+          '<$section>(.*?)</$section>',
+          dotAll: true,
+        ).firstMatch(rules)?.group(1);
+        expect(block, isNotNull, reason: section);
+        for (final domain in [
+          'root',
+          'file',
+          'database',
+          'sharedpref',
+          'external',
+          'device_root',
+          'device_file',
+        ]) {
+          expect(
+            block,
+            contains('<exclude domain="$domain" />'),
+            reason: '$section/$domain',
+          );
+        }
+        expect(block, isNot(contains('<include')), reason: section);
+      }
+    },
+  );
+
   test('RECEIVE_SMS is not declared (no SMS receiver exists)', () {
     expect(manifest.contains('RECEIVE_SMS'), isFalse);
   });
