@@ -53,7 +53,7 @@ class HomeSmsTeaser extends ConsumerWidget {
       child: BrassSmsCard(
         title: 'SMS থেকে নিজে নিজে লেনদেন যোগ করুন',
         subtitle:
-            'bKash, নগদ ও ব্যাংকের মেসেজ থেকে — ফোনের বাইরে কিছু যায় না।',
+            'bKash, নগদ ও ব্যাংকের মেসেজ থেকে। আপনার হিসাব ফোনেই থাকে; ব্যাকআপ চালু করলে আপনার Google Drive-এ।',
         actionLabel: 'চালু করুন',
         onAction: AppShellNavigation.openSmsImport,
       ),

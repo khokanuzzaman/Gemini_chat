@@ -461,6 +461,25 @@ no uid sent to it, no `users/{uid}/subscription` writes) and everyone is "free".
 - To sell something later: set the flag, pass `REVENUECAT_PUBLIC_SDK_KEY`, create the
   Play subscriptions + RevenueCat offering, and review the Data Safety form.
 
+## Privacy claims in UI copy — keep them true
+
+What is actually true today (keep copy within it):
+
+- The hisab lives in the on-device database. It leaves the phone **only** if the user
+  turns on / runs a Google Drive backup (to **their own** Drive), or signs in (a
+  Firebase Auth user + usage counters), or opts in to anonymous analytics (on by
+  default, switchable).
+- SMS **text** is never stored, backed up or sent (see "SMS bodies are not stored").
+  The *parsed* fields (amount, date, sender, reference…) are ordinary records and DO go
+  into a backup like any other.
+- The database is **not** encrypted at rest and the backup is not secret (see
+  "Backup: where it goes"). So never write "সুরক্ষিত", "নিরাপদ", "encrypted",
+  "কোথাও যায় না", "end-to-end" about data. Say where it is ("ফোনেই থাকে", "আপনার
+  নিজের Google Drive-এ").
+
+Audit of the existing claims (when this was written) is in the commit that fixed
+Home's SMS teaser; re-grep `ফোনেই|সুরক্ষিত|নিরাপদ|কোথাও|পাঠানো|আপলোড` when adding copy.
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
