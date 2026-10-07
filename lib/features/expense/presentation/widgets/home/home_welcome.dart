@@ -47,7 +47,7 @@ class HomeWelcome extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'আপনার খরচ, আয় আর সম্পদ — এক জায়গায়, ফোনেই নিরাপদ।',
+                'আপনার খরচ, আয় আর সম্পদ — এক জায়গায়, ফোনেই থাকে।',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: tokens.onHeroMuted,

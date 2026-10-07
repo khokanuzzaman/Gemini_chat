@@ -43,7 +43,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       subtitle:
           'bKash, নগদ, রকেট ও ব্যাংকের SMS পড়ে আমরা লেনদেন স্বয়ংক্রিয়ভাবে ধরি। টাইপ করার ঝামেলা নেই।',
       privacyNote:
-          'আপনার SMS ফোনেই পড়া হয় — কোথাও পাঠানো বা আপলোড করা হয় না।',
+          'আপনার SMS ফোনেই পড়া হয়; মেসেজের লেখা সংরক্ষণ বা আপলোড করা হয় না।',
       bullets: const [
         (emoji: '⚡', text: 'নতুন লেনদেন সাথে সাথে ধরা পড়ে'),
         (emoji: '🏦', text: 'bKash · নগদ · রকেট · ব্যাংক'),
@@ -57,7 +57,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       bullets: const [
         (emoji: '💵', text: 'ক্যাশ ও মোবাইল ব্যাংকিং একসাথে'),
         (emoji: '⚖️', text: 'ব্যালেন্স সবসময় মিলে যায়'),
-        (emoji: '🔒', text: 'সব ডেটা আপনার ফোনে সুরক্ষিত'),
+        (emoji: '📱', text: 'সব ডেটা আপনার ফোনেই থাকে'),
       ],
     ),
   ];

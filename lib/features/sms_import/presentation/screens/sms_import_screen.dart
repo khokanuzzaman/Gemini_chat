@@ -457,7 +457,7 @@ class _SmsImportScreenState extends ConsumerState<SmsImportScreen>
           Text(
             outcome.hasFailures
                 ? 'যেগুলো ব্যর্থ হয়েছে, সেগুলো তালিকায় রয়ে গেছে। edit করে আবার import করতে পারবেন।'
-                : 'সব নির্বাচিত SMS নিরাপদে সংরক্ষণ হয়েছে।',
+                : 'সব নির্বাচিত SMS সংরক্ষণ হয়েছে।',
             style: AppTextStyles.bodyMedium.copyWith(
               color: context.secondaryTextColor,
               height: 1.45,
