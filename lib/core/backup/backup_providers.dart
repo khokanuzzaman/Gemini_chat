@@ -742,16 +742,16 @@ String _progressDetail(BackupProgressState progress) {
     BackupProgressStage.preparing => 'প্রস্তুতি নেওয়া হচ্ছে',
     BackupProgressStage.exporting => 'ডেটা এক্সপোর্ট করা হচ্ছে',
     BackupProgressStage.compressing => 'ডেটা কম্প্রেস করা হচ্ছে',
-    BackupProgressStage.encrypting => 'ডেটা এনক্রিপ্ট করা হচ্ছে',
+    BackupProgressStage.encrypting => 'ব্যাকআপ ফাইল তৈরি হচ্ছে',
     BackupProgressStage.uploading => 'Google Drive-এ আপলোড করা হচ্ছে',
     BackupProgressStage.downloading => 'Google Drive থেকে ডাউনলোড করা হচ্ছে',
-    BackupProgressStage.decrypting => 'ডেটা ডিক্রিপ্ট করা হচ্ছে',
+    BackupProgressStage.decrypting => 'ব্যাকআপ ফাইল পড়া হচ্ছে',
     BackupProgressStage.decoding => 'ব্যাকআপ ফাইল খোলা হচ্ছে',
     BackupProgressStage.importing => 'ডেটা রিস্টোর করা হচ্ছে',
     BackupProgressStage.finalizing => 'শেষ কাজগুলো সম্পন্ন হচ্ছে',
     BackupProgressStage.completed
         when progress.operation == BackupOperationKind.backup =>
-      'ব্যাকআপ নিরাপদে সংরক্ষণ করা হয়েছে',
+      'ব্যাকআপ আপনার Google Drive-এ সংরক্ষণ করা হয়েছে',
     BackupProgressStage.completed => 'Drive ব্যাকআপ থেকে ডেটা ফিরে এসেছে',
     BackupProgressStage.failed
         when progress.operation == BackupOperationKind.backup =>

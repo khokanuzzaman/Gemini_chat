@@ -383,7 +383,7 @@ class BackupScreen extends ConsumerWidget {
                 leadingIcon: Icons.delete_forever_rounded,
                 leadingColor: AppColors.error,
                 title: 'সব ব্যাকআপ মুছুন',
-                subtitle: 'Google Drive appDataFolder থেকে সব ব্যাকআপ মুছে দিন',
+                subtitle: 'আপনার Google Drive থেকে সব ব্যাকআপ মুছে দিন',
                 trailing: Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.error,
@@ -671,7 +671,7 @@ class _BackupProgressCard extends StatelessWidget {
     final stageLabel = _stageLabel(progress.stage);
     final helperText = switch (progress.operation) {
       BackupOperationKind.backup =>
-        'Encrypted কপি Google Drive appDataFolder-এ যাচ্ছে',
+        'ব্যাকআপ আপনার নিজের Google Drive-এ যাচ্ছে',
       BackupOperationKind.restore =>
         'রিস্টোর শেষ না হওয়া পর্যন্ত এই স্ক্রিন খোলা রাখুন',
     };
@@ -833,14 +833,14 @@ class _BackupHeroCard extends StatelessWidget {
       _ => 'প্রস্তুত',
     };
     final subtitle = switch ((state.isSignedIn, activeProgress != null)) {
-      (false, _) => 'একবার সাইন ইন করলে encrypted backup আপনার Drive-এ থাকবে',
+      (false, _) => 'একবার সাইন ইন করলে ব্যাকআপ আপনার নিজের Google Drive-এ থাকবে',
       (true, true) =>
         '${state.progressDetail ?? 'ব্যাকআপ প্রস্তুত হচ্ছে'} · ${BanglaFormatters.count(activeProgress!.currentStep)}/${BanglaFormatters.count(activeProgress!.totalSteps)} ধাপ',
       _ when state.cloudBackupInfo != null =>
         'সর্বশেষ ক্লাউড কপি ${formatDateTime(state.cloudBackupInfo!.modifiedAt)}',
       _ when state.lastBackupTime != null =>
         'শেষ সফল ব্যাকআপ ${formatDateTime(state.lastBackupTime!)}',
-      _ => 'নতুন ব্যাকআপ নিলে encrypted কপি appDataFolder-এ যাবে',
+      _ => 'নতুন ব্যাকআপ নিলে কপি আপনার নিজের Google Drive-এ যাবে',
     };
     final gradient = switch ((state.isSignedIn, activeProgress?.operation)) {
       (false, _) => AppGradients.warning,
@@ -953,10 +953,10 @@ String _stageLabel(BackupProgressStage stage) {
     BackupProgressStage.preparing => 'প্রস্তুতি',
     BackupProgressStage.exporting => 'এক্সপোর্ট',
     BackupProgressStage.compressing => 'কম্প্রেস',
-    BackupProgressStage.encrypting => 'এনক্রিপ্ট',
+    BackupProgressStage.encrypting => 'ফাইল তৈরি',
     BackupProgressStage.uploading => 'আপলোড',
     BackupProgressStage.downloading => 'ডাউনলোড',
-    BackupProgressStage.decrypting => 'ডিক্রিপ্ট',
+    BackupProgressStage.decrypting => 'ফাইল খোলা',
     BackupProgressStage.decoding => 'ডিকোড',
     BackupProgressStage.importing => 'ইমপোর্ট',
     BackupProgressStage.finalizing => 'শেষ ধাপ',

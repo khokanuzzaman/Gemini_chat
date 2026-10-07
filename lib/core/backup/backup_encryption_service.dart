@@ -17,7 +17,7 @@ class BackupEncryptionService {
 
   Uint8List decrypt(Uint8List data, String userId) {
     if (data.length < 17) {
-      throw const FormatException('Encrypted backup is invalid.');
+      throw const FormatException('Backup file is invalid.');
     }
 
     final keyBytes = _deriveKey(userId);

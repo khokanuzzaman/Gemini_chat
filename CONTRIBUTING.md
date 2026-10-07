@@ -395,6 +395,26 @@ account mask), the **signature** used for duplicate detection, and `matchHints`.
 - Copy that says the message stays on the phone must stay true: see the privacy
   copy audit in the commit that fixed Home's SMS teaser.
 
+## Backup: where it goes, and what we do NOT claim about it
+
+- A backup is one file in the user's **own** Google Drive app-data folder
+  (`appDataFolder`, only this app can see it with the user's token). That is the
+  only thing the UI says: "আপনার নিজের Google Drive-এ".
+- The file is AES-256-CBC encrypted client-side, **but the key is
+  `SHA-256("pocketpilot_" + Firebase uid)`** (`BackupEncryptionService._deriveKey`).
+  The uid is not a secret (it is in the Firebase console and in the token), there is
+  no KDF and no integrity tag. So it protects against casual reading of the file,
+  **not** against anyone who has the file and the uid — including the developer.
+- Therefore **no user-visible text may say "encrypted" / "এনক্রিপ্টেড" / "সুরক্ষিত
+  ব্যাকআপ"**, and the Play Data Safety form must not claim end-to-end or
+  developer-blind encryption. `test/core/backup/backup_copy_test.dart` fails the
+  build if a string literal in `lib/` says encrypt/decrypt.
+- **No crypto change in Phase 1.** A possible later option is a user passphrase
+  (PBKDF2/Argon2 → AES-GCM), which would be a new file format version and a restore
+  prompt; only then may copy mention encryption (and the test above gets relaxed on
+  purpose).
+- SMS text is no longer in backups at all (see "SMS bodies are not stored").
+
 ## Store prep — must declare
 - **Play Data Safety must declare usage analytics (added in slice g).** The app
   collects **anonymous app-activity / usage analytics** via Firebase Analytics
