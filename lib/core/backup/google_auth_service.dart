@@ -103,7 +103,7 @@ class GoogleAuthService {
 
   Future<http.Client?> getDriveHttpClient() async {
     if (_googleSignIn.currentUser == null) {
-      await _googleSignIn.signInSilently(suppressErrors: true);
+      await _silentAccount();
     }
     await _ensureDriveScopes();
     return _googleSignIn.authenticatedClient();
@@ -115,9 +115,28 @@ class GoogleAuthService {
 
   String? get displayName => _firebaseAuth.currentUser?.displayName;
 
-  Future<void> signInSilently() async {
+  /// The plugin allows ONE silent sign-in at a time and rejects the second with
+  /// "Concurrent operations detected" (seen in logcat at app start, where Home,
+  /// the backup notifier and the auto-backup guard all ask at once). Callers that
+  /// arrive while one is running share it.
+  Future<void>? _silentSignInInFlight;
+  Future<GoogleSignInAccount?>? _silentAccountInFlight;
+
+  Future<GoogleSignInAccount?> _silentAccount() {
+    return _silentAccountInFlight ??= _googleSignIn
+        .signInSilently(suppressErrors: true)
+        .whenComplete(() => _silentAccountInFlight = null);
+  }
+
+  Future<void> signInSilently() {
+    return _silentSignInInFlight ??= _signInSilentlyOnce().whenComplete(
+      () => _silentSignInInFlight = null,
+    );
+  }
+
+  Future<void> _signInSilentlyOnce() async {
     try {
-      final account = await _googleSignIn.signInSilently(suppressErrors: true);
+      final account = await _silentAccount();
       if (account == null) {
         return;
       }

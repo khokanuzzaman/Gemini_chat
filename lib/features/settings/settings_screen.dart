@@ -36,6 +36,7 @@ import 'budget_settings_screen.dart';
 import 'account_deletion_flow.dart';
 import 'local_data_wipe.dart';
 import '../../core/assets/app_icon.dart';
+import '../../core/utils/category_display_name.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -270,6 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: _TrailingDropdown<String>(
                   value: defaultCategory,
                   items: categoryNames,
+                  itemLabelBuilder: categoryDisplayName,
                   onChanged: (value) async {
                     setState(() {
                       _defaultCategory = value;
