@@ -82,6 +82,25 @@ void main() {
     });
   });
 
+  test('every icon the manifest names exists (icon and roundIcon)', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    final refs = RegExp(
+      r'android:(?:icon|roundIcon)="@mipmap/(\w+)"',
+    ).allMatches(manifest).map((m) => m.group(1)!).toSet();
+    expect(refs, containsAll(['ic_launcher', 'ic_launcher_round']));
+    for (final name in refs) {
+      final found = Directory(res).listSync().whereType<Directory>().any(
+        (d) =>
+            d.path.contains('mipmap-') &&
+            (File('${d.path}/$name.png').existsSync() ||
+                File('${d.path}/$name.xml').existsSync()),
+      );
+      expect(found, isTrue, reason: '@mipmap/$name is referenced but missing');
+    }
+  });
+
   group('Android splash', () {
     test('12+ : splash_mark on #5647C4, in light AND dark', () {
       for (final dir in ['values-v31', 'values-night-v31']) {
