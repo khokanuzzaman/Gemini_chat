@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/analytics/analytics_providers.dart';
+import '../../core/assets/app_icon.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../../core/sms/sms_permission_handler.dart';
@@ -27,6 +28,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pages = [
     _OnboardingData(
       emoji: '💰',
+      showLogo: true,
       gradient: AppGradients.primary,
       title: 'বাংলায় টাকার হিসাব,\nপ্রায় নিজে নিজেই',
       subtitle: 'কষ্ট ছাড়াই খরচ ও আয় ট্র্যাক করুন — বাংলায়।',
@@ -271,21 +273,23 @@ class _OnboardingPage extends StatelessWidget {
             AppFadeSlideIn(
               offset: const Offset(0, 0.12),
               child: Center(
-                child: Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    gradient: data.gradient,
-                    shape: BoxShape.circle,
-                    boxShadow: context.elevationLevel(3),
-                  ),
-                  child: Center(
-                    child: Text(
-                      data.emoji,
-                      style: const TextStyle(fontSize: 64),
-                    ),
-                  ),
-                ),
+                child: data.showLogo
+                    ? const PocketPilotLogo(size: 160, showShadow: true)
+                    : Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          gradient: data.gradient,
+                          shape: BoxShape.circle,
+                          boxShadow: context.elevationLevel(3),
+                        ),
+                        child: Center(
+                          child: Text(
+                            data.emoji,
+                            style: const TextStyle(fontSize: 64),
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -397,6 +401,7 @@ class _OnboardingData {
     required this.subtitle,
     required this.emoji,
     required this.gradient,
+    this.showLogo = false,
     required this.bullets,
     this.privacyNote,
   });
@@ -405,6 +410,9 @@ class _OnboardingData {
   final String subtitle;
   final String emoji;
   final LinearGradient gradient;
+
+  /// The welcome page shows the app mark instead of an emoji.
+  final bool showLogo;
   final List<({String emoji, String text})> bullets;
 
   /// Optional prominent on-device privacy line (used on the SMS pitch screen).

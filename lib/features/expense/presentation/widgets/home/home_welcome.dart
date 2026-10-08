@@ -6,6 +6,7 @@ import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../wallet/presentation/screens/wallet_management_screen.dart';
 import '../../screens/manual_add_screen.dart';
+import '../../../../../core/assets/app_icon.dart';
 
 /// First run (zero expenses AND zero income): never a blank page. A welcome hero
 /// with the app mark, three guided first steps, and one primary action.
@@ -23,20 +24,7 @@ class HomeWelcome extends StatelessWidget {
           decoration: context.heroCardDecoration(),
           child: Column(
             children: [
-              // Placeholder mark — the real logo lands in its own slice.
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: tokens.onHero.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: tokens.onHero,
-                  size: 28,
-                ),
-              ),
+              const PocketPilotLogo(size: 64),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'PocketPilot-এ স্বাগতম',

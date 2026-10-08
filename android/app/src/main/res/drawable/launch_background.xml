@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Pre-Android-12 launch screen: icon_rounded centred on the light canvas
+     (#F3F1FA). The dark twin is drawable-night/. Android 12+ shows the system
+     splash instead (values-v31/styles.xml). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <item android:drawable="@color/launch_canvas" />
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/splash_icon" />
+    </item>
 </layer-list>

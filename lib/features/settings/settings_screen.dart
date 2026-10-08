@@ -35,6 +35,7 @@ import 'backup_screen.dart';
 import 'budget_settings_screen.dart';
 import 'account_deletion_flow.dart';
 import 'local_data_wipe.dart';
+import '../../core/assets/app_icon.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -435,6 +436,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context: context,
               applicationName: AppStrings.appName,
               applicationVersion: _version,
+              applicationIcon: const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: PocketPilotLogo(size: 56),
+              ),
             ),
           ),
           AppListTile(

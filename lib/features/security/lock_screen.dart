@@ -6,6 +6,7 @@ import '../../core/security/biometric_provider.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../../core/assets/app_icon.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key, required this.onUnlocked});
@@ -58,27 +59,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 92,
-                          height: 92,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              '৳',
-                              style: TextStyle(
-                                fontSize: 44,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
+                        const PocketPilotLogo(size: 92),
                         const SizedBox(height: AppSpacing.xl),
                         Text(
                           'PocketPilot AI',

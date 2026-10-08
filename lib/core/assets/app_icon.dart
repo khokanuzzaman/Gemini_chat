@@ -1,57 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../constants/app_strings.dart';
 import '../theme/app_theme.dart';
 
+/// The PocketPilot mark, drawn from the brand SVG (assets/brand/icon_rounded.svg —
+/// the source of truth; do not redraw it). The rounded corners are part of the art.
 class PocketPilotLogo extends StatelessWidget {
-  const PocketPilotLogo({
-    super.key,
-    this.size = 44,
-    this.showShadow = false,
-    this.borderRadius,
-  });
+  const PocketPilotLogo({super.key, this.size = 44, this.showShadow = false});
+
+  static const assetPath = 'assets/brand/icon_rounded.svg';
 
   final double size;
   final bool showShadow;
-  final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? BorderRadius.circular(size * 0.28);
-    final shadowColor = context.isDarkMode
-        ? AppColors.darkPrimary.withValues(alpha: 0.28)
-        : AppColors.primary.withValues(alpha: 0.14);
-
-    return Container(
+    final mark = SvgPicture.asset(
+      assetPath,
       width: size,
       height: size,
+      semanticsLabel: AppStrings.appName,
+    );
+    if (!showShadow) {
+      return mark;
+    }
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: radius,
-        boxShadow: showShadow
-            ? [
-                BoxShadow(
-                  color: shadowColor,
-                  blurRadius: 20,
-                  offset: Offset(0, 8),
-                ),
-              ]
-            : null,
+        borderRadius: BorderRadius.circular(size * 0.22),
+        boxShadow: context.elevationLevel(2),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        '৳',
-        style: TextStyle(
-          color: AppColors.userBubbleTextLight,
-          fontSize: size * 0.52,
-          fontWeight: FontWeight.w800,
-          height: 1,
-        ),
-      ),
+      child: mark,
     );
   }
 }

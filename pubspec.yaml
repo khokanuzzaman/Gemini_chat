@@ -71,6 +71,7 @@ dependencies:
   share_plus: ^10.0.0
   shimmer: ^3.0.0
   timezone: ^0.9.4
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   fake_cloud_firestore: ^3.1.0
@@ -103,7 +104,10 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/icon/
+    # In-app logo only. The PNGs, adaptive/splash layers and the Play icon in
+    # assets/brand/ feed the native resources and the store listing; they are
+    # not bundled into the app.
+    - assets/brand/icon_rounded.svg
     - assets/fonts/licenses/
 
   # Bundled fonts (offline-first: never fetched at runtime). All three are

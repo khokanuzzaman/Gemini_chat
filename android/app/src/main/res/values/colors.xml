@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1A73E8</color>
+    <!-- Brand (assets/brand/README.md): splash colour, and the canvas the
+         pre-Android-12 launch screen is drawn on (light here, dark in values-night). -->
+    <color name="splash_brand">#5647C4</color>
+    <color name="launch_canvas">#F3F1FA</color>
 </resources>

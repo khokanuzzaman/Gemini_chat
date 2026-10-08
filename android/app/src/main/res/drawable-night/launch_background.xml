@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 launch screen: icon_rounded centred on the dark canvas
+     (#14121F). The light twin is drawable/. Android 12+ shows the system
+     splash instead (values-v31/styles.xml). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_canvas" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_icon" />
+    </item>
+</layer-list>
