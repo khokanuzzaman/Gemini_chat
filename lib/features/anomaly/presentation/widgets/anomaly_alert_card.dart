@@ -6,6 +6,7 @@ import '../../../../core/utils/bangla_formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/anomaly_alert.dart';
 import '../providers/anomaly_provider.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 class AnomalyAlertCard extends ConsumerWidget {
   const AnomalyAlertCard({
@@ -107,8 +108,8 @@ class AnomalyAlertCard extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       alert.relatedDate == null
-                          ? _categoryDisplayName(alert.category)
-                          : '${_categoryDisplayName(alert.category)} · ${BanglaFormatters.dayMonth(alert.relatedDate!)}',
+                          ? categoryDisplayName(alert.category)
+                          : '${categoryDisplayName(alert.category)} · ${BanglaFormatters.dayMonth(alert.relatedDate!)}',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: context.secondaryTextColor,
                       ),
@@ -214,25 +215,5 @@ String _categoryEmoji(String category) {
       return '🎬';
     default:
       return '💸';
-  }
-}
-
-String _categoryDisplayName(String category) {
-  switch (category.trim().toLowerCase()) {
-    case 'food':
-      return 'খাবার';
-    case 'transport':
-      return 'যাতায়াত';
-    case 'shopping':
-      return 'কেনাকাটা';
-    case 'healthcare':
-      return 'স্বাস্থ্য';
-    case 'bill':
-    case 'bills':
-      return 'বিল';
-    case 'entertainment':
-      return 'বিনোদন';
-    default:
-      return category;
   }
 }

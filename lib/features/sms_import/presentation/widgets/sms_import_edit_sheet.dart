@@ -11,6 +11,7 @@ import '../../../income/domain/entities/income_source.dart';
 import '../../../wallet/presentation/widgets/wallet_selector.dart';
 import '../models/sms_import_models.dart';
 import 'sms_parsed_summary.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 Future<SmsImportDraft?> showSmsImportEditSheet(
   BuildContext context, {
@@ -135,7 +136,7 @@ class _SmsImportEditSheetState extends ConsumerState<_SmsImportEditSheet> {
               children: [
                 for (final category in categoryNames)
                   AppChip(
-                    label: category,
+                    label: categoryDisplayName(category),
                     color: resolveExpenseCategory(category).color,
                     selected: _draft.category == category,
                     onTap: () {

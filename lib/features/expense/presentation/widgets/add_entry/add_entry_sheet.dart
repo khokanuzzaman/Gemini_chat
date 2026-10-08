@@ -25,6 +25,10 @@ import 'entry_form_parts.dart';
 import 'entry_type.dart';
 import 'entry_type_toggle.dart';
 import 'last_used_choice.dart';
+import '../../../../../core/utils/category_display_name.dart';
+
+export '../../../../../core/utils/category_display_name.dart'
+    show categoryDisplayName;
 
 /// Opens the add sheet (খরচ | আয়) and, when something was saved, shows the matching
 /// confirmation. The ONE way to add an expense or income by hand: Home FAB, the
@@ -533,34 +537,5 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         ),
       ),
     );
-  }
-}
-
-/// Bengali label for a category name (the stored value stays as is).
-String categoryDisplayName(String category) {
-  switch (category.trim().toLowerCase()) {
-    case 'food':
-      return 'খাবার';
-    case 'transport':
-      return 'যাতায়াত';
-    case 'shopping':
-      return 'কেনাকাটা';
-    case 'healthcare':
-      return 'স্বাস্থ্য';
-    case 'bill':
-    case 'bills':
-      return 'বিল';
-    case 'entertainment':
-      return 'বিনোদন';
-    case 'education':
-      return 'শিক্ষা';
-    case 'travel':
-      return 'ভ্রমণ';
-    case 'rent':
-      return 'ভাড়া';
-    case 'other':
-      return 'অন্যান্য';
-    default:
-      return category;
   }
 }

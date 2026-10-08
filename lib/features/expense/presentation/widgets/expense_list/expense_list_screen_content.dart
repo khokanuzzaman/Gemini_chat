@@ -112,7 +112,7 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
     final wallet = expense.walletId == null
         ? null
         : walletById[expense.walletId];
-    final categoryLabel = _categoryDisplayName(expense.category);
+    final categoryLabel = categoryDisplayName(expense.category);
     final description = expense.description.trim();
     return ActivityEntry(
       item: RecentActivityItem(
@@ -469,7 +469,7 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
     final parts = <String>[];
 
     if (filter.category != null) {
-      parts.add('ক্যাটাগরি: ${_categoryDisplayName(filter.category!)}');
+      parts.add('ক্যাটাগরি: ${categoryDisplayName(filter.category!)}');
     }
     if (filter.walletId != null) {
       final wallets = ref.read(walletProvider).valueOrNull;
@@ -657,7 +657,7 @@ class _ExpenseTopPanel extends ConsumerWidget {
                 final category = categories[index - 1];
                 final meta = resolveExpenseCategory(category.name);
                 return AppChip(
-                  label: _categoryDisplayName(category.name),
+                  label: categoryDisplayName(category.name),
                   emoji: _categoryEmoji(category.name),
                   color: meta.color,
                   selected: filter.category == category.name,
@@ -792,7 +792,6 @@ class _SummaryLoading extends StatelessWidget {
   }
 }
 
-
 String _categoryEmoji(String category) {
   switch (category.trim().toLowerCase()) {
     case 'food':
@@ -828,33 +827,5 @@ String _categoryEmoji(String category) {
       return '🧾';
     default:
       return '💸';
-  }
-}
-
-String _categoryDisplayName(String category) {
-  switch (category.trim().toLowerCase()) {
-    case 'food':
-      return 'খাবার';
-    case 'transport':
-      return 'যাতায়াত';
-    case 'shopping':
-      return 'কেনাকাটা';
-    case 'healthcare':
-      return 'স্বাস্থ্য';
-    case 'bill':
-    case 'bills':
-      return 'বিল';
-    case 'entertainment':
-      return 'বিনোদন';
-    case 'education':
-      return 'শিক্ষা';
-    case 'travel':
-      return 'ভ্রমণ';
-    case 'rent':
-      return 'ভাড়া';
-    case 'other':
-      return 'অন্যান্য';
-    default:
-      return category;
   }
 }

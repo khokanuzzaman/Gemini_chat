@@ -657,7 +657,7 @@ class _SelectedExpenseTile extends StatelessWidget {
       leadingColor: meta.color,
       title: expense.description,
       subtitle:
-          '${_categoryDisplayName(expense.category)} · ${BanglaFormatters.time(expense.date)}',
+          '${categoryDisplayName(expense.category)} · ${BanglaFormatters.time(expense.date)}',
       trailingAmount: expense.amount,
       trailingAmountIsExpense: true,
       dense: true,
@@ -892,7 +892,7 @@ class _CategoryProgressRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _categoryDisplayName(entry.key),
+                    categoryDisplayName(entry.key),
                     style: AppTextStyles.titleMedium.copyWith(
                       color: context.primaryTextColor,
                     ),
@@ -991,7 +991,7 @@ class _ComparisonRow extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                _categoryDisplayName(category),
+                categoryDisplayName(category),
                 style: AppTextStyles.titleMedium.copyWith(
                   color: context.primaryTextColor,
                 ),
@@ -1584,7 +1584,9 @@ class _IncomeSourceRow extends StatelessWidget {
             ),
             Text(
               '${(percentage * 100).toStringAsFixed(0)}%',
-              style: AppTextStyles.chipLabel.copyWith(color: context.tokens.successText),
+              style: AppTextStyles.chipLabel.copyWith(
+                color: context.tokens.successText,
+              ),
             ),
           ],
         ),
@@ -1951,33 +1953,5 @@ String _categoryEmoji(String category) {
       return '🧾';
     default:
       return '💸';
-  }
-}
-
-String _categoryDisplayName(String category) {
-  switch (category.trim().toLowerCase()) {
-    case 'food':
-      return 'খাবার';
-    case 'transport':
-      return 'যাতায়াত';
-    case 'shopping':
-      return 'কেনাকাটা';
-    case 'healthcare':
-      return 'স্বাস্থ্য';
-    case 'bill':
-    case 'bills':
-      return 'বিল';
-    case 'entertainment':
-      return 'বিনোদন';
-    case 'education':
-      return 'শিক্ষা';
-    case 'travel':
-      return 'ভ্রমণ';
-    case 'rent':
-      return 'ভাড়া';
-    case 'other':
-      return 'অন্যান্য';
-    default:
-      return category;
   }
 }

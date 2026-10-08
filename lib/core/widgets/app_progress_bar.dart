@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/bangla_formatters.dart';
 
 /// A reusable progress bar with animated fill and optional label.
 class AppProgressBar extends StatelessWidget {
@@ -25,7 +26,8 @@ class AppProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final clamped = value.clamp(0.0, 1.0);
     final fillColor = color ?? context.appColors.primary;
-    final bgColor = backgroundColor ??
+    final bgColor =
+        backgroundColor ??
         fillColor.withValues(alpha: context.isDarkMode ? 0.2 : 0.12);
 
     return Column(
@@ -44,7 +46,7 @@ class AppProgressBar extends StatelessWidget {
                   ),
                 ),
               Text(
-                '${(clamped * 100).toStringAsFixed(0)}%',
+                '${BanglaFormatters.count((clamped * 100).round())}%',
                 style: AppTextStyles.chipLabel.copyWith(color: fillColor),
               ),
             ],
@@ -55,10 +57,7 @@ class AppProgressBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(height / 2),
           child: Stack(
             children: [
-              Container(
-                height: height,
-                color: bgColor,
-              ),
+              Container(height: height, color: bgColor),
               AnimatedFractionallySizedBox(
                 duration: AppMotion.normal,
                 curve: AppMotion.standard,
@@ -67,10 +66,7 @@ class AppProgressBar extends StatelessWidget {
                   height: height,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        fillColor.withValues(alpha: 0.85),
-                        fillColor,
-                      ],
+                      colors: [fillColor.withValues(alpha: 0.85), fillColor],
                     ),
                   ),
                 ),

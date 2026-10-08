@@ -7,6 +7,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/recurring_expense_entity.dart';
 import '../providers/recurring_provider.dart';
 import '../../domain/recurring_schedule.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 class RecurringScreen extends ConsumerWidget {
   const RecurringScreen({super.key});
@@ -204,7 +205,7 @@ class _RecurringExpenseCard extends ConsumerWidget {
                       ),
                     const Spacer(),
                     Text(
-                      _categoryDisplayName(pattern.category),
+                      categoryDisplayName(pattern.category),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: context.secondaryTextColor,
                       ),
@@ -311,25 +312,5 @@ String _categoryEmoji(String category) {
       return '🎬';
     default:
       return '💸';
-  }
-}
-
-String _categoryDisplayName(String category) {
-  switch (category.trim().toLowerCase()) {
-    case 'food':
-      return 'খাবার';
-    case 'transport':
-      return 'যাতায়াত';
-    case 'shopping':
-      return 'কেনাকাটা';
-    case 'healthcare':
-      return 'স্বাস্থ্য';
-    case 'bill':
-    case 'bills':
-      return 'বিল';
-    case 'entertainment':
-      return 'বিনোদন';
-    default:
-      return category;
   }
 }

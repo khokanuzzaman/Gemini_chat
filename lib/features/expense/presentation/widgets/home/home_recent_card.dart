@@ -5,6 +5,7 @@ import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/utils/bangla_formatters.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/recent_activity.dart';
+import '../../../../../core/utils/category_display_name.dart';
 import '../../utils/expense_category_meta.dart';
 
 /// "সাম্প্রতিক লেনদেন": the last 5 expenses and income together. Category icon in
@@ -119,14 +120,18 @@ class HomeActivityRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.title,
+                  // The title falls back to the category name when there is no
+                  // description; show that in Bengali, but never touch user text.
+                  item.title == item.category
+                      ? categoryDisplayName(item.title)
+                      : item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleMedium.copyWith(color: tokens.ink),
                 ),
                 Text(
                   subtitle ??
-                      '${BanglaFormatters.relativeDay(item.date)} · ${item.category}',
+                      '${BanglaFormatters.relativeDay(item.date)} · ${categoryDisplayName(item.category)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodySmall.copyWith(color: tokens.muted),

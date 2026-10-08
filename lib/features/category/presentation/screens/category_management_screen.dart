@@ -7,6 +7,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/category_entity.dart';
 import '../providers/category_provider.dart';
 import '../widgets/add_edit_category_sheet.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 class CategoryManagementScreen extends ConsumerWidget {
   const CategoryManagementScreen({super.key});
@@ -231,7 +232,9 @@ class _CategoryTile extends StatelessWidget {
           size: 20,
         ),
       ),
-      title: category.name,
+      title: category.isDefault
+          ? categoryDisplayName(category.name)
+          : category.name,
       subtitle: category.isDefault ? 'ডিফল্ট ক্যাটাগরি' : 'কাস্টম ক্যাটাগরি',
       trailing: trailing,
     );

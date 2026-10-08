@@ -13,6 +13,7 @@ class AppHeroCard extends StatelessWidget {
     this.gradient,
     this.onTap,
     this.trailing,
+    this.footer,
     this.height = 140,
   });
 
@@ -23,6 +24,9 @@ class AppHeroCard extends StatelessWidget {
   final Gradient? gradient;
   final VoidCallback? onTap;
   final Widget? trailing;
+
+  /// Full-width row under the amount (e.g. a progress bar), inside the card.
+  final Widget? footer;
   final double height;
 
   @override
@@ -118,6 +122,7 @@ class AppHeroCard extends StatelessWidget {
                       ],
                     ],
                   ),
+                  if (footer != null) ...[const SizedBox(height: 12), footer!],
                 ],
               ),
             ),

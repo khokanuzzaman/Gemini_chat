@@ -8,6 +8,7 @@ import '../../core/widgets/widgets.dart';
 import '../budget/presentation/providers/budget_provider.dart';
 import '../category/presentation/providers/category_provider.dart';
 import '../expense/presentation/utils/expense_category_meta.dart';
+import '../../core/utils/category_display_name.dart';
 
 class BudgetSettingsScreen extends ConsumerStatefulWidget {
   const BudgetSettingsScreen({super.key});
@@ -246,7 +247,7 @@ class _BudgetLimitRow extends StatelessWidget {
     return AppListTile(
       leadingIcon: meta.icon,
       leadingColor: meta.color,
-      title: category,
+      title: categoryDisplayName(category),
       subtitle: 'মাসিক সীমা নির্ধারণ করুন',
       trailing: SizedBox(
         width: 124,

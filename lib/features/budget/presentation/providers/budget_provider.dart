@@ -15,11 +15,11 @@ import '../../../../core/usage/usage_limits.dart';
 import '../../../../core/usage/usage_providers.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
-import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../data/datasources/budget_plan_local_datasource.dart';
 import '../../data/datasources/budget_planner_datasource.dart';
 import '../../data/repositories/budget_repository_impl.dart';
+import '../../domain/budget_suggestions.dart';
 import '../../domain/entities/budget_plan_entity.dart';
 import '../../domain/repositories/budget_repository.dart';
 import '../../domain/usecases/deactivate_all_usecase.dart';
@@ -136,6 +136,32 @@ final budgetHealthReportProvider = FutureProvider<BudgetHealthReport>((
     expenseHistoryOrphans: sortedExpenseOrphans,
   );
 });
+
+/// Local, rule-based limit suggestions for the active plan (last-3-months
+/// averages). Read-only: it computes, it never writes.
+final budgetSuggestionsProvider =
+    FutureProvider.autoDispose<List<CategoryLimitSuggestion>>((ref) async {
+      final plan = ref.watch(budgetProvider.select((s) => s.activeBudget));
+      ref.watch(expenseRefreshTokenProvider);
+      if (plan == null) {
+        return const [];
+      }
+      final live = ref
+          .watch(categoryProvider)
+          .map((category) => category.name)
+          .toSet();
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month - suggestionLookbackMonths);
+      final expenses = await ref
+          .watch(expenseRepositoryProvider)
+          .getExpensesByDateRange(start, now);
+      return suggestCategoryLimits(
+        averageByCategory: averageMonthlySpendByCategory(expenses, now: now),
+        currentLimits: plan.categoryBudgets,
+        liveCategoryNames: live,
+        months: monthsOfHistory(expenses, now: now),
+      );
+    });
 
 class BudgetHealthReport {
   const BudgetHealthReport({
@@ -310,7 +336,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
     } catch (_) {
       state = state.copyWith(
         isGenerating: false,
-        error: 'Budget তৈরি করতে সমস্যা হয়েছে',
+        error: 'বাজেট তৈরি করতে সমস্যা হয়েছে',
       );
     }
   }
@@ -490,19 +516,27 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
   Future<Map<String, double>> _getAvgMonthlySpending() async {
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month - 3, 1);
+    final start = DateTime(now.year, now.month - suggestionLookbackMonths);
     final expenses = await ref
         .read(expenseRepositoryProvider)
         .getExpensesByDateRange(start, now);
-    final byCategory = <String, double>{};
-    for (final expense in expenses.inCategoryBudget) {
-      byCategory.update(
-        expense.category,
-        (value) => value + expense.amount,
-        ifAbsent: () => expense.amount,
-      );
+    return averageMonthlySpendByCategory(expenses, now: now);
+  }
+
+  /// Writes the limits the user explicitly chose to apply (a tap on one
+  /// suggestion, or on "all"); nothing else ever writes a suggestion.
+  Future<void> applyLimitSuggestions(
+    Iterable<CategoryLimitSuggestion> suggestions,
+  ) async {
+    final current = state.activeBudget;
+    if (current == null || suggestions.isEmpty) {
+      return;
     }
-    return byCategory.map((key, value) => MapEntry(key, value / 3));
+    await saveCategoryBudgets({
+      ...current.categoryBudgets,
+      for (final suggestion in suggestions)
+        suggestion.category: suggestion.suggestedLimit,
+    });
   }
 
   Future<bool> _consumeAiBudgetUsage() async {
@@ -585,6 +619,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
       );
     }
 
+    // Every limit lands on the ৳100 / ৳500 grid — ৳1,237 is noise.
+    categoryBudgets = categoryBudgets.map(
+      (key, value) => MapEntry(key, roundBudgetLimit(value)),
+    );
+
     for (final category in availableCategories) {
       categoryBudgets.putIfAbsent(category, () => 0.0);
     }
@@ -600,8 +639,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
           .clamp(0.0, income)
           .toDouble();
       final scale = totalBudgeted <= 0 ? 0.0 : targetBudgeted / totalBudgeted;
+      // Floor, not round: rounding up could push the total back over the cap.
       categoryBudgets = categoryBudgets.map(
-        (key, value) => MapEntry(key, value * scale),
+        (key, value) => MapEntry(key, floorBudgetLimit(value * scale)),
       );
       totalBudgeted = categoryBudgets.values.fold<double>(
         0,

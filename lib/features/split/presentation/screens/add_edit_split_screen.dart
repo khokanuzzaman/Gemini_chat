@@ -12,6 +12,7 @@ import '../../../category/presentation/providers/category_provider.dart';
 import '../../domain/entities/split_bill_entity.dart';
 import '../providers/split_bill_provider.dart';
 import '../utils/person_color.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 enum SplitMode { equal, custom }
 
@@ -229,7 +230,7 @@ class _AddEditSplitScreenState extends ConsumerState<AddEditSplitScreen> {
                       children: [
                         for (final category in categories)
                           AppChip(
-                            label: category.name,
+                            label: categoryDisplayName(category.name),
                             color: category.color,
                             selected: _selectedCategory == category.name,
                             onTap: () {

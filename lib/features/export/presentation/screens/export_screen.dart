@@ -9,6 +9,7 @@ import '../../../../core/utils/category_icon.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../category/presentation/providers/category_provider.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key});
@@ -127,7 +128,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                           ),
                           ...categories.map((category) {
                             return AppChip(
-                              label: category.name,
+                              label: categoryDisplayName(category.name),
                               icon: CategoryIcon.getIconData(category.icon),
                               color: category.color,
                               selected:

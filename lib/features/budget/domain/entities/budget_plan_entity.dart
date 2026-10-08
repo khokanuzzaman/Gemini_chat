@@ -102,17 +102,17 @@ enum BudgetRule { fiftyThirtyTwenty, seventyTwentyTen, custom }
 extension BudgetRuleExt on BudgetRule {
   String get label {
     return switch (this) {
-      BudgetRule.fiftyThirtyTwenty => '50/30/20 নিয়ম',
-      BudgetRule.seventyTwentyTen => '70/20/10 নিয়ম',
-      BudgetRule.custom => 'Custom পরিকল্পনা',
+      BudgetRule.fiftyThirtyTwenty => '৫০/৩০/২০ নিয়ম',
+      BudgetRule.seventyTwentyTen => '৭০/২০/১০ নিয়ম',
+      BudgetRule.custom => 'কাস্টম পরিকল্পনা',
     };
   }
 
   String get description {
     return switch (this) {
       BudgetRule.fiftyThirtyTwenty =>
-        '50% প্রয়োজনীয়, 30% ইচ্ছামতো, 20% সঞ্চয়',
-      BudgetRule.seventyTwentyTen => '70% খরচ, 20% সঞ্চয়, 10% বিনিয়োগ',
+        '৫০% প্রয়োজনীয়, ৩০% ইচ্ছামতো, ২০% সঞ্চয়',
+      BudgetRule.seventyTwentyTen => '৭০% খরচ, ২০% সঞ্চয়, ১০% বিনিয়োগ',
       BudgetRule.custom => 'আপনার খরচের ধরন অনুযায়ী তৈরি',
     };
   }
