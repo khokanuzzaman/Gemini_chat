@@ -17,19 +17,12 @@ void main() {
   test('detect identifies category spike using previous 90 day baseline', () {
     final previous90 = List.generate(
       12,
-      (index) => _expense(
-        amount: 500,
-        category: 'Food',
-        daysAgo: 40 + (index * 5),
-      ),
+      (index) =>
+          _expense(amount: 500, category: 'Food', daysAgo: 40 + (index * 5)),
     );
     final last30 = List.generate(
       10,
-      (index) => _expense(
-        amount: 500,
-        category: 'Food',
-        daysAgo: 1 + index,
-      ),
+      (index) => _expense(amount: 500, category: 'Food', daysAgo: 1 + index),
     );
 
     final alerts = service.detect(
@@ -43,6 +36,25 @@ void main() {
     expect(alert.category, 'Food');
     expect(alert.severity, AnomalySeverity.medium);
     expect(alert.ratio, closeTo(2.5, 0.01));
+  });
+
+  test('alert text uses Bengali numerals, % and category names', () {
+    final alerts = service.detect(
+      last30Days: [
+        for (var i = 0; i < 10; i++)
+          _expense(amount: 500, category: 'Food', daysAgo: 1 + i),
+      ],
+      previous90Days: [
+        for (var i = 0; i < 12; i++)
+          _expense(amount: 500, category: 'Food', daysAgo: 40 + i * 5),
+      ],
+    );
+    final spike = alerts.firstWhere(
+      (item) => item.type == AnomalyType.categorySpike,
+    );
+    expect(spike.message, isNot(contains(RegExp('[0-9]'))));
+    expect(spike.message, contains('%'));
+    expect(spike.message, startsWith('খাবার এ'));
   });
 
   test('detect identifies large single transaction outlier', () {
@@ -91,11 +103,8 @@ void main() {
     );
     final previous90 = List.generate(
       8,
-      (index) => _expense(
-        amount: 120,
-        category: 'Transport',
-        daysAgo: 35 + index,
-      ),
+      (index) =>
+          _expense(amount: 120, category: 'Transport', daysAgo: 35 + index),
     );
 
     final alerts = service.detect(
@@ -114,19 +123,12 @@ void main() {
   test('detect returns empty list for normal spending patterns', () {
     final previous90 = List.generate(
       18,
-      (index) => _expense(
-        amount: 250,
-        category: 'Food',
-        daysAgo: 35 + (index * 3),
-      ),
+      (index) =>
+          _expense(amount: 250, category: 'Food', daysAgo: 35 + (index * 3)),
     );
     final last30 = List.generate(
       8,
-      (index) => _expense(
-        amount: 280,
-        category: 'Food',
-        daysAgo: index + 1,
-      ),
+      (index) => _expense(amount: 280, category: 'Food', daysAgo: index + 1),
     );
 
     final alerts = service.detect(

@@ -92,7 +92,7 @@ class ManagedExpenseDetails extends ConsumerWidget {
               '${BanglaFormatters.fullDate(expense.date)} · ${BanglaFormatters.time(expense.date)}',
         ),
         if (wallet != null)
-          _DetailRow(label: 'ওয়ালেট', value: '${wallet.emoji} ${wallet.name}'),
+          _DetailRow(label: 'ওয়ালেট', value: '${wallet.emoji} ${wallet.shownName}'),
         const SizedBox(height: AppSpacing.md),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),

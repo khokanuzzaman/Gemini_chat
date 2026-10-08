@@ -379,8 +379,8 @@ class DebtDetailScreen extends ConsumerWidget {
     final walletLine = wallet == null
         ? null
         : debt.type == DebtType.iOwe
-        ? '${wallet.emoji} ${wallet.name} ওয়ালেটে $amount ফেরত যাবে।'
-        : '${wallet.emoji} ${wallet.name} ওয়ালেট থেকে $amount কমবে।';
+        ? '${wallet.emoji} ${wallet.shownName} ওয়ালেটে $amount ফেরত যাবে।'
+        : '${wallet.emoji} ${wallet.shownName} ওয়ালেট থেকে $amount কমবে।';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {

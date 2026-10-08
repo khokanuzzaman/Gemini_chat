@@ -515,7 +515,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         leadingColor: AppColors.warning,
         title: 'বাজেট সতর্কতা',
         subtitle: settings.budgetAlertEnabled
-            ? 'বাজেটের ${settings.budgetAlertThreshold.toStringAsFixed(0)}% হলে সতর্ক করবে'
+            ? 'বাজেটের ${BanglaFormatters.percent(settings.budgetAlertThreshold)} হলে সতর্ক করবে'
             : 'বাজেট অ্যালার্ট বন্ধ আছে',
         trailing: Switch.adaptive(
           value: settings.budgetAlertEnabled,
@@ -542,7 +542,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 min: 50,
                 max: 100,
                 divisions: 10,
-                label: '${settings.budgetAlertThreshold.toStringAsFixed(0)}%',
+                label: BanglaFormatters.percent(settings.budgetAlertThreshold),
                 onChanged: (value) async {
                   await _updateNotificationSettings(
                     settings.copyWith(budgetAlertThreshold: value),
@@ -550,7 +550,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
               Text(
-                'বর্তমান থ্রেশহোল্ড: ${settings.budgetAlertThreshold.toStringAsFixed(0)}%',
+                'বর্তমান থ্রেশহোল্ড: ${BanglaFormatters.percent(settings.budgetAlertThreshold)}',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: context.secondaryTextColor,
                 ),

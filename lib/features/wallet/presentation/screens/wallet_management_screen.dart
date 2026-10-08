@@ -214,7 +214,7 @@ class _WalletCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    wallet.name,
+                    wallet.shownName,
                     style: AppTextStyles.titleMedium.copyWith(
                       color: Colors.white,
                     ),

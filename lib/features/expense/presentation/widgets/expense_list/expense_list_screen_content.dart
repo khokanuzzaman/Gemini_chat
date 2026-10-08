@@ -126,7 +126,7 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
       ),
       subtitle: [
         categoryLabel,
-        if (wallet != null) '${wallet.emoji} ${wallet.name}',
+        if (wallet != null) '${wallet.emoji} ${wallet.shownName}',
       ].join(' · '),
       time: BanglaFormatters.time(expense.date),
       source: expense,
@@ -483,7 +483,7 @@ class ExpenseListBodyState extends ConsumerState<ExpenseListBody> {
         }
       }
       if (wallet != null) {
-        parts.add('ওয়ালেট: ${wallet.emoji} ${wallet.name}');
+        parts.add('ওয়ালেট: ${wallet.emoji} ${wallet.shownName}');
       }
     }
     if (filter.hasDateRange) {
@@ -627,7 +627,7 @@ class _ExpenseTopPanel extends ConsumerWidget {
 
                   final wallet = wallets[index - 1];
                   return AppChip(
-                    label: wallet.name,
+                    label: wallet.shownName,
                     emoji: wallet.emoji,
                     selected: filter.walletId == wallet.id,
                     onTap: () => walletController.setWallet(wallet.id),

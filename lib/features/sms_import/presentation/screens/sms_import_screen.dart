@@ -776,7 +776,7 @@ class _PendingAutoImportRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amountColor = entry.isIncome ? AppColors.success : AppColors.error;
-    final subtitle = entry.suggestedWallet?.name ?? 'Wallet মেলেনি';
+    final subtitle = entry.suggestedWallet?.shownName ?? 'Wallet মেলেনি';
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 420;
@@ -1160,7 +1160,7 @@ class _CandidateRow extends ConsumerWidget {
                               icon: Icons.account_balance_wallet_outlined,
                               label: wallet == null
                                   ? 'ওয়ালেট ঠিক হয়নি'
-                                  : '${wallet.emoji} ${wallet.name}',
+                                  : '${wallet.emoji} ${wallet.shownName}',
                             ),
                             _MetaPill(
                               icon: Icons.schedule_rounded,

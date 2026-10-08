@@ -189,7 +189,7 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
           ),
           subtitle: [
             label,
-            if (wallet != null) '${wallet.emoji} ${wallet.name}',
+            if (wallet != null) '${wallet.emoji} ${wallet.shownName}',
           ].join(' · '),
           time: BanglaFormatters.time(entry.date),
           source: entry,
@@ -440,7 +440,7 @@ class IncomeListBodyState extends ConsumerState<IncomeListBody> {
               ),
               for (final wallet in wallets)
                 AppChip(
-                  label: wallet.name,
+                  label: wallet.shownName,
                   emoji: wallet.emoji,
                   selected: _selectedWalletId == wallet.id,
                   onTap: () {
@@ -588,7 +588,7 @@ class _IncomeTopPanel extends ConsumerWidget {
 
                   final wallet = wallets[index - 1];
                   return AppChip(
-                    label: wallet.name,
+                    label: wallet.shownName,
                     emoji: wallet.emoji,
                     selected: selectedWalletId == wallet.id,
                     onTap: () => onWalletChanged(wallet.id),

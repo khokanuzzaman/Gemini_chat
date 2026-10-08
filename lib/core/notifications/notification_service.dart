@@ -10,6 +10,7 @@ import '../navigation/app_shell_navigation.dart';
 import '../sms/parsed_transaction.dart';
 import '../sms/sms_import_entry.dart';
 import '../utils/bangla_formatters.dart';
+import '../utils/category_display_name.dart';
 
 class NotificationService {
   NotificationService._();
@@ -210,13 +211,15 @@ class NotificationService {
     required double budget,
     required double percentage,
   }) async {
+    // Display only: the stored key ("Food") stays English, the text is Bengali.
+    final name = categoryDisplayName(category);
     final title = percentage >= 100
-        ? '🚨 $category budget শেষ!'
-        : '⚠️ $category budget সতর্কতা';
+        ? '🚨 $name budget শেষ!'
+        : '⚠️ $name budget সতর্কতা';
 
     final body = percentage >= 100
-        ? '$category এ ৳${spent.toStringAsFixed(0)} খরচ — budget ছাড়িয়ে গেছে'
-        : '$category budget এর ${percentage.toStringAsFixed(0)}% শেষ (৳${spent.toStringAsFixed(0)} / ৳${budget.toStringAsFixed(0)})';
+        ? '$name এ ${BanglaFormatters.currency(spent)} খরচ — budget ছাড়িয়ে গেছে'
+        : '$name budget এর ${BanglaFormatters.percent(percentage)} শেষ (${BanglaFormatters.currency(spent)} / ${BanglaFormatters.currency(budget)})';
 
     await _plugin.show(
       budgetAlertId,
@@ -273,7 +276,7 @@ class NotificationService {
     await _plugin.show(
       anomalyAlertId,
       '⚠️ অস্বাভাবিক খরচ',
-      '$category এ স্বাভাবিকের চেয়ে ${percentage.toStringAsFixed(0)}% বেশি\n$message',
+      '${categoryDisplayName(category)} এ স্বাভাবিকের চেয়ে ${BanglaFormatters.percent(percentage)} বেশি\n$message',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'anomaly_alert',
@@ -340,7 +343,7 @@ class NotificationService {
     await _plugin.show(
       goalReminderPreviewId,
       '🎯 Goal reminder',
-      '$goalTitle — এই মাসে ৳${monthlyNeeded.toStringAsFixed(0)} save করার কথা',
+      '$goalTitle — এই মাসে ${BanglaFormatters.currency(monthlyNeeded)} save করার কথা',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'goal_reminder',
@@ -366,7 +369,7 @@ class NotificationService {
     await _plugin.zonedSchedule(
       notificationId,
       '🎯 Goal reminder',
-      '$goalTitle — এই মাসে ৳${monthlyNeeded.toStringAsFixed(0)} save করার কথা',
+      '$goalTitle — এই মাসে ${BanglaFormatters.currency(monthlyNeeded)} save করার কথা',
       _nextGoalReminderDate(),
       const NotificationDetails(
         android: AndroidNotificationDetails(

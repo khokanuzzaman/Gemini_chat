@@ -27,7 +27,17 @@ class WalletEntity {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  String get displayName => '$emoji $name';
+  /// The name to SHOW. The two seeded defaults are stored in English ("Cash",
+  /// "Bank Account") and the stored value must not change (SMS wallet matching,
+  /// backups and snapshots key on it), so they are translated here, display only.
+  /// Any other name — including one the user typed — is returned as is.
+  String get shownName => switch ((type, name)) {
+    (WalletType.cash, 'Cash') => 'নগদ টাকা',
+    (WalletType.bank, 'Bank Account') => 'ব্যাংক অ্যাকাউন্ট',
+    _ => name,
+  };
+
+  String get displayName => '$emoji $shownName';
 
   WalletEntity copyWith({
     int? id,

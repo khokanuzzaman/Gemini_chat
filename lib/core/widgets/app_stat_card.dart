@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'app_card.dart';
+import '../utils/bangla_formatters.dart';
 
 /// A small stat card showing a single value with a label and optional trend.
 class AppStatCard extends StatelessWidget {
@@ -116,7 +117,7 @@ class _TrendBadge extends StatelessWidget {
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 2),
           Text(
-            '${trend.percentage.abs().toStringAsFixed(0)}%',
+            BanglaFormatters.percent(trend.percentage.abs()),
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,

@@ -107,7 +107,7 @@ class WalletSelectorWidget extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  wallet.name,
+                                  wallet.shownName,
                                   style: TextStyle(
                                     color: isSelected
                                         ? context.tokens.onFill

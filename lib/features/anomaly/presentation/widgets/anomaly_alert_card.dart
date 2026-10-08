@@ -100,7 +100,7 @@ class AnomalyAlertCard extends ConsumerWidget {
                 color: severityColor,
                 showLabel: true,
                 label:
-                    'পরিবর্তন ${(alert.ratio - 1) * 100 >= 0 ? '+' : ''}${((alert.ratio - 1) * 100).toStringAsFixed(0)}%',
+                    'পরিবর্তন ${(alert.ratio - 1) * 100 >= 0 ? '+' : ''}${BanglaFormatters.percent((alert.ratio - 1) * 100)}',
               ),
               const SizedBox(height: AppSpacing.md),
               Row(

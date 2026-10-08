@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import '../../../expense/domain/entities/expense_entity.dart';
 import '../../../expense/domain/entities/expense_source_filters.dart';
 import '../../domain/entities/anomaly_alert.dart';
+import '../../../../core/utils/bangla_formatters.dart';
+import '../../../../core/utils/category_display_name.dart';
 
 class AnomalyDetectionService {
   const AnomalyDetectionService();
@@ -56,9 +58,9 @@ class AnomalyDetectionService {
           normalAmount: historicalMonthly,
           ratio: ratio,
           message:
-              '$category এ স্বাভাবিকের চেয়ে ${((ratio - 1) * 100).toStringAsFixed(0)}% বেশি খরচ হচ্ছে। '
-              'স্বাভাবিক: ৳${historicalMonthly.toStringAsFixed(0)}, '
-              'এই মাসে: ৳${current.toStringAsFixed(0)}',
+              '${categoryDisplayName(category)} এ স্বাভাবিকের চেয়ে ${BanglaFormatters.percent((ratio - 1) * 100)} বেশি খরচ হচ্ছে। '
+              'স্বাভাবিক: ${BanglaFormatters.currency(historicalMonthly)}, '
+              'এই মাসে: ${BanglaFormatters.currency(current)}',
           detectedAt: detectedAt,
         ),
       );
@@ -91,7 +93,7 @@ class AnomalyDetectionService {
             ratio: average <= 0 ? 1 : expense.amount / average,
             message:
                 '${expense.description} এ বড় পরিমাণ খরচ। গড় transaction: '
-                '৳${average.toStringAsFixed(0)}, এটা: ৳${expense.amount.toStringAsFixed(0)}',
+                '${BanglaFormatters.currency(average)}, এটা: ${BanglaFormatters.currency(expense.amount)}',
             detectedAt: detectedAt,
             relatedDate: expense.date,
           ),
@@ -129,9 +131,9 @@ class AnomalyDetectionService {
             ratio: ratio,
             message:
                 '${DateFormat('dd MMMM', 'bn').format(entry.key)} এ স্বাভাবিকের চেয়ে '
-                '${((ratio - 1) * 100).toStringAsFixed(0)}% বেশি খরচ হয়েছে। '
-                'গড় দৈনিক: ৳${avgDaily.toStringAsFixed(0)}, '
-                'ওইদিন: ৳${entry.value.toStringAsFixed(0)}',
+                '${BanglaFormatters.percent((ratio - 1) * 100)} বেশি খরচ হয়েছে। '
+                'গড় দৈনিক: ${BanglaFormatters.currency(avgDaily)}, '
+                'ওইদিন: ${BanglaFormatters.currency(entry.value)}',
             detectedAt: detectedAt,
             relatedDate: entry.key,
           ),

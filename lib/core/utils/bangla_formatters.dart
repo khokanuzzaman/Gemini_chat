@@ -95,6 +95,11 @@ class BanglaFormatters {
     return _numberFormat.format(value);
   }
 
+  /// Whole percent in Bengali numerals, e.g. ৮২%. Rounds; non-finite gives ০%.
+  static String percent(num value) {
+    return '${count(value.isFinite ? value.round() : 0)}%';
+  }
+
   static String relativeFromNow(DateTime time, {DateTime? now}) {
     final reference = now ?? DateTime.now();
     final difference = reference.difference(time);

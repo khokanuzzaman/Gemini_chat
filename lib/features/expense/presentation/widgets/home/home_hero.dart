@@ -112,7 +112,7 @@ class _WalletChip extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${wallet.emoji} ${wallet.name}',
+                  '${wallet.emoji} ${wallet.shownName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption.copyWith(

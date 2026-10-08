@@ -1236,7 +1236,7 @@ class _WalletProgressRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    wallet?.name ?? 'ওয়ালেট ${entry.key}',
+                    wallet?.shownName ?? 'ওয়ালেট ${entry.key}',
                     style: AppTextStyles.titleMedium.copyWith(
                       color: context.primaryTextColor,
                     ),
