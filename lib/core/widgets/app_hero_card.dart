@@ -35,8 +35,14 @@ class AppHeroCard extends StatelessWidget {
         constraints: BoxConstraints(minHeight: height),
         width: double.infinity,
         decoration: context.heroCardDecoration(gradient: gradient),
+        // The decorative circle bleeds off the corner: clip it to the card's own
+        // rounded shape (a bare Container does not clip its child).
+        clipBehavior: Clip.antiAlias,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Stack(
+          // The circle bleeds past the padding box on purpose; the card's own
+          // antiAlias clip (above) is what rounds it, not the Stack's.
+          clipBehavior: Clip.none,
           children: [
             Positioned(
               right: -30,
@@ -58,46 +64,63 @@ class AppHeroCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        label,
-                        style: AppTextStyles.heroLabel.copyWith(
-                          color: context.tokens.onHeroMuted,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (icon != null)
-                        Icon(icon, color: context.tokens.onHeroMuted, size: 20),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
+                      Expanded(
                         child: Text(
-                          amount,
-                          style: AppTextStyles.heroAmount.copyWith(
-                            color: context.tokens.onHero,
-                          ),
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle!,
-                          style: AppTextStyles.bodySmall.copyWith(
+                          label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.heroLabel.copyWith(
                             color: context.tokens.onHeroMuted,
                           ),
                         ),
+                      ),
+                      if (icon != null) ...[
+                        const SizedBox(width: 8),
+                        Icon(icon, color: context.tokens.onHeroMuted, size: 20),
+                      ],
+                    ],
+                  ),
+                  // Amount + subtitle on the left, the optional badge on the right IN
+                  // THE SAME ROW — so the badge can never sit on top of the text,
+                  // whatever the text scale.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                amount,
+                                style: AppTextStyles.heroAmount.copyWith(
+                                  color: context.tokens.onHero,
+                                ),
+                              ),
+                            ),
+                            if (subtitle != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                subtitle!,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: context.tokens.onHeroMuted,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: 12),
+                        trailing!,
                       ],
                     ],
                   ),
                 ],
               ),
             ),
-            if (trailing != null)
-              Positioned(right: 0, bottom: 0, child: trailing!),
           ],
         ),
       ),

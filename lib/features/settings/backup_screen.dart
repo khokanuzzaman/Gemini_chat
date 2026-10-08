@@ -34,6 +34,7 @@ class BackupScreen extends ConsumerWidget {
               formatDateTime: _formatDateTime,
               formatSize: _formatSize,
             ),
+            const SizedBox(height: AppSpacing.md),
             if (backupState.errorMessage != null) ...[
               AppCard(
                 child: Text(
@@ -52,9 +53,9 @@ class BackupScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.account_circle_outlined,
-                          color: AppColors.success,
+                          color: context.tokens.successText,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
@@ -141,7 +142,7 @@ class BackupScreen extends ConsumerWidget {
                     AppListTile(
                       key: const Key('auto-backup-failure'),
                       leadingIcon: Icons.error_outline_rounded,
-                      leadingColor: AppColors.error,
+                      leadingColor: context.tokens.dangerText,
                       title: 'শেষ ব্যাকআপ ব্যর্থ',
                       subtitle:
                           '${_formatDateTime(backupState.autoBackupFailedAt!)} · ${_failureReason(backupState.autoBackupErrorCode)}',
@@ -193,7 +194,7 @@ class BackupScreen extends ConsumerWidget {
                             if (result.success) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  backgroundColor: AppColors.success,
+                                  backgroundColor: context.tokens.successFill,
                                   content: Text(
                                     'ব্যাকআপ সম্পন্ন ✓ (${_formatSize(result.sizeBytes ?? 0)})',
                                   ),
@@ -203,7 +204,7 @@ class BackupScreen extends ConsumerWidget {
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                backgroundColor: AppColors.error,
+                                backgroundColor: context.tokens.dangerFill,
                                 content: Text(
                                   result.errorMessage ??
                                       'ব্যাকআপ সম্পন্ন হয়নি',
@@ -221,14 +222,17 @@ class BackupScreen extends ConsumerWidget {
               child: AppListTile(
                 leadingIcon: Icons.schedule_rounded,
                 title: 'স্বয়ংক্রিয় ব্যাকআপ',
-                subtitle: 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে',
+                subtitle: backupState.isSignedIn
+                    ? 'প্রতিদিন অ্যাপ খোলার সময় ব্যাকআপ হবে'
+                    : 'আগে Google দিয়ে সাইন ইন করুন',
                 trailing: Switch.adaptive(
-                  value: backupState.autoBackupEnabled,
-                  onChanged: backupState.isBusy
+                  value:
+                      backupState.isSignedIn && backupState.autoBackupEnabled,
+                  onChanged: backupState.isBusy || !backupState.isSignedIn
                       ? null
                       : (value) => notifier.setAutoBackupEnabled(value),
                 ),
-                onTap: backupState.isBusy
+                onTap: backupState.isBusy || !backupState.isSignedIn
                     ? null
                     : () => notifier.setAutoBackupEnabled(
                         !backupState.autoBackupEnabled,
@@ -245,15 +249,15 @@ class BackupScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.12),
+                      color: context.tokens.warningSoft,
                       borderRadius: AppRadius.cardAll,
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.warning_amber_rounded,
-                          color: AppColors.warning,
+                          color: context.tokens.warningText,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
@@ -304,8 +308,8 @@ class BackupScreen extends ConsumerWidget {
                             }
                             if (result.success) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: AppColors.success,
+                                SnackBar(
+                                  backgroundColor: context.tokens.successFill,
                                   content: Text('রিস্টোর সম্পন্ন ✓'),
                                 ),
                               );
@@ -313,7 +317,7 @@ class BackupScreen extends ConsumerWidget {
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                backgroundColor: AppColors.error,
+                                backgroundColor: context.tokens.dangerFill,
                                 content: Text(
                                   result.errorMessage ??
                                       'রিস্টোর সম্পন্ন হয়নি',
@@ -332,14 +336,16 @@ class BackupScreen extends ConsumerWidget {
               padding: EdgeInsets.zero,
               child: AppListTile(
                 leadingIcon: Icons.delete_forever_rounded,
-                leadingColor: AppColors.error,
+                leadingColor: context.tokens.dangerText,
                 title: 'সব ব্যাকআপ মুছুন',
-                subtitle: 'আপনার Google Drive থেকে সব ব্যাকআপ মুছে দিন',
+                subtitle: backupState.isSignedIn
+                    ? 'আপনার Google Drive থেকে সব ব্যাকআপ মুছে দিন'
+                    : 'আগে Google দিয়ে সাইন ইন করুন',
                 trailing: Icon(
                   Icons.chevron_right_rounded,
-                  color: AppColors.error,
+                  color: context.tokens.dangerText,
                 ),
-                onTap: backupState.isBusy
+                onTap: backupState.isBusy || !backupState.isSignedIn
                     ? null
                     : () async {
                         final shouldDelete = await _showConfirmDialog(
@@ -366,7 +372,7 @@ class BackupScreen extends ConsumerWidget {
                               'ব্যাকআপ মুছতে সমস্যা হয়েছে';
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              backgroundColor: AppColors.error,
+                              backgroundColor: context.tokens.dangerFill,
                               content: Text(message),
                             ),
                           );
@@ -558,14 +564,10 @@ class _BackupProgressCard extends StatelessWidget {
     };
     final accent = switch (progress.operation) {
       BackupOperationKind.backup => context.appColors.primary,
-      BackupOperationKind.restore => AppColors.warning,
+      BackupOperationKind.restore => context.tokens.warning,
     };
     final gradient = isOverlay
-        ? const LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
+        ? context.primaryGradient
         : LinearGradient(
             colors: [
               accent.withValues(alpha: context.isDarkMode ? 0.22 : 0.14),
@@ -614,7 +616,7 @@ class _BackupProgressCard extends StatelessWidget {
                       title,
                       style: AppTextStyles.titleMedium.copyWith(
                         color: isOverlay
-                            ? Colors.white
+                            ? context.tokens.onHero
                             : context.primaryTextColor,
                       ),
                     ),
@@ -626,7 +628,7 @@ class _BackupProgressCard extends StatelessWidget {
                         key: ValueKey(detail),
                         style: AppTextStyles.bodySmall.copyWith(
                           color: isOverlay
-                              ? Colors.white.withValues(alpha: 0.78)
+                              ? context.tokens.onHeroMuted
                               : context.secondaryTextColor,
                           height: 1.4,
                         ),
@@ -673,7 +675,7 @@ class _BackupProgressCard extends StatelessWidget {
             value: progress.clampedOverallProgress,
             color: accent,
             backgroundColor: isOverlay
-                ? Colors.white.withValues(alpha: 0.18)
+                ? context.tokens.onHero.withValues(alpha: 0.18)
                 : null,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -684,7 +686,7 @@ class _BackupProgressCard extends StatelessWidget {
                   stepText,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: isOverlay
-                        ? Colors.white.withValues(alpha: 0.78)
+                        ? context.tokens.onHeroMuted
                         : context.secondaryTextColor,
                   ),
                 ),
@@ -694,7 +696,7 @@ class _BackupProgressCard extends StatelessWidget {
                   byteText,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: isOverlay
-                        ? Colors.white.withValues(alpha: 0.78)
+                        ? context.tokens.onHeroMuted
                         : context.secondaryTextColor,
                     fontWeight: FontWeight.w600,
                   ),
@@ -706,7 +708,7 @@ class _BackupProgressCard extends StatelessWidget {
             helperText,
             style: AppTextStyles.bodySmall.copyWith(
               color: isOverlay
-                  ? Colors.white.withValues(alpha: 0.72)
+                  ? context.tokens.onHeroMuted
                   : context.secondaryTextColor,
             ),
           ),
@@ -754,21 +756,20 @@ class _BackupHeroCard extends StatelessWidget {
         'শেষ সফল ব্যাকআপ ${formatDateTime(state.lastBackupTime!)}',
       _ => 'নতুন ব্যাকআপ নিলে কপি আপনার নিজের Google Drive-এ যাবে',
     };
-    final gradient = switch ((state.isSignedIn, activeProgress?.operation)) {
-      (false, _) => AppGradients.warning,
-      (_, BackupOperationKind.restore) => AppGradients.warning,
-      (_, BackupOperationKind.backup) => context.primaryGradient,
-      _ when state.cloudBackupInfo != null => AppGradients.success,
-      _ => context.primaryGradient,
-    };
-
     return AppHeroCard(
       label: 'Google Drive ব্যাকআপ',
       amount: amount,
       subtitle: subtitle,
       icon: Icons.cloud_done_rounded,
-      gradient: gradient,
-      trailing: _HeroStatusBadge(state: state, activeProgress: activeProgress),
+      // One hero style for every state (indigo, white text >= 6.8:1). The old
+      // brown "setup needed" gradient put the muted subtitle at ~4.3:1 — below AA —
+      // and state is already in the amount and the badge.
+      gradient: context.primaryGradient,
+      // Signed out there is no badge: the card below is the ONE sign-in action, and a
+      // pill that looks tappable but is not was the duplicate.
+      trailing: state.isSignedIn
+          ? _HeroStatusBadge(state: state, activeProgress: activeProgress)
+          : null,
     );
   }
 }
@@ -781,30 +782,23 @@ class _HeroStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch ((
-      state.isSignedIn,
-      activeProgress?.operation,
-    )) {
-      (false, _) => ('সাইন ইন', const Color(0xFFFFF3BF)),
-      (_, BackupOperationKind.restore) => ('রিস্টোর', const Color(0xFFFFF3BF)),
-      (_, BackupOperationKind.backup) => ('লাইভ', const Color(0xFFD7F7E7)),
-      _ when state.cloudBackupInfo != null => (
-        'ক্লাউড রেডি',
-        const Color(0xFFD7F7E7),
-      ),
-      _ => ('রেডি', const Color(0xFFE6EDFF)),
+    final label = switch (activeProgress?.operation) {
+      BackupOperationKind.restore => 'রিস্টোর',
+      BackupOperationKind.backup => 'লাইভ',
+      _ when state.cloudBackupInfo != null => 'ক্লাউড রেডি',
+      _ => 'রেডি',
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
+        color: context.tokens.onHero.withValues(alpha: 0.16),
         borderRadius: const BorderRadius.all(AppRadius.card),
       ),
       child: Text(
         label,
         style: AppTextStyles.bodySmall.copyWith(
-          color: color,
+          color: context.tokens.onHero,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -828,9 +822,9 @@ class _ProgressBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = isOverlay
-        ? Colors.white.withValues(alpha: 0.1)
+        ? context.tokens.onHero.withValues(alpha: 0.1)
         : color.withValues(alpha: context.isDarkMode ? 0.2 : 0.12);
-    final foreground = isOverlay ? Colors.white : color;
+    final foreground = isOverlay ? context.tokens.onHero : color;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -839,7 +833,7 @@ class _ProgressBadge extends StatelessWidget {
         borderRadius: const BorderRadius.all(AppRadius.chip),
         border: Border.all(
           color: isOverlay
-              ? Colors.white.withValues(alpha: 0.14)
+              ? context.tokens.onHero.withValues(alpha: 0.14)
               : color.withValues(alpha: 0.16),
         ),
       ),

@@ -25,7 +25,15 @@ class AppActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _resolveColors(context);
+    // A button with no action (and not mid-load) must LOOK inert — otherwise a
+    // disabled "back up now" reads as tappable and the tap does nothing.
+    final isDisabled = onPressed == null && !isLoading;
+    final colors = isDisabled
+        ? _ButtonColors(
+            background: context.tokens.surface2,
+            foreground: context.tokens.muted,
+          )
+        : _resolveColors(context);
     final padding = _resolvePadding();
     final textStyle = _resolveTextStyle();
 

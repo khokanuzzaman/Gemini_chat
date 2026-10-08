@@ -26,7 +26,6 @@ const _allowed = <String, int>{
   'lib/features/chat/presentation/widgets/multiple_expense_confirmation_widget.dart':
       9,
   'lib/features/split/presentation/utils/person_color.dart': 8,
-  'lib/features/settings/backup_screen.dart': 7,
   'lib/features/chat/presentation/widgets/income_confirmation_widget.dart': 6,
   'lib/features/debt/presentation/screens/debt_list_screen.dart': 6,
   'lib/features/prediction/domain/entities/prediction_entity.dart': 6,
